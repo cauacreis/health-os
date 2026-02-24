@@ -27,9 +27,9 @@ export default function Sidebar({ tab, setTab, user, onLogout }) {
         <div style={{ display:'flex', alignItems:'center', gap:10 }}>
           <div style={{ width:34, height:34, borderRadius:'50%', background:'rgba(0,255,136,0.1)', border:'1px solid rgba(0,255,136,0.2)', display:'flex', alignItems:'center', justifyContent:'center', overflow:'hidden', flexShrink:0 }}>
             {user.photo
-            ? <img src={user.photo} alt="" onError={e => { e.target.style.display='none' }} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-            : <span style={{ color:'#00ff88', fontSize:15 }}>{user.name[0].toUpperCase()}</span>
-          }
+              ? <img src={user.photo} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+              : <span style={{ color:'#00ff88', fontSize:15 }}>{user.name[0].toUpperCase()}</span>
+            }
           </div>
           <div style={{ minWidth:0 }}>
             <div style={{ color:'#e0e0e0', fontSize:12, fontWeight:700, whiteSpace:'nowrap', overflow:'hidden', textOverflow:'ellipsis' }}>{user.name}</div>

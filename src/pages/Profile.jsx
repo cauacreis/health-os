@@ -76,8 +76,8 @@ export default function Profile({ user, onUpdate }) {
           <div style={{ position:'relative' }}>
             <div style={{ width:110, height:110, borderRadius:'50%', border:'2px solid rgba(0,255,136,0.3)', background:'rgba(0,255,136,0.08)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
               {user.photo
-              ? <img src={user.photo} alt="" onError={e => { e.target.style.display='none' }} style={{ width:'100%', height:'100%', objectFit:'cover' }} />
-              : <span style={{ color:'#00ff88', fontSize:40 }}>{user.name[0].toUpperCase()}</span>
+                ? <img src={user.photo} alt="avatar" style={{ width:'100%', height:'100%', objectFit:'cover' }} />
+                : <span style={{ color:'#00ff88', fontSize:40 }}>{user.name[0].toUpperCase()}</span>
               }
             </div>
             <button onClick={() => fileRef.current.click()} style={{ position:'absolute', bottom:0, right:0, width:28, height:28, borderRadius:'50%', background:'#00ff88', border:'none', cursor:'pointer', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14 }}>
