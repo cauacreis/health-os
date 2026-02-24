@@ -1,0 +1,17 @@
+export const FUN_FACTS = [
+  { icon: '💧', category: 'Hidratação', fact: 'Beber água gelada aumenta levemente o gasto calórico, pois seu corpo gasta energia para aquecer a água até a temperatura corporal.' },
+  { icon: '🚶', category: 'Passos', fact: 'Apenas 22 minutos de caminhada por dia reduz em 30% o risco de doenças cardiovasculares — equivalente a ~3.000 passos extras.' },
+  { icon: '💪', category: 'Treino', fact: 'O músculo continua sendo construído por até 48 horas após o treino. É no descanso, não no treino, que você cresce.' },
+  { icon: '😴', category: 'Sono', fact: 'Dormir menos de 6 horas reduz em até 70% a liberação de GH (hormônio do crescimento), essencial para hipertrofia.' },
+  { icon: '🥗', category: 'Nutrição', fact: 'Mastigar devagar aumenta a saciedade: leva ~20 minutos para o estômago sinalizar ao cérebro que está cheio.' },
+  { icon: '🏃', category: 'Cardio', fact: 'Zona 2 (60–70% FC máx) é a zona de maior oxidação de gordura. Mais eficaz para perda de gordura que o HIIT em sessões isoladas.' },
+  { icon: '🦴', category: 'Treino', fact: 'Exercícios com peso aumentam a densidade óssea. Após os 30 anos perdemos ~1% de massa óssea por ano sem atividade.' },
+  { icon: '🧠', category: 'Saúde', fact: 'Exercício aeróbico aumenta o BDNF (fator neurotrófico), literalmente "regando" novos neurônios e melhorando memória.' },
+  { icon: '⚡', category: 'Metabolismo', fact: 'Cada kg de músculo queima ~13 kcal/dia em repouso. 5kg de músculo = 65 kcal extras por dia sem fazer nada.' },
+  { icon: '🌅', category: 'Hábitos', fact: 'Exposição à luz solar pela manhã regula o cortisol e melhora a qualidade do sono à noite. 10 minutos já fazem diferença.' },
+  { icon: '🥩', category: 'Nutrição', fact: 'Proteína tem efeito térmico de 25–30% — você queima 250–300 kcal só para digerir 1.000 kcal de proteína.' },
+  { icon: '🧘', category: 'Recuperação', fact: 'Alongamento estático pós-treino reduz DOMS (dor muscular tardia) em até 20% e melhora amplitude de movimento.' },
+  { icon: '🫀', category: 'Cardio', fact: 'O coração é o único músculo que nunca descansa. Treino aeróbico aumenta seu volume sistólico — ele bate mais forte com menos esforço.' },
+  { icon: '🥤', category: 'Hidratação', fact: 'Perder apenas 2% do peso em água reduz performance cognitiva e física em até 20%. A sede já é sinal de desidratação.' },
+  { icon: '🏋️', category: 'Treino', fact: 'Tempo sob tensão importa mais que carga. Uma rosca de 20s de excêntrico com 10kg pode superar uma rosca de 2s com 30kg.' },
+]
