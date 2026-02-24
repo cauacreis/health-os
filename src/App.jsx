@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react'
+import { SpeedInsights } from '@vercel/speed-insights/react'
 import { onAuthChange, getProfile, signOut } from './lib/db'
 import { getTheme, setTheme as saveTheme, applyTheme } from './lib/theme'
 import Auth from './pages/Auth'
@@ -82,16 +83,19 @@ export default function App() {
   }
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', minHeight:'100dvh' }}>
-      <Sidebar tab={tab} setTab={setTab} user={profile} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
-      <main style={{ flex:1, overflow:'auto', maxHeight:'100vh', maxHeight:'100dvh', background:'var(--bg)', position:'relative', padding:'clamp(12px,3vw,36px)', paddingBottom:'max(clamp(12px,3vw,36px), calc(72px + env(safe-area-inset-bottom)))' }}>
-        <div style={{ position:'fixed', inset:0, opacity:0.012, pointerEvents:'none', zIndex:0, backgroundImage:'linear-gradient(var(--green) 1px,transparent 1px),linear-gradient(90deg,var(--green) 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
-        <div style={{ position:'relative', zIndex:1 }}>
-          {renderTab()}
-        </div>
-      </main>
-      <MobileNav tab={tab} setTab={setTab} />
-    </div>
+    <>
+      <div style={{ display:'flex', minHeight:'100vh', minHeight:'100dvh' }}>
+        <Sidebar tab={tab} setTab={setTab} user={profile} onLogout={handleLogout} theme={theme} onToggleTheme={toggleTheme} />
+        <main style={{ flex:1, overflow:'auto', maxHeight:'100vh', maxHeight:'100dvh', background:'var(--bg)', position:'relative', padding:'clamp(12px,3vw,36px)', paddingBottom:'max(clamp(12px,3vw,36px), calc(72px + env(safe-area-inset-bottom)))' }}>
+          <div style={{ position:'fixed', inset:0, opacity:0.012, pointerEvents:'none', zIndex:0, backgroundImage:'linear-gradient(var(--green) 1px,transparent 1px),linear-gradient(90deg,var(--green) 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
+          <div style={{ position:'relative', zIndex:1 }}>
+            {renderTab()}
+          </div>
+        </main>
+        <MobileNav tab={tab} setTab={setTab} />
+      </div>
+      <SpeedInsights />
+    </>
   )
 }
 
