@@ -1,16 +1,20 @@
 :root {
-  --bg: #060608;
-  --bg-card: rgba(0,0,0,0.6);
-  --green: #00ff88;
-  --cyan: #00d4ff;
-  --red: #ff6b6b;
-  --orange: #ff9f43;
-  --peach: #f7c59f;
-  --teal: #4ecdc4;
-  --text: #e0e0e0;
-  --muted: #666;
-  --dim: #333;
-  --font: 'Courier New', monospace;
+  --bg:             #060608;
+  --bg-card:        rgba(0,0,0,0.6);
+  --text:           #e0e0e0;
+  --muted:          #666;
+  --dim:            #333;
+  --green:          #00ff88;
+  --cyan:           #00d4ff;
+  --red:            #ff6b6b;
+  --orange:         #ff9f43;
+  --peach:          #f7c59f;
+  --teal:           #4ecdc4;
+  --sidebar-bg:     rgba(0,0,0,0.85);
+  --sidebar-border: rgba(0,255,136,0.07);
+  --input-bg:       rgba(0,255,136,0.04);
+  --card-bg:        rgba(0,0,0,0.6);
+  --font:           'Courier New', monospace;
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -24,12 +28,14 @@ body {
   min-height: 100dvh;
   overflow-x: hidden;
   -webkit-text-size-adjust: 100%;
+  transition: background 0.3s, color 0.3s;
 }
 
 ::-webkit-scrollbar { width: 4px; height: 4px; }
-::-webkit-scrollbar-track { background: #0a0a0c; }
-::-webkit-scrollbar-thumb { background: rgba(0,255,136,0.25); border-radius: 2px; }
+::-webkit-scrollbar-track { background: transparent; }
+::-webkit-scrollbar-thumb { background: rgba(0,255,136,0.2); border-radius: 2px; }
 
+/* ── Buttons ─────────────────────────────────────────── */
 .btn {
   background: transparent;
   border: 1px solid rgba(0,255,136,0.3);
@@ -44,32 +50,31 @@ body {
   transition: all 0.2s;
   touch-action: manipulation;
   -webkit-tap-highlight-color: transparent;
+  min-height: 40px;
 }
-.btn:hover, .btn:active { background: rgba(0,255,136,0.12); box-shadow: 0 0 15px rgba(0,255,136,0.25); }
-.btn-red { border-color: rgba(255,107,107,0.3); color: var(--red); }
-.btn-red:hover, .btn-red:active { background: rgba(255,107,107,0.12); }
+.btn:hover, .btn:active { background: rgba(0,255,136,0.12); box-shadow: 0 0 12px rgba(0,255,136,0.2); }
 
+/* ── Inputs ──────────────────────────────────────────── */
 .input {
-  background: rgba(0,255,136,0.04);
+  background: var(--input-bg);
   border: 1px solid rgba(0,255,136,0.2);
-  color: var(--green);
+  color: var(--text);
   padding: 10px 14px;
   border-radius: 4px;
   font-family: var(--font);
-  font-size: 16px; /* 16px evita zoom automático no iOS */
+  font-size: 16px;
   outline: none;
   width: 100%;
   transition: all 0.2s;
   -webkit-appearance: none;
-  appearance: none;
 }
-.input:focus { border-color: rgba(0,255,136,0.6); box-shadow: 0 0 10px rgba(0,255,136,0.15); }
+.input:focus { border-color: var(--green); box-shadow: 0 0 8px rgba(0,255,136,0.15); }
 .input::placeholder { color: var(--dim); }
 
 .select {
-  background: #0a0a0c;
+  background: var(--bg);
   border: 1px solid rgba(0,255,136,0.2);
-  color: var(--green);
+  color: var(--text);
   padding: 10px 14px;
   border-radius: 4px;
   font-family: var(--font);
@@ -78,7 +83,6 @@ body {
   width: 100%;
   cursor: pointer;
   -webkit-appearance: none;
-  appearance: none;
 }
 
 .label {
@@ -97,33 +101,92 @@ body {
   margin-bottom: 16px;
 }
 
-@keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }
-@keyframes pulse-glow { 0%, 100% { opacity: 0.5; } 50% { opacity: 1; } }
-@keyframes float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-6px); } }
-@keyframes scanline { 0% { top: -5%; } 100% { top: 105%; } }
-@keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
-@keyframes slideUp { from { opacity: 0; transform: translateY(40px); } to { opacity: 1; transform: translateY(0); } }
+/* ── Tooltip ─────────────────────────────────────────── */
+.tooltip-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  cursor: help;
+}
+.tooltip-icon {
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: rgba(0,212,255,0.15);
+  border: 1px solid rgba(0,212,255,0.3);
+  color: var(--cyan);
+  font-size: 9px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  cursor: help;
+  font-style: normal;
+  flex-shrink: 0;
+  transition: background 0.15s;
+}
+.tooltip-icon:hover { background: rgba(0,212,255,0.3); }
+.tooltip-box {
+  position: absolute;
+  bottom: calc(100% + 8px);
+  left: 50%;
+  transform: translateX(-50%);
+  background: #0d0d10;
+  border: 1px solid rgba(0,212,255,0.25);
+  border-radius: 8px;
+  padding: 12px 14px;
+  width: 240px;
+  z-index: 300;
+  pointer-events: none;
+  box-shadow: 0 8px 32px rgba(0,0,0,0.6);
+  animation: fadeIn 0.15s ease;
+}
+.tooltip-box-title {
+  color: var(--cyan);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.tooltip-box-desc {
+  color: #aaa;
+  font-size: 11px;
+  line-height: 1.6;
+  font-family: 'Courier New', monospace;
+}
+/* Arrow */
+.tooltip-box::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 5px solid transparent;
+  border-top-color: rgba(0,212,255,0.25);
+}
+
+/* ── Animations ──────────────────────────────────────── */
+@keyframes ping        { 75%,100% { transform:scale(1.5); opacity:0; } }
+@keyframes pulse-glow  { 0%,100% { opacity:.5; } 50% { opacity:1; } }
+@keyframes float       { 0%,100% { transform:translateY(0); } 50% { transform:translateY(-6px); } }
+@keyframes scanline    { 0% { top:-5%; } 100% { top:105%; } }
+@keyframes fadeIn      { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:translateY(0); } }
+@keyframes slideUp     { from { opacity:0; transform:translateY(40px); } to { opacity:1; transform:translateY(0); } }
 
 .animate-fade { animation: fadeIn 0.4s ease forwards; }
 
-/* ── Responsive helpers ──────────────────────────────────────── */
+/* ── Responsive ──────────────────────────────────────── */
 @media (max-width: 768px) {
   .sidebar-desktop { display: none !important; }
-
-  /* Page headers smaller */
-  .page-title { font-size: 18px !important; }
-
-  /* Make grids single column unless overridden */
-  .auto-grid {
-    grid-template-columns: 1fr !important;
+  .app-main {
+    padding: 14px 14px 90px !important;
   }
-
-  /* Inputs bigger touch targets */
-  .input, .select { font-size: 16px; padding: 12px 14px; }
-  .btn { padding: 12px 16px; min-height: 44px; }
+  .tooltip-box {
+    left: 0;
+    transform: none;
+    width: 220px;
+  }
 }
-
-@keyframes slideUp {
-  from { opacity: 0; transform: translateY(40px); }
-  to   { opacity: 1; transform: translateY(0); }
+@media (min-width: 769px) {
+  #mobile-nav { display: none !important; }
 }
