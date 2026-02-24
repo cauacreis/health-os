@@ -160,15 +160,14 @@ export function ThemeToggle({ theme, onToggle }) {
 export function Modal({ title, color = '#00ff88', onClose, children, wide = false }) {
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200, padding: 0 }}>
-      <div style={{ background: 'var(--bg)', border: `1px solid ${color}20`, borderRadius: '16px 16px 0 0', padding: '24px 20px', paddingBottom: 'max(24px, env(safe-area-inset-bottom))', width: '100%', maxWidth: wide ? 680 : 500, maxHeight: '92vh', maxHeight: '92dvh', overflow: 'auto', animation: 'slideUp 0.28s ease', boxShadow: `0 0 40px ${color}08` }}>
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16, overflowY: 'auto' }}>
+      <div style={{ background: '#0d0d10', border: `1px solid ${color}25`, borderRadius: 10, padding: '24px 22px', width: '100%', maxWidth: wide ? 680 : 480, maxHeight: '90vh', overflow: 'auto', animation: 'slideUp 0.25s ease', boxShadow: `0 16px 64px rgba(0,0,0,0.8), 0 0 0 1px ${color}10`, flexShrink: 0 }}>
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ color, fontSize: 11, letterSpacing: 3, textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 700 }}>{title}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: 'var(--muted)', cursor: 'pointer', fontSize: 22, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 20, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}>✕</button>
         </div>
         {children}
       </div>
-      <style>{`@media(min-width:600px){.modal-inner{border-radius:10px!important;max-width:${wide?'680px':'480px'}!important;}}`}</style>
     </div>
   )
 }

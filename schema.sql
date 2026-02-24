@@ -1,6 +1,5 @@
 -- ═══════════════════════════════════════════════════════════════
 -- HEALTH OS — Schema Supabase
--- Cole isso no SQL Editor do Supabase (supabase.com → SQL Editor)
 -- ═══════════════════════════════════════════════════════════════
 
 -- ── Perfis de usuário (extensão do auth.users) ────────────────
