@@ -35,17 +35,24 @@ export function Tag({ children, color }) {
   )
 }
 
+// Modal — sheet deslizante no mobile, centralizado no desktop
 export function Modal({ title, color = '#00ff88', onClose, children, wide = false }) {
   return (
-    <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16 }}
-      onClick={e => e.target === e.currentTarget && onClose()}>
-      <div style={{ background: '#0a0a0c', border: `1px solid ${color}25`, borderRadius: 10, padding: 28, width: '100%', maxWidth: wide ? 680 : 440, maxHeight: '92vh', overflow: 'auto', boxShadow: `0 0 40px ${color}10` }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 22 }}>
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'flex-end', justifyContent: 'center', zIndex: 200, padding: 0 }}>
+      <div style={{ background: '#0a0a0c', border: `1px solid ${color}20`, borderRadius: '16px 16px 0 0', padding: '24px 20px', paddingBottom: 'max(24px, env(safe-area-inset-bottom))', width: '100%', maxWidth: wide ? 680 : 500, maxHeight: '92vh', maxHeight: '92dvh', overflow: 'auto', animation: 'slideUp 0.28s ease', boxShadow: `0 0 40px ${color}08` }}>
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
           <div style={{ color, fontSize: 11, letterSpacing: 3, textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 700 }}>{title}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 18, lineHeight: 1, padding: 4 }}>✕</button>
+          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#555', cursor: 'pointer', fontSize: 22, lineHeight: 1, padding: 6, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>✕</button>
         </div>
         {children}
       </div>
+      <style>{`
+        @media (min-width: 600px) {
+          .modal-inner { border-radius: 10px !important; max-width: ${wide ? '680px' : '480px'} !important; }
+        }
+      `}</style>
     </div>
   )
 }
@@ -54,11 +61,10 @@ export function FunFactBanner({ facts }) {
   const [idx, setIdx] = useState(0)
   const fact = facts[idx % facts.length]
   return (
-    <div style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.12)', display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', marginBottom: 16 }}
-      onClick={() => setIdx(i => i + 1)}>
-      <span style={{ fontSize: 20, flexShrink: 0 }}>{fact.icon}</span>
-      <div style={{ flex: 1 }}>
-        <div style={{ color: '#00d4ff', fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3 }}>💡 FATO CURIOSO · {fact.category.toUpperCase()} — clique para próximo</div>
+    <div onClick={() => setIdx(i => i + 1)} style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.1)', display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', marginBottom: 16, WebkitTapHighlightColor: 'transparent' }}>
+      <span style={{ fontSize: 18, flexShrink: 0 }}>{fact.icon}</span>
+      <div style={{ flex: 1, minWidth: 0 }}>
+        <div style={{ color: '#00d4ff', fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3 }}>💡 {fact.category} — toque para próximo</div>
         <div style={{ color: '#888', fontSize: 11, lineHeight: 1.6 }}>{fact.fact}</div>
       </div>
     </div>
