@@ -4,10 +4,10 @@ import { getFoodLog, addFoodEntry, deleteFoodEntry, today, updateUser } from '..
 import { FUN_FACTS } from '../data/funfacts'
 
 const MEALS = [
-  { id:'breakfast', label:'Café da Manhã', icon:'🌅', color:'#f7c59f' },
-  { id:'lunch',     label:'Almoço',        icon:'☀️', color:'#00ff88' },
-  { id:'dinner',    label:'Jantar',        icon:'🌙', color:'#00d4ff' },
-  { id:'snack',     label:'Lanche',        icon:'🍎', color:'#ff9f43' },
+  { id:'breakfast', label:'Café da Manhã', icon:'🌅', color:'#94a3b8' },
+  { id:'lunch',     label:'Almoço',        icon:'☀️', color:'#dc2626' },
+  { id:'dinner',    label:'Jantar',        icon:'🌙', color:'#94a3b8' },
+  { id:'snack',     label:'Lanche',        icon:'🍎', color:'#ef4444' },
 ]
 
 const COMMON_FOODS = [
@@ -55,20 +55,20 @@ export default function Calories({ user, onUpdate }) {
   }))
 
   const pct = Math.min((totalKcal/tdee)*100, 110)
-  const pctColor = pct < 80 ? '#00d4ff' : pct < 100 ? '#00ff88' : pct < 110 ? '#ff9f43' : '#ff6b6b'
+  const pctColor = pct < 80 ? '#94a3b8' : pct < 100 ? '#dc2626' : pct < 110 ? '#ef4444' : '#ff6b6b'
 
   return (
     <div className="animate-fade">
       <div style={{ marginBottom:24 }}>
-        <div style={{ color:'#00ff88', fontSize:22, letterSpacing:4, fontWeight:700 }}>CALORIAS & NUTRIÇÃO</div>
+        <div style={{ color:'#dc2626', fontSize:22, letterSpacing:4, fontWeight:700 }}>CALORIAS & NUTRIÇÃO</div>
         <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>CONTROLE ALIMENTAR DIÁRIO</div>
       </div>
 
       {/* Fun fact */}
-      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(0,212,255,0.04)', border:'1px solid rgba(0,212,255,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
+      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(148,163,184,0.04)', border:'1px solid rgba(148,163,184,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
         <span style={{ fontSize:18 }}>{fact.icon}</span>
         <div>
-          <div style={{ color:'#00d4ff', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 NUTRIÇÃO · clique para próximo</div>
+          <div style={{ color:'#94a3b8', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 NUTRIÇÃO · clique para próximo</div>
           <div style={{ color:'#888', fontSize:11 }}>{fact.fact}</div>
         </div>
       </div>
@@ -77,9 +77,9 @@ export default function Calories({ user, onUpdate }) {
       <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:18 }}>
         {[
           { l:'CONSUMIDO', v:totalKcal, c:pctColor, suf:'kcal' },
-          { l:'META (TDEE)', v:tdee, c:'#00ff88', suf:'kcal' },
-          { l:'SALDO', v:tdee-totalKcal, c: tdee-totalKcal>=0?'#00d4ff':'#ff6b6b', suf:'kcal' },
-          { l:'REFEIÇÕES', v:byMeal.filter(m=>m.entries.length>0).length, c:'#ff9f43', suf:`/ ${MEALS.length}` },
+          { l:'META (TDEE)', v:tdee, c:'#dc2626', suf:'kcal' },
+          { l:'SALDO', v:tdee-totalKcal, c: tdee-totalKcal>=0?'#94a3b8':'#ff6b6b', suf:'kcal' },
+          { l:'REFEIÇÕES', v:byMeal.filter(m=>m.entries.length>0).length, c:'#ef4444', suf:`/ ${MEALS.length}` },
         ].map(s => (
           <NeonCard key={s.l} color={s.c} style={{ padding:'16px', textAlign:'center' }}>
             <div style={{ color:s.c, fontSize:22, fontWeight:700 }}>{s.v>0&&s.l==='SALDO'?'+':''}{s.v.toLocaleString('pt-BR')}<span style={{ fontSize:10, color:'#555' }}> {s.suf}</span></div>
@@ -97,7 +97,7 @@ export default function Calories({ user, onUpdate }) {
         <div style={{ height:8, background:'#111', borderRadius:4, overflow:'hidden' }}>
           <div style={{ width:`${Math.min(pct,100)}%`, height:8, background:`linear-gradient(90deg,${pctColor}70,${pctColor})`, boxShadow:`0 0 10px ${pctColor}50`, transition:'width 0.8s ease', borderRadius:4 }} />
         </div>
-        {pct > 100 && <div style={{ color:'#ff9f43', fontSize:10, marginTop:6 }}>⚠ Meta calórica excedida em {totalKcal-tdee} kcal</div>}
+        {pct > 100 && <div style={{ color:'#ef4444', fontSize:10, marginTop:6 }}>⚠ Meta calórica excedida em {totalKcal-tdee} kcal</div>}
       </NeonCard>
 
       {/* Meal cards */}
@@ -131,13 +131,13 @@ export default function Calories({ user, onUpdate }) {
       </div>
 
       <div style={{ textAlign:'center' }}>
-        <button className="btn" onClick={() => setModal(true)} style={{ padding:'12px 36px', background:'rgba(0,255,136,0.12)', borderColor:'#00ff88' }}>
+        <button className="btn" onClick={() => setModal(true)} style={{ padding:'12px 36px', background:'rgba(220,38,38,0.12)', borderColor:'#dc2626' }}>
           + ADICIONAR ALIMENTO
         </button>
       </div>
 
       {modal && (
-        <Modal title="ADICIONAR ALIMENTO" color="#00ff88" onClose={() => setModal(false)}>
+        <Modal title="ADICIONAR ALIMENTO" color="#dc2626" onClose={() => setModal(false)}>
           <div style={{ marginBottom:14 }}>
             <label className="label">REFEIÇÃO</label>
             <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
@@ -168,10 +168,10 @@ export default function Calories({ user, onUpdate }) {
               {COMMON_FOODS.map(f => (
                 <div key={f.name} onClick={() => setForm(fm=>({...fm, name:f.name, calories:f.kcal}))}
                   style={{ padding:'6px 10px', borderRadius:5, border:'1px solid #ffffff08', background:'rgba(255,255,255,0.02)', cursor:'pointer', transition:'all 0.15s' }}
-                  onMouseEnter={e=>e.currentTarget.style.background='rgba(0,255,136,0.08)'}
+                  onMouseEnter={e=>e.currentTarget.style.background='rgba(220,38,38,0.08)'}
                   onMouseLeave={e=>e.currentTarget.style.background='rgba(255,255,255,0.02)'}>
                   <div style={{ color:'#aaa', fontSize:11 }}>{f.name}</div>
-                  <div style={{ color:'#00ff88', fontSize:11, fontWeight:700 }}>{f.kcal} kcal</div>
+                  <div style={{ color:'#dc2626', fontSize:11, fontWeight:700 }}>{f.kcal} kcal</div>
                 </div>
               ))}
             </div>
@@ -182,7 +182,7 @@ export default function Calories({ user, onUpdate }) {
             <input value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="ex: 2 fatias, com manteiga..." className="input" />
           </div>
 
-          <button className="btn" onClick={handleAdd} style={{ width:'100%', background:'rgba(0,255,136,0.15)', borderColor:'#00ff88' }}>
+          <button className="btn" onClick={handleAdd} style={{ width:'100%', background:'rgba(220,38,38,0.15)', borderColor:'#dc2626' }}>
             ADICIONAR
           </button>
         </Modal>

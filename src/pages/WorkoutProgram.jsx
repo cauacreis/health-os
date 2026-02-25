@@ -84,15 +84,15 @@ export default function WorkoutProgram({ user }) {
   return (
     <div className="animate-fade">
       <div style={{ marginBottom: 24 }}>
-        <div style={{ color:'#00ff88', fontSize:22, letterSpacing:4, fontWeight:700 }}>PROGRAMA DE TREINO</div>
+        <div style={{ color:'#dc2626', fontSize:22, letterSpacing:4, fontWeight:700 }}>PROGRAMA DE TREINO</div>
         <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>{program.name.toUpperCase()} · {program.frequency.toUpperCase()}</div>
       </div>
 
       {/* Fun fact */}
-      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(0,212,255,0.04)', border:'1px solid rgba(0,212,255,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
+      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(148,163,184,0.04)', border:'1px solid rgba(148,163,184,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
         <span style={{ fontSize:18 }}>{fact.icon}</span>
         <div>
-          <div style={{ color:'#00d4ff', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 FATO · clique para próximo</div>
+          <div style={{ color:'#94a3b8', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 FATO · clique para próximo</div>
           <div style={{ color:'#888', fontSize:11 }}>{fact.fact}</div>
         </div>
       </div>
@@ -184,14 +184,14 @@ export default function WorkoutProgram({ user }) {
 
       {/* Finish button */}
       <div style={{ marginTop:20, display:'flex', justifyContent:'center' }}>
-        <button onClick={finishWorkout} className="btn" style={{ padding:'12px 40px', fontSize:12, background: allDone?'rgba(0,255,136,0.2)':'rgba(0,255,136,0.06)', borderColor: allDone?'#00ff88':'rgba(0,255,136,0.3)', boxShadow: allDone?'0 0 20px rgba(0,255,136,0.2)':'none' }}>
+        <button onClick={finishWorkout} className="btn" style={{ padding:'12px 40px', fontSize:12, background: allDone?'rgba(220,38,38,0.2)':'rgba(220,38,38,0.06)', borderColor: allDone?'#dc2626':'rgba(220,38,38,0.3)', boxShadow: allDone?'0 0 20px rgba(220,38,38,0.2)':'none' }}>
           {saved ? '✓ TREINO SALVO!' : allDone ? '✓ FINALIZAR & SALVAR TREINO' : '💾 SALVAR PROGRESSO'}
         </button>
       </div>
 
       {allDone && (
-        <div className="animate-fade" style={{ marginTop:14, padding:'14px 22px', borderRadius:8, background:'rgba(0,255,136,0.08)', border:'1px solid rgba(0,255,136,0.25)', textAlign:'center', boxShadow:'0 0 24px rgba(0,255,136,0.08)' }}>
-          <div style={{ color:'#00ff88', fontSize:15, fontWeight:700, marginBottom:3 }}>✓ TREINO CONCLUÍDO</div>
+        <div className="animate-fade" style={{ marginTop:14, padding:'14px 22px', borderRadius:8, background:'rgba(220,38,38,0.08)', border:'1px solid rgba(220,38,38,0.25)', textAlign:'center', boxShadow:'0 0 24px rgba(220,38,38,0.08)' }}>
+          <div style={{ color:'#dc2626', fontSize:15, fontWeight:700, marginBottom:3 }}>✓ TREINO CONCLUÍDO</div>
           <div style={{ color:'#555', fontSize:11 }}>Salvo automaticamente no calendário. Descanse, hidrate-se e alimente-se bem!</div>
         </div>
       )}
