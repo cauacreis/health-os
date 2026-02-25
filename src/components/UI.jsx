@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { GLOSSARY } from '../data/glossary'
 
 // ── NeonCard ─────────────────────────────────────────────────────────────────
-export function NeonCard({ children, color = '#00ff88', className = '', style = {}, onClick }) {
+export function NeonCard({ children, color = '#dc2626', className = '', style = {}, onClick }) {
   return (
     <div onClick={onClick} className={className} style={{ background: 'var(--card-bg)', border: `1px solid ${color}20`, borderRadius: 8, transition: 'all 0.25s', ...style }}>
       {children}
@@ -11,7 +11,7 @@ export function NeonCard({ children, color = '#00ff88', className = '', style = 
 }
 
 // ── SectionTitle ─────────────────────────────────────────────────────────────
-export function SectionTitle({ children, color = '#00ff88' }) {
+export function SectionTitle({ children, color = '#dc2626' }) {
   return <div className="section-title" style={{ color }}>{children}</div>
 }
 
@@ -90,7 +90,7 @@ export function GlossaryPage() {
   return (
     <div className="animate-fade">
       <div style={{ marginBottom: 22 }}>
-        <div style={{ color: 'var(--cyan)', fontSize: 20, letterSpacing: 4, fontWeight: 700 }}>GLOSSÁRIO</div>
+        <div style={{ color: '#94a3b8', fontSize: 20, letterSpacing: 4, fontWeight: 700 }}>GLOSSÁRIO</div>
         <div style={{ color: 'var(--muted)', fontSize: 10, letterSpacing: 3, marginTop: 4 }}>EXPLICAÇÃO DOS TERMOS TÉCNICOS</div>
       </div>
 
@@ -110,7 +110,7 @@ export function GlossaryPage() {
       ) : (
         Object.entries(categories).map(([cat, terms]) => (
           <div key={cat} style={{ marginBottom: 20 }}>
-            <div style={{ color: 'var(--cyan)', fontSize: 10, letterSpacing: 3, marginBottom: 10, textTransform: 'uppercase' }}>{cat}</div>
+            <div style={{ color: '#94a3b8', fontSize: 10, letterSpacing: 3, marginBottom: 10, textTransform: 'uppercase' }}>{cat}</div>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
               {terms.map(t => GLOSSARY[t] && (
                 <TermCard key={t} termKey={t} val={GLOSSARY[t]} open={open} setOpen={setOpen} />
@@ -127,13 +127,13 @@ function TermCard({ termKey, val, open, setOpen }) {
   const isOpen = open === termKey
   return (
     <div onClick={() => setOpen(isOpen ? null : termKey)}
-      style={{ background: 'var(--card-bg)', border: `1px solid ${isOpen ? 'rgba(0,212,255,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer', transition: 'all 0.2s', WebkitTapHighlightColor: 'transparent' }}>
+      style={{ background: 'var(--card-bg)', border: `1px solid ${isOpen ? 'rgba(220,38,38,0.2)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 8, padding: '12px 16px', cursor: 'pointer', transition: 'all 0.2s', WebkitTapHighlightColor: 'transparent' }}>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
         <div>
-          <span style={{ color: 'var(--cyan)', fontSize: 13, fontWeight: 700, marginRight: 10 }}>{termKey}</span>
+          <span style={{ color: '#94a3b8', fontSize: 13, fontWeight: 700, marginRight: 10 }}>{termKey}</span>
           <span style={{ color: 'var(--muted)', fontSize: 11 }}>{val.full}</span>
         </div>
-        <span style={{ color: isOpen ? 'var(--cyan)' : 'var(--muted)', fontSize: 14, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▾</span>
+        <span style={{ color: isOpen ? '#ef4444' : '#555', fontSize: 14, transition: 'transform 0.2s', transform: isOpen ? 'rotate(180deg)' : 'rotate(0)' }}>▾</span>
       </div>
       {isOpen && (
         <div style={{ color: '#aaa', fontSize: 12, lineHeight: 1.7, marginTop: 10, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.06)' }}>
@@ -168,10 +168,10 @@ export function FunFactBanner({ facts }) {
   const fact = facts[idx % facts.length]
   return (
     <div onClick={() => setIdx(i => i + 1)}
-      style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(0,212,255,0.04)', border: '1px solid rgba(0,212,255,0.1)', display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', marginBottom: 16, WebkitTapHighlightColor: 'transparent' }}>
+      style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.1)', display: 'flex', gap: 10, alignItems: 'center', cursor: 'pointer', marginBottom: 16, WebkitTapHighlightColor: 'transparent' }}>
       <span style={{ fontSize: 18, flexShrink: 0 }}>{fact.icon}</span>
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div style={{ color: 'var(--cyan)', fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3 }}>💡 {fact.category} — toque para próximo</div>
+        <div style={{ color: '#94a3b8', fontSize: 9, letterSpacing: 2, textTransform: 'uppercase', marginBottom: 3 }}>💡 {fact.category} — toque para próximo</div>
         <div style={{ color: 'var(--muted)', fontSize: 11, lineHeight: 1.6 }}>{fact.fact}</div>
       </div>
     </div>

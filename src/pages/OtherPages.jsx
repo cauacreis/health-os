@@ -1,184 +1,172 @@
 import { useState } from 'react'
 import { AreaChart, Area, XAxis, YAxis, Tooltip, ResponsiveContainer } from 'recharts'
 import { NeonCard, SectionTitle, ProgressBar, Modal } from '../components/UI'
-import { CARDIO_ZONES, WEEKLY_STEPS } from '../data/nutrition'
-import { updateUser, saveCardioEntry, getCardioLog, addCalendarEntry, today } from '../lib/storage'
+import { CARDIO_ZONES } from '../data/nutrition'
+import { upsertProfile, saveCardioEntry, getCardioLog, addCalendarEntry, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
+const R  = '#dc2626'
+const R2 = '#ef4444'
+const S  = '#94a3b8'
+const DIM = 'rgba(220,38,38,0.08)'
+
 // ─── WATER ───────────────────────────────────────────────────────────────────
-export function Water({ user, onUpdate }) {
-  const [consumed, setConsumed] = useState(user.waterToday || 0)
-  const [meals, setMeals] = useState(user.mealsToday || 0)
-  const goal = Math.round(user.weight * 35)
-  const facts = FUN_FACTS.filter(f=>f.category==='Hidratação')
-  const [factIdx, setFactIdx] = useState(0)
+export function Water({ user, userId, onUpdate }) {
+  const [consumed, setConsumed] = useState(user.water_today || 0)
+  const [meals, setMeals]       = useState(user.meals_today || 0)
+  const [saving, setSaving]     = useState(false)
+  const goal = Math.round((user.weight || 70) * 35)
+  const facts = FUN_FACTS.filter(f => f.category === 'Hidratação')
+  const [factIdx, setFactIdx]   = useState(0)
+  const fact = facts[factIdx % Math.max(facts.length, 1)]
 
-  function toggleCup(idx) {
-    const next = consumed === idx+1 ? idx : idx+1
+  async function toggleCup(idx) {
+    const next = consumed === idx + 1 ? idx : idx + 1
     setConsumed(next)
-    const updated = updateUser(user.id, { waterToday: next })
-    onUpdate(updated)
-  }
-  function setMealsVal(v) {
-    setMeals(v)
-    const updated = updateUser(user.id, { mealsToday: v })
-    onUpdate(updated)
+    setSaving(true)
+    try {
+      const updated = await upsertProfile(userId, { water_today: next })
+      onUpdate(updated)
+    } catch(e) { console.error(e) }
+    finally { setSaving(false) }
   }
 
-  const ml = consumed * 250
-  const cups = Math.round(goal/250)
-  const fact = facts[factIdx % facts.length]
+  async function setMealsVal(v) {
+    setMeals(v)
+    try {
+      const updated = await upsertProfile(userId, { meals_today: v })
+      onUpdate(updated)
+    } catch(e) { console.error(e) }
+  }
+
+  const ml   = consumed * 250
+  const cups = Math.round(goal / 250)
+  const pct  = Math.min((ml / goal) * 100, 100)
 
   return (
     <div className="animate-fade">
-      <div style={{ marginBottom:24 }}>
-        <div style={{ color:'#00d4ff', fontSize:22, letterSpacing:4, fontWeight:700 }}>HIDRATAÇÃO & REFEIÇÕES</div>
-        <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>META: {goal}ml · {cups} COPOS</div>
+      <PageHeader title="HIDRATAÇÃO" sub={`META: ${goal}ml · ${cups} COPOS`} />
+
+      <FactBanner fact={fact} onNext={() => setFactIdx(i => i + 1)} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+        <StatCard label="Consumido" value={`${ml}ml`} />
+        <StatCard label="Meta"      value={`${goal}ml`} />
+        <StatCard label="Progresso" value={`${Math.round(pct)}%`} highlight={pct >= 100} />
       </div>
 
-      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(0,212,255,0.04)', border:'1px solid rgba(0,212,255,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
-        <span style={{ fontSize:18 }}>{fact.icon}</span>
-        <div>
-          <div style={{ color:'#00d4ff', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 HIDRATAÇÃO · clique para próximo</div>
-          <div style={{ color:'#888', fontSize:11 }}>{fact.fact}</div>
-        </div>
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16 }}>
-        <NeonCard color="#00d4ff" style={{ padding:22 }}>
-          <SectionTitle color="#00d4ff">COPOS DE 250ml</SectionTitle>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(5,1fr)', gap:7, marginBottom:18 }}>
-            {Array.from({ length:Math.min(cups,15) }).map((_,i) => {
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+        <NeonCard color={R} style={{ padding: 22 }}>
+          <SectionTitle color={R}>COPOS DE 250ml</SectionTitle>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 8, marginBottom: 18 }}>
+            {Array.from({ length: Math.min(cups, 15) }).map((_, i) => {
               const filled = i < consumed
               return (
-                <div key={i} onClick={() => toggleCup(i)} style={{ aspectRatio:'1', borderRadius:7, border:`1px solid ${filled?'#00d4ff50':'#ffffff08'}`, background:filled?'rgba(0,212,255,0.14)':'rgba(255,255,255,0.02)', boxShadow:filled?'0 0 8px rgba(0,212,255,0.2)':'none', display:'flex', alignItems:'center', justifyContent:'center', fontSize:16, cursor:'pointer', transition:'all 0.15s' }}>
-                  {filled ? '💧' : <span style={{ color:'#1a1a1a', fontSize:14 }}>◌</span>}
+                <div key={i} onClick={() => toggleCup(i)}
+                  style={{ aspectRatio: '1', borderRadius: 8, border: `1px solid ${filled ? R2 + '60' : 'rgba(255,255,255,0.06)'}`, background: filled ? 'rgba(220,38,38,0.18)' : 'rgba(255,255,255,0.02)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 18, cursor: 'pointer', transition: 'all 0.15s', WebkitTapHighlightColor: 'transparent' }}>
+                  {filled ? '💧' : <span style={{ color: '#2a2a2a', fontSize: 16 }}>○</span>}
                 </div>
               )
             })}
           </div>
-          <ProgressBar value={ml} max={goal} color="#00d4ff" label="Hidratação" />
-          <div style={{ textAlign:'center', marginTop:10, color:'#00d4ff', fontSize:30, fontWeight:700 }}>
-            {ml}<span style={{ fontSize:13, color:'#555' }}>ml</span>
-          </div>
-          <div style={{ color:'#444', fontSize:10, textAlign:'center', marginTop:4 }}>{consumed} de {cups} copos</div>
+          <ProgressBar value={ml} max={goal} color={R} label="Hidratação" />
         </NeonCard>
 
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          {/* Meals counter */}
-          <NeonCard color="#ff9f43" style={{ padding:18 }}>
-            <SectionTitle color="#ff9f43">REFEIÇÕES HOJE</SectionTitle>
-            <div style={{ display:'flex', alignItems:'center', justifyContent:'center', gap:16, marginBottom:12 }}>
-              <button onClick={() => setMealsVal(Math.max(0,meals-1))} style={{ width:36, height:36, borderRadius:6, background:'rgba(255,159,67,0.1)', border:'1px solid rgba(255,159,67,0.3)', color:'#ff9f43', fontSize:18, cursor:'pointer', fontFamily:'monospace' }}>−</button>
-              <div style={{ textAlign:'center' }}>
-                <div style={{ color:'#ff9f43', fontSize:40, fontWeight:700, lineHeight:1 }}>{meals}</div>
-                <div style={{ color:'#555', fontSize:10, letterSpacing:2, marginTop:4 }}>REFEIÇÕES</div>
-              </div>
-              <button onClick={() => setMealsVal(Math.min(10,meals+1))} style={{ width:36, height:36, borderRadius:6, background:'rgba(255,159,67,0.1)', border:'1px solid rgba(255,159,67,0.3)', color:'#ff9f43', fontSize:18, cursor:'pointer', fontFamily:'monospace' }}>+</button>
-            </div>
-            <div style={{ display:'flex', gap:4, justifyContent:'center' }}>
-              {[1,2,3,4,5,6].map(n => (
-                <div key={n} onClick={()=>setMealsVal(n)} style={{ width:28, height:28, borderRadius:4, border:`1px solid ${n<=meals?'rgba(255,159,67,0.4)':'#ffffff08'}`, background:n<=meals?'rgba(255,159,67,0.15)':'rgba(255,255,255,0.02)', display:'flex', alignItems:'center', justifyContent:'center', fontSize:14, cursor:'pointer', transition:'all 0.15s' }}>
-                  {n<=meals?'🍽':''}
-                </div>
-              ))}
-            </div>
-            <ProgressBar value={meals} max={6} color="#ff9f43" label="Meta: 6 refeições/dia" />
-          </NeonCard>
+        <NeonCard color={S} style={{ padding: 22 }}>
+          <SectionTitle color={S}>REFEIÇÕES DO DIA</SectionTitle>
+          <div style={{ color: S, fontSize: 48, fontWeight: 700, textAlign: 'center', lineHeight: 1 }}>{meals}</div>
+          <div style={{ color: '#444', fontSize: 12, textAlign: 'center', marginBottom: 20 }}>refeições</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(5,1fr)', gap: 6 }}>
+            {[1, 2, 3, 4, 5].map(n => (
+              <button key={n} onClick={() => setMealsVal(n)}
+                style={{ padding: '12px 0', borderRadius: 8, border: `1px solid ${meals >= n ? S + '50' : 'rgba(255,255,255,0.06)'}`, background: meals >= n ? 'rgba(148,163,184,0.15)' : 'transparent', color: meals >= n ? S : '#333', fontFamily: "'Space Mono',monospace", fontSize: 14, fontWeight: 700, cursor: 'pointer', transition: 'all 0.15s' }}>
+                {n}
+              </button>
+            ))}
+          </div>
+        </NeonCard>
+      </div>
 
+      <NeonCard color={R} style={{ padding: 20 }}>
+        <SectionTitle color={R}>GUIA DE HIDRATAÇÃO</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
           {[
-            { time:'Ao acordar', amount:'300ml', tip:'Reidrata após o sono e ativa o metabolismo' },
-            { time:'Pré-treino', amount:'500ml', tip:'1–2h antes do exercício' },
-            { time:'Durante treino', amount:'600ml', tip:'150–250ml a cada 15–20min' },
-            { time:'Pós-treino', amount:'500ml', tip:'Repõe fluidos pelo suor' },
-          ].map(h => (
-            <NeonCard key={h.time} color="#00d4ff" style={{ padding:'10px 14px', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-              <div>
-                <div style={{ color:'#00d4ff', fontSize:10, textTransform:'uppercase', letterSpacing:2 }}>{h.time}</div>
-                <div style={{ color:'#555', fontSize:10, marginTop:2 }}>{h.tip}</div>
-              </div>
-              <div style={{ color:'#00d4ff', fontSize:16, fontWeight:700 }}>{h.amount}</div>
-            </NeonCard>
+            { icon: '🌅', label: 'Ao acordar',     tip: '500ml antes do café' },
+            { icon: '🏋️', label: 'Antes do treino', tip: '400–600ml, 1h antes' },
+            { icon: '💪', label: 'Durante treino',  tip: '150ml a cada 15min' },
+            { icon: '🌙', label: 'À noite',         tip: 'Pare 1h antes de dormir' },
+          ].map(g => (
+            <div key={g.label} style={{ padding: '12px 14px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(255,255,255,0.06)' }}>
+              <div style={{ fontSize: 20, marginBottom: 6 }}>{g.icon}</div>
+              <div style={{ color: R2, fontSize: 13, fontWeight: 700, marginBottom: 3 }}>{g.label}</div>
+              <div style={{ color: '#666', fontSize: 12 }}>{g.tip}</div>
+            </div>
           ))}
         </div>
-      </div>
+      </NeonCard>
     </div>
   )
 }
 
 // ─── BMI ─────────────────────────────────────────────────────────────────────
 export function BMI({ user }) {
-  const bmi = (user.weight / Math.pow(user.height/100,2)).toFixed(1)
-  const bmiLabel = bmi<18.5?'Abaixo do Peso':bmi<25?'Normal':bmi<30?'Sobrepeso':'Obesidade'
-  const bmiColor = bmi<18.5?'#00d4ff':bmi<25?'#00ff88':bmi<30?'#ff9f43':'#ff6b6b'
-  const latestBio = null // could integrate with user.bioimpedance
+  const bmi = user.weight / Math.pow(user.height / 100, 2)
+  const bmiR = bmi.toFixed(1)
+  const cat  = bmi < 18.5 ? { label: 'Abaixo do peso', color: '#64748b', tip: 'Considere aumentar a ingestão calórica com nutricionista.' } :
+               bmi < 25   ? { label: 'Peso ideal',      color: R, tip: 'Parabéns! Mantenha hábitos saudáveis.' } :
+               bmi < 30   ? { label: 'Sobrepeso',       color: '#b45309', tip: 'Déficit calórico leve + exercícios regulares.' } :
+                            { label: 'Obesidade',       color: '#991b1b', tip: 'Consulte um médico para um plano adequado.' }
 
-  const recs = bmi<18.5
-    ? ['Aumentar ingestão calórica (superávit +500 kcal)','Priorizar treinos de hipertrofia','Proteína: 2.2g/kg/dia','Consulte um nutricionista']
-    : bmi<25
-    ? ['Manter hábitos atuais','Variação de treinos para manutenção','TDEE equilibrado','Check-up anual']
-    : bmi<30
-    ? ['Déficit calórico moderado (−300 a −500 kcal/dia)','Cardio 3–4x por semana','Aumentar fibras e proteína','Reduzir açúcares refinados']
-    : ['Acompanhamento médico recomendado','Exercícios de baixo impacto','Déficit gradual max −500 kcal/dia','Suporte psicológico e nutricional']
+  const bmr  = user.sex === 'male' ? 88.36 + 13.4 * user.weight + 4.8 * user.height - 5.7 * user.age
+                                   : 447.6  + 9.2  * user.weight + 3.1 * user.height - 4.3 * user.age
+  const tdee = Math.round(bmr * (user.activity || 1.55))
 
-  const pct = Math.min(Math.max((bmi-15)/25,0),1)*100
+  const RANGES = [
+    { range: '< 18.5', label: 'Abaixo do peso', color: '#64748b' },
+    { range: '18.5–24.9', label: 'Peso ideal',  color: R },
+    { range: '25–29.9',   label: 'Sobrepeso',   color: '#b45309' },
+    { range: '≥ 30',      label: 'Obesidade',   color: '#991b1b' },
+  ]
+
+  const barPct = Math.min(((bmi - 15) / (40 - 15)) * 100, 100)
 
   return (
     <div className="animate-fade">
-      <div style={{ marginBottom:28 }}>
-        <div style={{ color:'#00ff88', fontSize:22, letterSpacing:4, fontWeight:700 }}>ÍNDICE DE MASSA CORPORAL</div>
-        <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>ANÁLISE DE COMPOSIÇÃO CORPORAL</div>
-      </div>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-        <NeonCard color="#00ff88" style={{ padding:22 }}>
-          <SectionTitle color="#00ff88">DADOS DO PERFIL</SectionTitle>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
-            {[{l:'PESO',v:`${user.weight} kg`},{l:'ALTURA',v:`${user.height} cm`}].map(f=>(
-              <div key={f.l} style={{ padding:14, background:'rgba(0,255,136,0.04)', border:'1px solid rgba(0,255,136,0.08)', borderRadius:6, textAlign:'center' }}>
-                <div style={{ color:'#444', fontSize:9, letterSpacing:2, marginBottom:6 }}>{f.l}</div>
-                <div style={{ color:'#00ff88', fontSize:22, fontWeight:700 }}>{f.v}</div>
-              </div>
-            ))}
-          </div>
-          <div style={{ marginTop:12, color:'#555', fontSize:11, lineHeight:1.8 }}>
-            ▸ Fórmula: <span style={{ color:'#888' }}>peso ÷ (altura)²</span><br />
-            ▸ Resultado: <span style={{ color:'#888' }}>{user.weight} ÷ {(user.height/100).toFixed(2)}² = {bmi}</span>
-          </div>
-        </NeonCard>
-        <NeonCard color={bmiColor} style={{ padding:22, display:'flex', flexDirection:'column', alignItems:'center', justifyContent:'center' }}>
-          <div style={{ width:130, height:130, borderRadius:'50%', border:`3px solid ${bmiColor}50`, background:`radial-gradient(circle,${bmiColor}10 0%,transparent 70%)`, display:'flex', alignItems:'center', justifyContent:'center', flexDirection:'column', animation:'float 3s ease-in-out infinite', marginBottom:14 }}>
-            <div style={{ color:bmiColor, fontSize:40, fontWeight:700 }}>{bmi}</div>
-            <div style={{ color:'#555', fontSize:10 }}>kg/m²</div>
-          </div>
-          <div style={{ color:bmiColor, fontSize:15, letterSpacing:3, fontWeight:700 }}>{bmiLabel.toUpperCase()}</div>
-        </NeonCard>
-      </div>
-      <NeonCard color="#00ff88" style={{ padding:20, marginBottom:16 }}>
-        <SectionTitle color="#00ff88">ESCALA DE IMC</SectionTitle>
-        <div style={{ display:'flex', gap:8, marginBottom:16 }}>
-          {[{l:'Abaixo',r:'<18.5',c:'#00d4ff'},{l:'Normal',r:'18.5–24.9',c:'#00ff88'},{l:'Sobrepeso',r:'25–29.9',c:'#ff9f43'},{l:'Obesidade',r:'≥30',c:'#ff6b6b'}].map(s=>(
-            <div key={s.l} style={{ flex:1, padding:'10px 8px', borderRadius:6, background:`${s.c}08`, border:`1px solid ${s.c}20`, textAlign:'center' }}>
-              <div style={{ color:s.c, fontSize:12, fontWeight:700 }}>{s.r}</div>
-              <div style={{ color:'#555', fontSize:9, letterSpacing:1.5, marginTop:4 }}>{s.l.toUpperCase()}</div>
-            </div>
-          ))}
+      <PageHeader title="ÍNDICE DE MASSA CORPORAL" sub={`${user.weight}kg · ${user.height}cm`} />
+
+      {/* Big IMC display */}
+      <NeonCard color={cat.color} style={{ padding: 32, textAlign: 'center', marginBottom: 16 }}>
+        <div style={{ color: '#444', fontSize: 12, letterSpacing: 3, marginBottom: 8 }}>SEU IMC</div>
+        <div style={{ color: cat.color, fontSize: 72, fontWeight: 700, lineHeight: 1 }}>{bmiR}</div>
+        <div style={{ color: cat.color, fontSize: 18, marginTop: 8, fontWeight: 700 }}>{cat.label}</div>
+        <div style={{ color: '#666', fontSize: 13, marginTop: 12, lineHeight: 1.7 }}>{cat.tip}</div>
+
+        {/* Visual bar */}
+        <div style={{ position: 'relative', height: 12, background: 'rgba(255,255,255,0.05)', borderRadius: 6, marginTop: 24, overflow: 'visible' }}>
+          <div style={{ height: '100%', borderRadius: 6, background: `linear-gradient(90deg, #64748b, ${R}, #b45309, #991b1b)` }} />
+          <div style={{ position: 'absolute', top: '50%', left: `${barPct}%`, transform: 'translate(-50%,-50%)', width: 18, height: 18, borderRadius: '50%', background: cat.color, border: '3px solid #0d0d10', boxShadow: `0 0 10px ${cat.color}`, transition: 'left 0.5s ease' }} />
         </div>
-        <div style={{ position:'relative', height:8 }}>
-          <div style={{ width:'100%', height:8, borderRadius:4, overflow:'hidden', display:'flex' }}>
-            <div style={{ flex:1, background:'linear-gradient(90deg,#00d4ff,#00ff88)' }} />
-            <div style={{ flex:1, background:'linear-gradient(90deg,#00ff88,#ff9f43)' }} />
-            <div style={{ flex:1, background:'linear-gradient(90deg,#ff9f43,#ff6b6b)' }} />
-          </div>
-          <div style={{ position:'absolute', top:-2, width:12, height:12, borderRadius:'50%', left:`calc(${pct}% - 6px)`, background:bmiColor, boxShadow:`0 0 8px ${bmiColor}` }} />
+        <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: 6 }}>
+          <span style={{ color: '#333', fontSize: 10 }}>15</span>
+          <span style={{ color: '#333', fontSize: 10 }}>40+</span>
         </div>
       </NeonCard>
-      <NeonCard color={bmiColor} style={{ padding:20 }}>
-        <SectionTitle color={bmiColor}>RECOMENDAÇÕES PERSONALIZADAS</SectionTitle>
-        <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
-          {recs.map((r,i)=>(
-            <div key={i} style={{ padding:'10px 14px', borderRadius:6, background:`${bmiColor}07`, border:`1px solid ${bmiColor}15`, display:'flex', gap:8 }}>
-              <span style={{ color:bmiColor, flexShrink:0 }}>▸</span>
-              <span style={{ color:'#aaa', fontSize:12 }}>{r}</span>
+
+      {/* Stats row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 16 }}>
+        <StatCard label="Peso"    value={`${user.weight}kg`} />
+        <StatCard label="TMB"     value={`${Math.round(bmr)} kcal`} />
+        <StatCard label="TDEE"    value={`${tdee} kcal`} />
+      </div>
+
+      {/* Table */}
+      <NeonCard color={R} style={{ padding: 20 }}>
+        <SectionTitle color={R}>TABELA DE REFERÊNCIA</SectionTitle>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+          {RANGES.map(r => (
+            <div key={r.range} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 16px', borderRadius: 8, border: `1px solid ${r.color}20`, background: bmiR >= parseFloat(r.range) && bmiR < parseFloat(r.range.split('–')[1] || '999') ? `${r.color}12` : 'rgba(255,255,255,0.02)' }}>
+              <span style={{ color: r.color, fontSize: 14, fontWeight: 700, minWidth: 80 }}>{r.range}</span>
+              <span style={{ color: '#888', fontSize: 13 }}>{r.label}</span>
             </div>
           ))}
         </div>
@@ -188,165 +176,114 @@ export function BMI({ user }) {
 }
 
 // ─── CARDIO ──────────────────────────────────────────────────────────────────
-export function Cardio({ user }) {
-  const maxHR = 220 - user.age
-  const [logModal, setLogModal] = useState(false)
-  const [cardioLog, setCardioLog] = useState(() => getCardioLog(user.id))
-  const [form, setForm] = useState({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avgHr:'', kcal:'', note:'' })
-  const [factIdx, setFactIdx] = useState(0)
+export function Cardio({ user, userId }) {
+  const [log, setLog]     = useState([])
+  const [modal, setModal] = useState(false)
+  const [loaded, setLoaded] = useState(false)
+  const [form, setForm]   = useState({ date: today(), type: 'Corrida', zone: 'Z2', minutes: '', avg_hr: '', kcal: '' })
+  const maxHR = 220 - (user.age || 25)
 
-  const facts = FUN_FACTS.filter(f=>f.category==='Cardio')
-  const fact = facts[factIdx % facts.length]
-
-  const CARDIO_TYPES = ['Corrida','Caminhada','Ciclismo','Natação','Jump Rope','Elíptico','HIIT','Remo','Kickboxing','Dança']
-
-  function suggestCardio() {
-    const bmi = user.weight / Math.pow(user.height/100,2)
-    const level = user.activity >= 1.725 ? 'avançado' : user.activity >= 1.55 ? 'intermediário' : 'iniciante'
-    if (level === 'iniciante') return [
-      { type:'Caminhada rápida', zone:'Z2', dur:'30–40min', tip:'Ritmo de conversa possível. Ideal para construir base aeróbica.' },
-      { type:'Ciclismo leve', zone:'Z1–Z2', dur:'30min', tip:'Baixo impacto articular. Excelente para iniciantes.' },
-    ]
-    if (level === 'intermediário') return [
-      { type:'Corrida contínua', zone:'Z2–Z3', dur:'40–50min', tip:'Mantenha ritmo onde você consegue falar mas com esforço.' },
-      { type:'Ciclismo intervalado', zone:'Z3–Z4', dur:'35min', tip:'2min forte + 3min leve. 6 repetições.' },
-      { type:'Jump Rope HIIT', zone:'Z4', dur:'20–25min', tip:'30s intenso + 30s recuperação. 10 rounds.' },
-    ]
-    return [
-      { type:'HIIT Corrida', zone:'Z4–Z5', dur:'25–30min', tip:'8x (30s sprint + 90s recovery). Potência máxima.' },
-      { type:'Tempo Run', zone:'Z3–Z4', dur:'40–50min', tip:'Ritmo constante no limiar anaeróbico.' },
-      { type:'Long Slow Run', zone:'Z2', dur:'60–90min', tip:'Ritmo lento. Constrói base aeróbica e queima gordura.' },
-    ]
+  if (!loaded) {
+    getCardioLog(userId, 20).then(d => { setLog(d); setLoaded(true) }).catch(() => setLoaded(true))
   }
 
-  function saveCardio() {
+  async function saveEntry() {
     if (!form.minutes) return
-    saveCardioEntry(user.id, form)
-    addCalendarEntry(user.id, { date:form.date, type:'cardio', label:`${form.type} ${form.zone}`, note:`${form.minutes}min` })
-    setCardioLog(getCardioLog(user.id))
-    setLogModal(false)
-    setForm({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avgHr:'', kcal:'', note:'' })
+    await saveCardioEntry(userId, { ...form, minutes: +form.minutes, avg_hr: +form.avg_hr || null, kcal: +form.kcal || null })
+    const fresh = await getCardioLog(userId, 20)
+    setLog(fresh)
+    setModal(false)
+    setForm({ date: today(), type: 'Corrida', zone: 'Z2', minutes: '', avg_hr: '', kcal: '' })
   }
 
-  const suggestions = suggestCardio()
+  const TYPES = ['Corrida', 'Caminhada', 'Bike', 'Natação', 'Remo', 'HIIT', 'Elíptico', 'Pular Corda']
 
   return (
     <div className="animate-fade">
-      <div style={{ marginBottom:24 }}>
-        <div style={{ color:'#ff6b6b', fontSize:22, letterSpacing:4, fontWeight:700 }}>CARDIO</div>
-        <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>ZONAS DE FREQUÊNCIA CARDÍACA E ROTINA</div>
+      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 24 }}>
+        <PageHeader title="CARDIO" sub={`FC MÁX ESTIMADA: ${maxHR} BPM`} noMargin />
+        <button className="btn" onClick={() => setModal(true)} style={{ background: DIM, borderColor: R, color: R2, fontSize: 12 }}>+ REGISTRAR</button>
       </div>
 
-      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(255,107,107,0.04)', border:'1px solid rgba(255,107,107,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
-        <span style={{ fontSize:18 }}>{fact.icon}</span>
-        <div>
-          <div style={{ color:'#ff6b6b', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 CARDIO · clique para próximo</div>
-          <div style={{ color:'#888', fontSize:11 }}>{fact.fact}</div>
-        </div>
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-        {/* Zones */}
-        <NeonCard color="#ff6b6b" style={{ padding:20 }}>
-          <SectionTitle color="#ff6b6b">SUAS ZONAS (FC Máx: {maxHR} BPM)</SectionTitle>
+      {/* Zones */}
+      <NeonCard color={R} style={{ padding: 20, marginBottom: 16 }}>
+        <SectionTitle color={R}>ZONAS DE FREQUÊNCIA CARDÍACA</SectionTitle>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
           {CARDIO_ZONES.map(z => {
-            const [lo,hi] = z.pct.split('–').map(Number)
+            const low  = Math.round(maxHR * z.pctLow / 100)
+            const high = Math.round(maxHR * z.pctHigh / 100)
             return (
-              <div key={z.zone} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'9px 12px', borderRadius:6, background:`${z.color}08`, border:`1px solid ${z.color}15`, marginBottom:6 }}>
-                <div>
-                  <div style={{ display:'flex', gap:8, alignItems:'center', marginBottom:2 }}>
-                    <span style={{ color:z.color, fontSize:11, fontWeight:700 }}>{z.zone}</span>
-                    <span style={{ color:'#888', fontSize:11 }}>{z.name}</span>
-                  </div>
-                  <div style={{ color:'#555', fontSize:10 }}>{z.benefit}</div>
+              <div key={z.zone} style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(220,38,38,0.12)', display: 'flex', alignItems: 'center', gap: 14 }}>
+                <div style={{ background: R, color: '#fff', borderRadius: 6, padding: '4px 10px', fontWeight: 700, fontSize: 13, flexShrink: 0 }}>{z.zone}</div>
+                <div style={{ flex: 1, minWidth: 0 }}>
+                  <div style={{ color: '#d0d0d0', fontSize: 13, fontWeight: 700 }}>{z.name}</div>
+                  <div style={{ color: '#666', fontSize: 12 }}>{z.benefit}</div>
                 </div>
-                <div style={{ textAlign:'right' }}>
-                  <div style={{ color:z.color, fontSize:14, fontWeight:700 }}>{Math.round(maxHR*lo/100)}–{Math.round(maxHR*hi/100)}</div>
-                  <div style={{ color:'#444', fontSize:9 }}>BPM · {z.pct}%</div>
+                <div style={{ textAlign: 'right', flexShrink: 0 }}>
+                  <div style={{ color: R2, fontSize: 14, fontWeight: 700 }}>{low}–{high}</div>
+                  <div style={{ color: '#444', fontSize: 11 }}>bpm</div>
                 </div>
               </div>
             )
           })}
-        </NeonCard>
+        </div>
+      </NeonCard>
 
-        {/* Suggestions + log */}
-        <div style={{ display:'flex', flexDirection:'column', gap:12 }}>
-          <NeonCard color="#4ecdc4" style={{ padding:18 }}>
-            <SectionTitle color="#4ecdc4">SUGESTÃO PARA SEU NÍVEL</SectionTitle>
-            <div style={{ color:'#555', fontSize:10, marginBottom:10 }}>
-              Nível: <span style={{ color:'#4ecdc4' }}>{user.activity>=1.725?'Avançado':user.activity>=1.55?'Intermediário':'Iniciante'}</span>
-            </div>
-            {suggestions.map((s,i) => (
-              <div key={i} style={{ padding:'10px 12px', borderRadius:6, background:'rgba(78,205,196,0.05)', border:'1px solid rgba(78,205,196,0.12)', marginBottom:8 }}>
-                <div style={{ display:'flex', justifyContent:'space-between', marginBottom:4 }}>
-                  <span style={{ color:'#4ecdc4', fontSize:12, fontWeight:700 }}>{s.type}</span>
-                  <span style={{ color:'#555', fontSize:10 }}>{s.dur}</span>
+      {/* Log */}
+      {log.length > 0 && (
+        <NeonCard color={R} style={{ padding: 20 }}>
+          <SectionTitle color={R}>ÚLTIMAS SESSÕES</SectionTitle>
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+            {log.slice(0, 8).map((e, i) => (
+              <div key={i} style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(255,255,255,0.02)', border: '1px solid rgba(220,38,38,0.1)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ color: R2, fontSize: 14, fontWeight: 700 }}>{e.type}</div>
+                  <div style={{ color: '#555', fontSize: 12, marginTop: 2 }}>{e.date} · {e.zone}</div>
                 </div>
-                <div style={{ color:'#888', fontSize:10, lineHeight:1.5 }}>{s.tip}</div>
-                <div style={{ color:'#4ecdc4', fontSize:9, marginTop:4, letterSpacing:1 }}>Zona: {s.zone}</div>
+                <div style={{ textAlign: 'right' }}>
+                  <div style={{ color: '#d0d0d0', fontSize: 15, fontWeight: 700 }}>{e.minutes}min</div>
+                  {e.kcal && <div style={{ color: '#555', fontSize: 12 }}>{e.kcal} kcal</div>}
+                </div>
               </div>
             ))}
-          </NeonCard>
+          </div>
+        </NeonCard>
+      )}
 
-          <NeonCard color="#ff6b6b" style={{ padding:18 }}>
-            <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
-              <SectionTitle color="#ff6b6b">HISTÓRICO DE CARDIO</SectionTitle>
-              <button className="btn" onClick={() => setLogModal(true)} style={{ fontSize:10, padding:'6px 12px', color:'#ff6b6b', borderColor:'rgba(255,107,107,0.3)' }}>+ REGISTRAR</button>
-            </div>
-            {cardioLog.slice(0,4).length === 0
-              ? <div style={{ color:'#333', fontSize:11 }}>Nenhum cardio registrado ainda.</div>
-              : cardioLog.slice(0,4).map(e => (
-                <div key={e.id} style={{ padding:'8px 10px', borderRadius:5, background:'rgba(255,107,107,0.05)', border:'1px solid rgba(255,107,107,0.1)', marginBottom:6, display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                  <div>
-                    <div style={{ color:'#ff6b6b', fontSize:12, fontWeight:700 }}>{e.type} · {e.zone}</div>
-                    <div style={{ color:'#555', fontSize:10 }}>{e.date} · {e.minutes}min{e.avgHr?` · ${e.avgHr}bpm`:''}</div>
-                  </div>
-                  {e.kcal && <div style={{ color:'#ff6b6b', fontSize:13, fontWeight:700 }}>{e.kcal} kcal</div>}
-                </div>
-              ))
-            }
-          </NeonCard>
-        </div>
-      </div>
-
-      {logModal && (
-        <Modal title="REGISTRAR CARDIO" color="#ff6b6b" onClose={() => setLogModal(false)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+      {modal && (
+        <Modal title="REGISTRAR SESSÃO DE CARDIO" color={R} onClose={() => setModal(false)}>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
             <div>
               <label className="label">DATA</label>
-              <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} className="input" style={{ borderColor:'rgba(255,107,107,0.25)', color:'#ff6b6b' }} />
+              <input type="date" value={form.date} onChange={e => setForm(f => ({ ...f, date: e.target.value }))} className="input" style={{ borderColor: 'rgba(220,38,38,0.3)', color: R2 }} />
             </div>
             <div>
-              <label className="label">TIPO DE CARDIO</label>
-              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="select" style={{ borderColor:'rgba(255,107,107,0.2)', color:'#ff6b6b' }}>
-                {CARDIO_TYPES.map(t=><option key={t}>{t}</option>)}
+              <label className="label">TIPO</label>
+              <select value={form.type} onChange={e => setForm(f => ({ ...f, type: e.target.value }))} className="select">
+                {TYPES.map(t => <option key={t}>{t}</option>)}
               </select>
             </div>
             <div>
               <label className="label">ZONA</label>
-              <select value={form.zone} onChange={e=>setForm(f=>({...f,zone:e.target.value}))} className="select" style={{ borderColor:'rgba(255,107,107,0.2)', color:'#ff6b6b' }}>
-                {CARDIO_ZONES.map(z=><option key={z.zone} value={z.zone}>{z.zone} — {z.name}</option>)}
+              <select value={form.zone} onChange={e => setForm(f => ({ ...f, zone: e.target.value }))} className="select">
+                {['Z1','Z2','Z3','Z4','Z5'].map(z => <option key={z}>{z}</option>)}
               </select>
             </div>
             <div>
               <label className="label">DURAÇÃO (min)</label>
-              <input type="number" value={form.minutes} onChange={e=>setForm(f=>({...f,minutes:e.target.value}))} placeholder="ex: 45" className="input" style={{ borderColor:'rgba(255,107,107,0.25)', color:'#ff6b6b' }} />
+              <input type="number" value={form.minutes} onChange={e => setForm(f => ({ ...f, minutes: e.target.value }))} placeholder="30" className="input" style={{ borderColor: 'rgba(220,38,38,0.3)', color: R2 }} />
             </div>
             <div>
               <label className="label">FC MÉDIA (bpm)</label>
-              <input type="number" value={form.avgHr} onChange={e=>setForm(f=>({...f,avgHr:e.target.value}))} placeholder="ex: 145" className="input" style={{ borderColor:'rgba(255,107,107,0.25)', color:'#ff6b6b' }} />
+              <input type="number" value={form.avg_hr} onChange={e => setForm(f => ({ ...f, avg_hr: e.target.value }))} placeholder="140" className="input" />
             </div>
             <div>
-              <label className="label">CALORIAS QUEIMADAS</label>
-              <input type="number" value={form.kcal} onChange={e=>setForm(f=>({...f,kcal:e.target.value}))} placeholder="ex: 320" className="input" style={{ borderColor:'rgba(255,107,107,0.25)', color:'#ff6b6b' }} />
-            </div>
-            <div style={{ gridColumn:'1/-1' }}>
-              <label className="label">OBSERVAÇÕES</label>
-              <input value={form.note} onChange={e=>setForm(f=>({...f,note:e.target.value}))} placeholder="Como foi? Fartlek, hills, etc..." className="input" style={{ borderColor:'rgba(255,107,107,0.2)' }} />
+              <label className="label">CALORIAS (kcal)</label>
+              <input type="number" value={form.kcal} onChange={e => setForm(f => ({ ...f, kcal: e.target.value }))} placeholder="250" className="input" />
             </div>
           </div>
-          <button className="btn" onClick={saveCardio} style={{ width:'100%', marginTop:16, background:'rgba(255,107,107,0.12)', borderColor:'#ff6b6b', color:'#ff6b6b' }}>
-            SALVAR CARDIO
+          <button className="btn" onClick={saveEntry} style={{ width: '100%', marginTop: 16, background: DIM, borderColor: R, color: R2, padding: 14, fontSize: 13 }}>
+            SALVAR SESSÃO
           </button>
         </Modal>
       )}
@@ -355,92 +292,117 @@ export function Cardio({ user }) {
 }
 
 // ─── STEPS ───────────────────────────────────────────────────────────────────
-export function Steps({ user, onUpdate }) {
-  const [steps, setStepsLocal] = useState(user.stepsToday || 0)
-  const facts = FUN_FACTS.filter(f=>f.category==='Passos')
-  const [factIdx, setFactIdx] = useState(0)
-  const fact = facts[factIdx % facts.length]
+export function Steps({ user, userId, onUpdate }) {
+  // ⚠️ FIX: usar estado local para slider sem chamar onUpdate a cada tick
+  const [steps, setStepsLocal] = useState(user.steps_today || 0)
+  const [saving, setSaving]    = useState(false)
+  const facts = FUN_FACTS.filter(f => f.category === 'Passos')
+  const [factIdx, setFactIdx]  = useState(0)
+  const fact  = facts[factIdx % Math.max(facts.length, 1)]
+  const kcal  = Math.round(steps * 0.04)
+  const km    = (steps * 0.00075).toFixed(2)
 
-  function updateSteps(v) {
-    const val = Math.max(0, Math.min(50000, v))
-    setStepsLocal(val)
-    const updated = updateUser(user.id, { stepsToday: val })
-    onUpdate(updated)
+  // Só salva no banco ao soltar o slider (onMouseUp/onTouchEnd) ou alterar o número
+  async function saveSteps(val) {
+    const v = Math.max(0, Math.min(50000, val))
+    setStepsLocal(v)
+    setSaving(true)
+    try {
+      const updated = await upsertProfile(userId, { steps_today: v })
+      onUpdate(updated)          // agora retorna o profile Supabase com age, weight etc
+    } catch(e) { console.error(e) }
+    finally { setSaving(false) }
   }
 
-  const kcal = Math.round(steps * 0.04)
-  const km = (steps * 0.00075).toFixed(2)
+  const MILESTONES = [
+    { steps: 5000,  label: '5.000',  benefit: 'Reduz sedentarismo' },
+    { steps: 7500,  label: '7.500',  benefit: 'Melhora cardiovascular' },
+    { steps: 10000, label: '10.000', benefit: 'Controle de peso' },
+    { steps: 12500, label: '12.500+',benefit: 'Longevidade máxima' },
+  ]
 
   return (
     <div className="animate-fade">
-      <div style={{ marginBottom:24 }}>
-        <div style={{ color:'#f7c59f', fontSize:22, letterSpacing:4, fontWeight:700 }}>CONTAGEM DE PASSOS</div>
-        <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>ATIVIDADE DIÁRIA E SEMANAL</div>
+      <PageHeader title="PASSOS DO DIA" sub="ATIVIDADE DIÁRIA" />
+
+      <FactBanner fact={fact} onNext={() => setFactIdx(i => i + 1)} />
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3,1fr)', gap: 12, marginBottom: 20 }}>
+        <StatCard label="Passos"    value={steps.toLocaleString('pt-BR')} big />
+        <StatCard label="Calorias"  value={`${kcal} kcal`} />
+        <StatCard label="Distância" value={`${km} km`} />
       </div>
 
-      <div onClick={() => setFactIdx(i=>i+1)} style={{ padding:'10px 14px', borderRadius:8, background:'rgba(247,197,159,0.04)', border:'1px solid rgba(247,197,159,0.1)', display:'flex', gap:10, alignItems:'center', cursor:'pointer', marginBottom:18 }}>
-        <span style={{ fontSize:18 }}>{fact.icon}</span>
-        <div>
-          <div style={{ color:'#f7c59f', fontSize:9, letterSpacing:2, marginBottom:2 }}>💡 PASSOS · clique para próximo</div>
-          <div style={{ color:'#888', fontSize:11 }}>{fact.fact}</div>
+      <NeonCard color={R} style={{ padding: 22, marginBottom: 16 }}>
+        <SectionTitle color={R}>REGISTRAR PASSOS</SectionTitle>
+        <div style={{ marginBottom: 10 }}>
+          <input
+            type="range" min="0" max="20000" step="100"
+            value={steps}
+            onChange={e => setStepsLocal(+e.target.value)}  /* só atualiza visual */
+            onMouseUp={e  => saveSteps(+e.target.value)}    /* salva ao soltar */
+            onTouchEnd={e => saveSteps(+e.target.value)}    /* salva ao soltar (mobile) */
+            style={{ width: '100%', accentColor: R, height: 6, cursor: 'pointer', marginBottom: 14 }}
+          />
+          <input
+            type="number" value={steps}
+            onChange={e => setStepsLocal(+e.target.value)}
+            onBlur={e => saveSteps(+e.target.value)}         /* salva ao sair do campo */
+            className="input"
+            style={{ borderColor: 'rgba(220,38,38,0.3)', color: R2 }}
+          />
         </div>
-      </div>
+        <ProgressBar value={steps} max={10000} color={R} label="Meta: 10.000 passos" />
+        {saving && <div style={{ color: '#444', fontSize: 11, marginTop: 6, textAlign: 'right' }}>salvando...</div>}
+      </NeonCard>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:16 }}>
-        {[
-          { l:'Passos Hoje', v:steps.toLocaleString('pt-BR'), c:'#f7c59f' },
-          { l:'Calorias Estimadas', v:`${kcal} kcal`, c:'#ff6b6b' },
-          { l:'Distância', v:`${km} km`, c:'#00d4ff' },
-        ].map(s=>(
-          <NeonCard key={s.l} color={s.c} style={{ padding:'16px', textAlign:'center' }}>
-            <div style={{ color:s.c, fontSize:26, fontWeight:700 }}>{s.v}</div>
-            <div style={{ color:'#444', fontSize:9, letterSpacing:2, marginTop:6 }}>{s.l.toUpperCase()}</div>
-          </NeonCard>
-        ))}
-      </div>
-
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:16, marginBottom:16 }}>
-        <NeonCard color="#f7c59f" style={{ padding:20 }}>
-          <SectionTitle color="#f7c59f">REGISTRAR PASSOS</SectionTitle>
-          <input type="range" min="0" max="20000" value={steps} onChange={e=>updateSteps(+e.target.value)} style={{ width:'100%', accentColor:'#f7c59f', marginBottom:12 }} />
-          <input type="number" value={steps} onChange={e=>updateSteps(+e.target.value)} className="input" style={{ borderColor:'rgba(247,197,159,0.25)', color:'#f7c59f', marginBottom:14 }} />
-          <ProgressBar value={steps} max={10000} color="#f7c59f" label="Meta diária: 10.000" />
-        </NeonCard>
-        <NeonCard color="#f7c59f" style={{ padding:20 }}>
-          <SectionTitle color="#f7c59f">HISTÓRICO SEMANAL</SectionTitle>
-          <ResponsiveContainer width="100%" height={170}>
-            <AreaChart data={WEEKLY_STEPS}>
-              <defs>
-                <linearGradient id="sg3" x1="0" y1="0" x2="0" y2="1">
-                  <stop offset="5%" stopColor="#f7c59f" stopOpacity={0.3} />
-                  <stop offset="95%" stopColor="#f7c59f" stopOpacity={0} />
-                </linearGradient>
-              </defs>
-              <XAxis dataKey="day" tick={{ fill:'#555', fontSize:10, fontFamily:'monospace' }} axisLine={false} tickLine={false} />
-              <YAxis hide />
-              <Tooltip contentStyle={{ background:'#0a0a0c', border:'1px solid #f7c59f25', borderRadius:4, fontFamily:'monospace', fontSize:11 }} />
-              <Area type="monotone" dataKey="steps" stroke="#f7c59f" strokeWidth={2} fill="url(#sg3)" />
-            </AreaChart>
-          </ResponsiveContainer>
-        </NeonCard>
-      </div>
-
-      <NeonCard color="#f7c59f" style={{ padding:20 }}>
-        <SectionTitle color="#f7c59f">BENEFÍCIOS POR META</SectionTitle>
-        <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:10 }}>
-          {[
-            { steps:'5.000', benefit:'Reduz sedentarismo', c:'#ff9f43' },
-            { steps:'7.500', benefit:'Melhora cardiovascular', c:'#f7c59f' },
-            { steps:'10.000', benefit:'Controle de peso', c:'#00ff88' },
-            { steps:'12.500+', benefit:'Longevidade máxima', c:'#00d4ff' },
-          ].map(b=>(
-            <div key={b.steps} style={{ padding:'14px 10px', borderRadius:8, background:`${b.c}08`, border:`1px solid ${b.c}20`, textAlign:'center', borderLeft:`3px solid ${steps >= parseInt(b.steps.replace('.','').replace('+','')) ? b.c : 'transparent'}` }}>
-              <div style={{ color:b.c, fontSize:15, fontWeight:700, marginBottom:6 }}>{b.steps}</div>
-              <div style={{ color:'#666', fontSize:10 }}>{b.benefit}</div>
-            </div>
-          ))}
+      <NeonCard color={R} style={{ padding: 20 }}>
+        <SectionTitle color={R}>METAS E BENEFÍCIOS</SectionTitle>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 10 }}>
+          {MILESTONES.map(m => {
+            const reached = steps >= m.steps
+            return (
+              <div key={m.label} style={{ padding: '16px 14px', borderRadius: 8, background: reached ? DIM : 'rgba(255,255,255,0.02)', border: `1px solid ${reached ? R + '40' : 'rgba(255,255,255,0.06)'}`, borderLeft: `3px solid ${reached ? R : 'rgba(255,255,255,0.06)'}`, transition: 'all 0.3s' }}>
+                <div style={{ color: reached ? R2 : '#555', fontSize: 18, fontWeight: 700, marginBottom: 4 }}>{m.label}</div>
+                <div style={{ color: reached ? '#aaa' : '#444', fontSize: 12 }}>{m.benefit}</div>
+                {reached && <div style={{ color: R, fontSize: 11, marginTop: 6 }}>✓ Atingido</div>}
+              </div>
+            )
+          })}
         </div>
       </NeonCard>
+    </div>
+  )
+}
+
+// ─── Shared sub-components ────────────────────────────────────────────────────
+function PageHeader({ title, sub, noMargin }) {
+  return (
+    <div style={{ marginBottom: noMargin ? 0 : 24 }}>
+      <div style={{ color: R, fontSize: 20, letterSpacing: 4, fontWeight: 700 }}>{title}</div>
+      {sub && <div style={{ color: '#555', fontSize: 12, letterSpacing: 2, marginTop: 4 }}>{sub}</div>}
+    </div>
+  )
+}
+
+function StatCard({ label, value, big, highlight }) {
+  return (
+    <NeonCard color={R} style={{ padding: '18px 14px', textAlign: 'center' }}>
+      <div style={{ color: highlight ? R : R2, fontSize: big ? 28 : 22, fontWeight: 700, lineHeight: 1 }}>{value}</div>
+      <div style={{ color: '#555', fontSize: 11, letterSpacing: 2, marginTop: 6, textTransform: 'uppercase' }}>{label}</div>
+    </NeonCard>
+  )
+}
+
+function FactBanner({ fact, onNext }) {
+  if (!fact) return null
+  return (
+    <div onClick={onNext} style={{ padding: '12px 16px', borderRadius: 8, background: 'rgba(220,38,38,0.04)', border: '1px solid rgba(220,38,38,0.12)', display: 'flex', gap: 12, alignItems: 'center', cursor: 'pointer', marginBottom: 18, WebkitTapHighlightColor: 'transparent' }}>
+      <span style={{ fontSize: 20, flexShrink: 0 }}>{fact.icon}</span>
+      <div>
+        <div style={{ color: R2, fontSize: 10, letterSpacing: 2, marginBottom: 3 }}>💡 SABIA QUE... · toque para próximo</div>
+        <div style={{ color: '#777', fontSize: 13 }}>{fact.fact}</div>
+      </div>
     </div>
   )
 }
