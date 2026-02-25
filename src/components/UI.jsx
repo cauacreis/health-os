@@ -144,27 +144,17 @@ function TermCard({ termKey, val, open, setOpen }) {
   )
 }
 
-// ── ThemeToggle ───────────────────────────────────────────────────────────────
-export function ThemeToggle({ theme, onToggle }) {
-  return (
-    <button onClick={onToggle}
-      title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
-      style={{ background: 'none', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 20, padding: '5px 12px', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6, color: 'var(--muted)', fontFamily: 'monospace', fontSize: 11, transition: 'all 0.2s', WebkitTapHighlightColor: 'transparent' }}>
-      <span style={{ fontSize: 14 }}>{theme === 'dark' ? '☀️' : '🌙'}</span>
-      <span>{theme === 'dark' ? 'CLARO' : 'ESCURO'}</span>
-    </button>
-  )
-}
+
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ title, color = '#00ff88', onClose, children, wide = false }) {
+export function Modal({ title, color = '#dc2626', onClose, children, wide = false }) {
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.88)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 200, padding: 16, overflowY: 'auto' }}>
-      <div style={{ background: '#0d0d10', border: `1px solid ${color}25`, borderRadius: 10, padding: '24px 22px', width: '100%', maxWidth: wide ? 680 : 480, maxHeight: '90vh', overflow: 'auto', animation: 'slideUp 0.25s ease', boxShadow: `0 16px 64px rgba(0,0,0,0.8), 0 0 0 1px ${color}10`, flexShrink: 0 }}>
-        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
-          <div style={{ color, fontSize: 11, letterSpacing: 3, textTransform: 'uppercase', fontFamily: 'monospace', fontWeight: 700 }}>{title}</div>
-          <button onClick={onClose} style={{ background: 'none', border: 'none', color: '#666', cursor: 'pointer', fontSize: 20, minWidth: 44, minHeight: 44, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}>✕</button>
+      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:16, overflowY:'auto' }}>
+      <div style={{ background:'#0d0d10', border:`1px solid ${color}25`, borderRadius:10, padding:'22px 22px', width:'100%', maxWidth: wide?680:480, maxHeight:'88vh', overflow:'auto', animation:'slideUp 0.25s ease', boxShadow:`0 24px 80px rgba(0,0,0,0.9), 0 0 0 1px ${color}10`, flexShrink:0 }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
+          <div style={{ color, fontSize:10, letterSpacing:3, textTransform:'uppercase', fontFamily:"'Space Mono',monospace", fontWeight:700 }}>{title}</div>
+          <button onClick={onClose} style={{ background:'none', border:'none', color:'#555', cursor:'pointer', fontSize:18, minWidth:44, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:6 }}>✕</button>
         </div>
         {children}
       </div>
