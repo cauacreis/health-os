@@ -147,29 +147,38 @@ function TermCard({ termKey, val, open, setOpen }) {
 
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ title, color = '#dc2626', onClose, children, wide = false, fullScreen = false }) {
-  if (fullScreen) {
-    return (
-      <div style={{ position:'fixed', inset:0, background:'#080808', zIndex:200, display:'flex', flexDirection:'column', overflow:'hidden' }}>
-        {/* Header */}
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 24px', borderBottom:`1px solid ${color}20`, flexShrink:0 }}>
-          <div style={{ color, fontSize:11, letterSpacing:3, textTransform:'uppercase', fontFamily:"'Space Mono',monospace", fontWeight:700 }}>{title}</div>
-          <button onClick={onClose} style={{ background:'none', border:'1px solid rgba(255,255,255,0.08)', color:'#666', cursor:'pointer', fontSize:16, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:6 }}>✕</button>
-        </div>
-        {/* Scrollable content */}
-        <div style={{ flex:1, overflowY:'auto', padding:'24px', paddingBottom:'max(24px, env(safe-area-inset-bottom))' }}>
-          {children}
-        </div>
-      </div>
-    )
-  }
-
+export function Modal({ title, color = '#dc2626', onClose, children, wide = false }) {
   return (
-    <div onClick={e => e.target === e.currentTarget && onClose()}
-      style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:16, overflowY:'auto' }}>
-      <div style={{ background:'#0d0d10', border:`1px solid ${color}25`, borderRadius:10, padding:'22px 22px', width:'100%', maxWidth: wide?680:480, maxHeight:'88vh', overflow:'auto', animation:'slideUp 0.25s ease', boxShadow:`0 24px 80px rgba(0,0,0,0.9), 0 0 0 1px ${color}10`, flexShrink:0 }}>
-        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:20 }}>
-          <div style={{ color, fontSize:10, letterSpacing:3, textTransform:'uppercase', fontFamily:"'Space Mono',monospace", fontWeight:700 }}>{title}</div>
+    <div
+      onClick={e => e.target === e.currentTarget && onClose()}
+      style={{
+        position: 'fixed',
+        top: 0, left: 0, right: 0, bottom: 0,
+        background: 'rgba(0,0,0,0.85)',
+        display: 'flex',
+        alignItems: 'flex-start',
+        justifyContent: 'center',
+        zIndex: 9999,
+        overflowY: 'auto',
+        paddingTop: 60,
+        paddingBottom: 40,
+        paddingLeft: 16,
+        paddingRight: 16,
+      }}
+    >
+      <div style={{
+        background: '#0e0e10',
+        border: `1px solid ${color}30`,
+        borderRadius: 10,
+        padding: '22px 24px',
+        width: '100%',
+        maxWidth: wide ? 660 : 480,
+        animation: 'slideUp 0.25s ease',
+        boxShadow: `0 32px 80px rgba(0,0,0,0.95)`,
+        flexShrink: 0,
+      }}>
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20 }}>
+          <div style={{ color, fontSize: 10, letterSpacing: 3, textTransform: 'uppercase', fontFamily: "'Space Mono',monospace", fontWeight: 700 }}>{title}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'#555', cursor:'pointer', fontSize:18, minWidth:44, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:6 }}>✕</button>
         </div>
         {children}

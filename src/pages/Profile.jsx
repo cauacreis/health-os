@@ -327,7 +327,7 @@ export default function Profile({ user, userId, onUpdate }) {
 
       {/* ── Modal Bioimpedância ─────────────────────────────────── */}
       {bioModal && (
-        <Modal title="NOVA MEDIÇÃO DE BIOIMPEDÂNCIA" color="#dc2626" onClose={() => setBioModal(false)} fullScreen>
+        <Modal title="NOVA MEDIÇÃO DE BIOIMPEDÂNCIA" color="#dc2626" onClose={() => setBioModal(false)} wide>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
               { k:'date',         l:'DATA',                    t:'date'   },
