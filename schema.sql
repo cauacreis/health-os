@@ -183,6 +183,6 @@ CREATE POLICY "Avatar delete" ON storage.objects
   FOR DELETE USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- ════════════════════════════════════════════════════════════════
--- MIGRATION: adicionar gym_type ao profiles (rode no SQL Editor)
+-- MIGRATION: adicionar gym_type ao profiles 
 -- ════════════════════════════════════════════════════════════════
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gym_type TEXT DEFAULT 'full';
