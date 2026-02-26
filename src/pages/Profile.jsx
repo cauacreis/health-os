@@ -340,17 +340,17 @@ export default function Profile({ user, userId, onUpdate }) {
               { k:'metabolic_age',l:'IDADE METABÓLICA',        p:'ex: 24' },
             ].map(f => (
               <div key={f.k}>
-                <label className="label" style={{ fontSize:10, marginBottom:6 }}>{f.l}</label>
+                <label className="label" style={{ fontSize:16, marginBottom:6 }}>{f.l}</label>
                 <input type={f.t||'number'} step="0.1" value={bio[f.k]} onChange={e=>setBio(b=>({...b,[f.k]:e.target.value}))} placeholder={f.p}
-                  className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'11px 14px', fontSize:15 }} />
+                  className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'11px 14px', fontSize:21 }} />
               </div>
             ))}
             <div style={{ gridColumn:'1/-1' }}>
-              <label className="label" style={{ fontSize:10, marginBottom:6 }}>OBSERVAÇÕES</label>
-              <input value={bio.note} onChange={e=>setBio(b=>({...b,note:e.target.value}))} placeholder="Notas opcionais..." className="input" style={{ borderColor:'rgba(220,38,38,0.15)', padding:'11px 14px', fontSize:15 }} />
+              <label className="label" style={{ fontSize:16, marginBottom:6 }}>OBSERVAÇÕES</label>
+              <input value={bio.note} onChange={e=>setBio(b=>({...b,note:e.target.value}))} placeholder="Notas opcionais..." className="input" style={{ borderColor:'rgba(220,38,38,0.15)', padding:'11px 14px', fontSize:21 }} />
             </div>
           </div>
-          <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:16, background:'rgba(220,38,38,0.15)', borderColor:'#dc2626', color:'#ef4444', padding:14, fontSize:13 }}>
+          <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:16, background:'rgba(220,38,38,0.15)', borderColor:'#dc2626', color:'#ef4444', padding:14, fontSize:19 }}>
             SALVAR MEDIÇÃO
           </button>
         </Modal>
