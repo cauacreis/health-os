@@ -166,9 +166,9 @@ export function Modal({ title, color = '#dc2626', onClose, children, wide = fals
         background: '#0e0e10',
         border: `1px solid ${color}30`,
         borderRadius: 10,
-        padding: '18px 22px',
+        padding: '24px 28px',
         width: '100%',
-        maxWidth: wide ? 660 : 480,
+        maxWidth: wide ? 780 : 520,
         maxHeight: '90vh',
         overflowY: 'auto',
         animation: 'slideUp 0.25s ease',
@@ -176,7 +176,7 @@ export function Modal({ title, color = '#dc2626', onClose, children, wide = fals
         flexShrink: 0,
       }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20 }}>
-          <div style={{ color, fontSize: 10, letterSpacing: 3, textTransform: 'uppercase', fontFamily: "'Space Mono',monospace", fontWeight: 700 }}>{title}</div>
+          <div style={{ color, fontSize: 12, letterSpacing: 3, textTransform: 'uppercase', fontFamily: "'Space Mono',monospace", fontWeight: 700 }}>{title}</div>
           <button onClick={onClose} style={{ background:'none', border:'none', color:'#555', cursor:'pointer', fontSize:18, minWidth:44, minHeight:44, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:6 }}>✕</button>
         </div>
         {children}
