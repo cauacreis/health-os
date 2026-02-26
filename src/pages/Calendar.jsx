@@ -426,30 +426,41 @@ export default function CalendarPage({ user, userId }) {
       {/* ── COMPOSIÇÃO ───────────────────────────────────────────── */}
       {tab === 'body' && (
         <>
-          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:16 }}>
-            <div style={{ color:'#555', fontSize:10, letterSpacing:2 }}>BIOIMPEDÂNCIA & PESO</div>
-            <button className="btn" onClick={() => setBioModal(true)} style={{ fontSize:11, padding:'8px 16px', color:R2, borderColor:`${R}50` }}>+ NOVA MEDIÇÃO</button>
-          </div>
-
-          {bioLog.length > 0 && (() => {
-            const last = bioLog[0]
-            return (
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 }}>
-                {[
-                  { l:'Gordura',  v: last.body_fat    ? `${last.body_fat}%`    : '—', c: R },
-                  { l:'Músculo',  v: last.muscle_mass ? `${last.muscle_mass}%` : '—', c: S },
-                  { l:'Água',     v: last.water_pct   ? `${last.water_pct}%`  : '—', c:'#64748b' },
-                ].map(s => (
-                  <NeonCard key={s.l} color={s.c} style={{ padding:'14px 10px', textAlign:'center' }}>
-                    <div style={{ color: s.c === R ? R2 : s.c, fontSize:20, fontWeight:700 }}>{s.v}</div>
-                    <div style={{ color:'#444', fontSize:9, marginTop:4, textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
-                    <div style={{ color:'#333', fontSize:8, marginTop:2 }}>última medição</div>
-                  </NeonCard>
-                ))}
+          {/* Form sempre visível */}
+          <NeonCard color={R} style={{ padding:20, marginBottom:16 }}>
+            <SectionTitle color={R}>NOVA MEDIÇÃO DE BIOIMPEDÂNCIA</SectionTitle>
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+              {[
+                { k:'date',         l:'DATA',                    t:'date' },
+                { k:'body_fat',     l:'GORDURA CORPORAL (%)',    p:'ex: 18.5' },
+                { k:'muscle_mass',  l:'MASSA MUSCULAR (%)',      p:'ex: 42.0' },
+                { k:'visceral_fat', l:'GORDURA VISCERAL (nível)',p:'ex: 5' },
+                { k:'water_pct',    l:'ÁGUA CORPORAL (%)',       p:'ex: 55.0' },
+                { k:'bone_mass',    l:'MASSA ÓSSEA (kg)',        p:'ex: 3.2' },
+                { k:'bmr',          l:'TMB PELA BALANÇA (kcal)', p:'ex: 1650' },
+                { k:'metabolic_age',l:'IDADE METABÓLICA',        p:'ex: 24' },
+              ].map(f => (
+                <div key={f.k}>
+                  <label className="label" style={{ fontSize:10 }}>{f.l}</label>
+                  <input type={f.t||'number'} step="0.1" value={bioForm[f.k]}
+                    onChange={e=>setBioForm(b=>({...b,[f.k]:e.target.value}))} placeholder={f.p}
+                    className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'8px 12px', fontSize:14 }} />
+                </div>
+              ))}
+              <div style={{ gridColumn:'1/-1' }}>
+                <label className="label" style={{ fontSize:10 }}>OBSERVAÇÕES</label>
+                <input value={bioForm.note} onChange={e=>setBioForm(b=>({...b,note:e.target.value}))}
+                  placeholder="Notas opcionais..." className="input"
+                  style={{ borderColor:'rgba(220,38,38,0.15)', padding:'8px 12px', fontSize:14 }} />
               </div>
-            )
-          })()}
+            </div>
+            <button className="btn" onClick={saveBio}
+              style={{ width:'100%', background:'rgba(220,38,38,0.15)', borderColor:R, color:R2, padding:12, fontSize:13 }}>
+              💾 SALVAR MEDIÇÃO
+            </button>
+          </NeonCard>
 
+          {/* Gráfico evolução */}
           {bioChartData.length >= 2 && (
             <NeonCard color={S} style={{ padding:18, marginBottom:14 }}>
               <SectionTitle color={S}>EVOLUÇÃO DA COMPOSIÇÃO CORPORAL</SectionTitle>
@@ -469,69 +480,63 @@ export default function CalendarPage({ user, userId }) {
             </NeonCard>
           )}
 
+          {/* Histórico com alertas */}
           {!bioLoaded ? (
             <div style={{ padding:40, textAlign:'center', color:'#444' }}>Carregando...</div>
           ) : bioLog.length === 0 ? (
-            <NeonCard color={R} style={{ padding:40, textAlign:'center' }}>
-              <div style={{ fontSize:32, marginBottom:12 }}>🧬</div>
-              <div style={{ color:'#444', fontSize:13, marginBottom:16 }}>Nenhuma medição ainda.</div>
-              <button className="btn" onClick={() => setBioModal(true)} style={{ background:`${R}15`, borderColor:R, color:R2 }}>+ ADICIONAR MEDIÇÃO</button>
+            <NeonCard color={R} style={{ padding:32, textAlign:'center' }}>
+              <div style={{ fontSize:32, marginBottom:8 }}>🧬</div>
+              <div style={{ color:'#444', fontSize:13 }}>Nenhuma medição ainda. Preencha o formulário acima.</div>
             </NeonCard>
           ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-              {bioLog.map((e, i) => (
-                <NeonCard key={e.id||i} color={S} style={{ padding:'14px 16px' }}>
-                  <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: (e.body_fat||e.muscle_mass) ? 10 : 0 }}>
-                    <div style={{ color:'#d0d0d0', fontSize:13, fontWeight:700 }}>{e.date}</div>
-                    {i === 0 && <span style={{ background:'rgba(220,38,38,0.15)', color:R, fontSize:8, letterSpacing:2, padding:'3px 8px', borderRadius:3 }}>MAIS RECENTE</span>}
-                  </div>
-                  <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6 }}>
-                    {[
-                      { l:'Gordura',  v: e.body_fat     ? `${e.body_fat}%`      : null, c: R },
-                      { l:'Músculo',  v: e.muscle_mass  ? `${e.muscle_mass}%`   : null, c: R2 },
-                      { l:'Água',     v: e.water_pct    ? `${e.water_pct}%`     : null, c: S },
-                      { l:'Visceral', v: e.visceral_fat ? `Nv ${e.visceral_fat}`: null, c:'#64748b' },
-                    ].filter(s => s.v).map(s => (
-                      <div key={s.l} style={{ padding:'6px 8px', background:`${s.c}08`, border:`1px solid ${s.c}15`, borderRadius:5, textAlign:'center' }}>
-                        <div style={{ color:'#444', fontSize:8, letterSpacing:1 }}>{s.l}</div>
-                        <div style={{ color:s.c, fontSize:13, fontWeight:700, marginTop:2 }}>{s.v}</div>
-                      </div>
-                    ))}
-                  </div>
-                  {e.note && <div style={{ color:'#555', fontSize:11, marginTop:8, paddingTop:8, borderTop:'1px solid rgba(255,255,255,0.05)' }}>📝 {e.note}</div>}
-                </NeonCard>
-              ))}
-            </div>
-          )}
+            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+              {bioLog.map((e, i) => {
+                const alerts = getBioAlerts(e)
+                return (
+                  <NeonCard key={e.id||i} color={S} style={{ padding:'16px 18px' }}>
+                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                      <div style={{ color:'#d0d0d0', fontSize:14, fontWeight:700 }}>{e.date}</div>
+                      {i === 0 && <span style={{ background:'rgba(220,38,38,0.15)', color:R, fontSize:8, letterSpacing:2, padding:'3px 8px', borderRadius:3 }}>MAIS RECENTE</span>}
+                    </div>
 
-          {bioModal && (
-            <Modal title="NOVA MEDIÇÃO DE BIOIMPEDÂNCIA" color={R} onClose={() => setBioModal(false)} wide>
-              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-                {[
-                  { k:'date',         l:'DATA',                    t:'date' },
-                  { k:'body_fat',     l:'GORDURA CORPORAL (%)',    p:'ex: 18.5' },
-                  { k:'muscle_mass',  l:'MASSA MUSCULAR (%)',      p:'ex: 42.0' },
-                  { k:'visceral_fat', l:'GORDURA VISCERAL (nível)',p:'ex: 5' },
-                  { k:'water_pct',    l:'ÁGUA CORPORAL (%)',       p:'ex: 55.0' },
-                  { k:'bone_mass',    l:'MASSA ÓSSEA (kg)',        p:'ex: 3.2' },
-                  { k:'bmr',          l:'TMB PELA BALANÇA (kcal)', p:'ex: 1650' },
-                  { k:'metabolic_age',l:'IDADE METABÓLICA',        p:'ex: 24' },
-                ].map(f => (
-                  <div key={f.k}>
-                    <label className="label" style={{ fontSize:12, marginBottom:4 }}>{f.l}</label>
-                    <input type={f.t||'number'} step="0.1" value={bioForm[f.k]} onChange={e=>setBioForm(b=>({...b,[f.k]:e.target.value}))} placeholder={f.p}
-                      className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'8px 12px', fontSize:16 }} />
-                  </div>
-                ))}
-                <div style={{ gridColumn:'1/-1' }}>
-                  <label className="label" style={{ fontSize:12, marginBottom:4 }}>OBSERVAÇÕES</label>
-                  <input value={bioForm.note} onChange={e=>setBioForm(b=>({...b,note:e.target.value}))} placeholder="Notas opcionais..." className="input" style={{ borderColor:'rgba(220,38,38,0.15)', padding:'8px 12px', fontSize:16 }} />
-                </div>
-              </div>
-              <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:14, background:'rgba(220,38,38,0.15)', borderColor:R, color:R2, padding:13, fontSize:14 }}>
-                SALVAR MEDIÇÃO
-              </button>
-            </Modal>
+                    {/* Métricas */}
+                    <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8, marginBottom: alerts.length ? 12 : 0 }}>
+                      {[
+                        { l:'Gordura Corporal', v: e.body_fat,     unit:'%',    c: e.body_fat ? bioFatColor(e.body_fat, user?.sex)   : S },
+                        { l:'Massa Muscular',   v: e.muscle_mass,  unit:'%',    c: e.muscle_mass ? bioMuscleColor(e.muscle_mass, user?.sex) : S },
+                        { l:'Água Corporal',    v: e.water_pct,    unit:'%',    c: S },
+                        { l:'Gordura Visceral', v: e.visceral_fat, unit:'nível',c: e.visceral_fat ? bioVisceralColor(e.visceral_fat) : S },
+                        { l:'Massa Óssea',      v: e.bone_mass,    unit:'kg',   c: S },
+                        { l:'TMB Balança',      v: e.bmr,          unit:'kcal', c: S },
+                        { l:'Idade Metabólica', v: e.metabolic_age,unit:'anos', c: e.metabolic_age && user?.age ? (e.metabolic_age <= user.age ? '#22c55e' : e.metabolic_age <= user.age+5 ? '#eab308' : R2) : S },
+                      ].filter(s => s.v).map(s => (
+                        <div key={s.l} style={{ padding:'8px 10px', background:`${s.c}0a`, border:`1px solid ${s.c}20`, borderRadius:6 }}>
+                          <div style={{ color:'#444', fontSize:9, letterSpacing:1, marginBottom:3 }}>{s.l.toUpperCase()}</div>
+                          <div style={{ color:s.c, fontSize:15, fontWeight:700 }}>{s.v}{s.unit}</div>
+                        </div>
+                      ))}
+                    </div>
+
+                    {/* Alertas */}
+                    {alerts.length > 0 && (
+                      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                        {alerts.map((a, ai) => (
+                          <div key={ai} style={{ padding:'8px 12px', borderRadius:6, background:`${a.color}0d`, border:`1px solid ${a.color}25`, display:'flex', gap:8, alignItems:'flex-start' }}>
+                            <span style={{ fontSize:14, flexShrink:0 }}>{a.icon}</span>
+                            <div>
+                              <div style={{ color:a.color, fontSize:10, fontWeight:700, letterSpacing:1 }}>{a.label}</div>
+                              <div style={{ color:'#666', fontSize:11, marginTop:2, lineHeight:1.5 }}>{a.msg}</div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+
+                    {e.note && <div style={{ color:'#555', fontSize:11, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>📝 {e.note}</div>}
+                  </NeonCard>
+                )
+              })}
+            </div>
           )}
         </>
       )}
@@ -580,4 +585,77 @@ function buildCardioByType(cardioLogs) {
   const map = {}
   cardioLogs.forEach(c => { const t = c.type||'Outro'; map[t]=(map[t]||0)+1 })
   return Object.entries(map).map(([type,count])=>({type,count})).sort((a,b)=>b.count-a.count)
+}
+
+// ── Bio alert helpers ─────────────────────────────────────────────────────────
+function bioFatColor(fat, sex) {
+  fat = +fat
+  if (sex === 'female') {
+    if (fat < 14) return '#94a3b8'      // abaixo do ideal
+    if (fat <= 24) return '#22c55e'     // ótimo
+    if (fat <= 31) return '#eab308'     // aceitável
+    return '#ef4444'                    // alto
+  } else {
+    if (fat < 6) return '#94a3b8'
+    if (fat <= 17) return '#22c55e'
+    if (fat <= 24) return '#eab308'
+    return '#ef4444'
+  }
+}
+
+function bioMuscleColor(muscle, sex) {
+  muscle = +muscle
+  if (sex === 'female') {
+    if (muscle >= 30) return '#22c55e'
+    if (muscle >= 24) return '#eab308'
+    return '#ef4444'
+  } else {
+    if (muscle >= 40) return '#22c55e'
+    if (muscle >= 33) return '#eab308'
+    return '#ef4444'
+  }
+}
+
+function bioVisceralColor(v) {
+  v = +v
+  if (v <= 9)  return '#22c55e'
+  if (v <= 14) return '#eab308'
+  return '#ef4444'
+}
+
+function getBioAlerts(e) {
+  const alerts = []
+  const R2 = '#ef4444'
+  const Y  = '#eab308'
+  const G  = '#22c55e'
+
+  if (e.body_fat) {
+    const f = +e.body_fat
+    if (f > 30) alerts.push({ icon:'🔴', color:R2, label:'GORDURA ALTA', msg:`${f}% de gordura corporal está acima do recomendado. Considere déficit calórico e aumentar cardio.` })
+    else if (f > 24) alerts.push({ icon:'🟡', color:Y, label:'GORDURA MODERADA', msg:`${f}% está na faixa aceitável, mas pode melhorar com treino consistente.` })
+    else if (f < 6) alerts.push({ icon:'⚠️', color:Y, label:'GORDURA MUITO BAIXA', msg:`${f}% pode indicar desnutrição ou excesso de treino. Avalie com um profissional.` })
+    else alerts.push({ icon:'✅', color:G, label:'GORDURA CORPORAL OK', msg:`${f}% está dentro da faixa saudável. Continue assim!` })
+  }
+
+  if (e.visceral_fat) {
+    const v = +e.visceral_fat
+    if (v >= 15) alerts.push({ icon:'🔴', color:R2, label:'GORDURA VISCERAL MUITO ALTA', msg:`Nível ${v} é considerado alto risco. Associado a doenças cardiovasculares e diabetes.` })
+    else if (v >= 10) alerts.push({ icon:'🟡', color:Y, label:'GORDURA VISCERAL ELEVADA', msg:`Nível ${v}. Monitore de perto e priorize exercícios aeróbicos.` })
+    else alerts.push({ icon:'✅', color:G, label:'GORDURA VISCERAL OK', msg:`Nível ${v} dentro da faixa normal (abaixo de 10).` })
+  }
+
+  if (e.muscle_mass) {
+    const m = +e.muscle_mass
+    if (m < 30) alerts.push({ icon:'🟡', color:Y, label:'MASSA MUSCULAR BAIXA', msg:`${m}% indica baixa massa muscular. Priorize treino de força e consumo adequado de proteína.` })
+    else alerts.push({ icon:'✅', color:G, label:'MASSA MUSCULAR BOA', msg:`${m}% está em boa faixa. Mantenha o treino de força.` })
+  }
+
+  if (e.metabolic_age && e.user_age) {
+    const diff = e.metabolic_age - e.user_age
+    if (diff > 5) alerts.push({ icon:'🔴', color:R2, label:'IDADE METABÓLICA ACIMA DA REAL', msg:`Seu metabolismo está ${diff} anos mais velho. Exercícios e dieta podem reverter isso.` })
+    else if (diff > 0) alerts.push({ icon:'🟡', color:Y, label:'IDADE METABÓLICA LEVEMENTE ACIMA', msg:`Diferença de ${diff} anos. Com treino consistente você melhora esse número.` })
+    else alerts.push({ icon:'✅', color:G, label:'IDADE METABÓLICA BOA', msg:`Seu metabolismo está jovem! Continue com o estilo de vida ativo.` })
+  }
+
+  return alerts
 }

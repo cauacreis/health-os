@@ -172,7 +172,7 @@ export async function getSleepLog(userId, limit = 30) {
 export async function saveSleepEntry(userId, entry) {
   const { data, error } = await supabase
     .from('sleep_log')
-    .upsert({ user_id: userId, ...entry }, { onConflict: 'user_id,date' })
+    .insert({ user_id: userId, ...entry })
     .select()
     .single()
   if (error) throw error
