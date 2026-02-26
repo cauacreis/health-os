@@ -172,7 +172,7 @@ export async function getSleepLog(userId, limit = 30) {
 export async function saveSleepEntry(userId, entry) {
   const { data, error } = await supabase
     .from('sleep_log')
-    .insert({ user_id: userId, ...entry })
+    .upsert({ user_id: userId, ...entry }, { onConflict: 'user_id,date' })
     .select()
     .single()
   if (error) throw error
@@ -194,7 +194,7 @@ export async function getBioLog(userId, limit = 20) {
 export async function saveBioEntry(userId, entry) {
   const { data, error } = await supabase
     .from('bio_log')
-    .insert({ user_id: userId, ...entry })
+    .upsert({ user_id: userId, ...entry }, { onConflict: 'user_id,date' })
     .select()
     .single()
   if (error) throw error
@@ -216,9 +216,30 @@ export async function getCardioLog(userId, limit = 30) {
 export async function saveCardioEntry(userId, entry) {
   const { data, error } = await supabase
     .from('cardio_log')
-    .insert({ user_id: userId, ...entry })
+    .upsert({ user_id: userId, ...entry }, { onConflict: 'user_id,date' })
     .select()
     .single()
   if (error) throw error
+  return data
+}
+
+// ── Water log ─────────────────────────────────────────────────────────────────
+export async function getWaterLog(userId, limit = 30) {
+  const { data, error } = await supabase
+    .from('water_log')
+    .select('*')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(limit)
+  if (error) return []   // table may not exist yet — silent fail
+  return data || []
+}
+
+export async function saveWaterLog(userId, date, ml) {
+  const { data, error } = await supabase
+    .from('water_log')
+    .upsert({ user_id: userId, date, ml }, { onConflict: 'user_id,date' })
+    .select().single()
+  if (error) return null
   return data
 }
