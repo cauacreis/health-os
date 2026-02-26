@@ -328,7 +328,7 @@ export default function Profile({ user, userId, onUpdate }) {
       {/* ── Modal Bioimpedância ─────────────────────────────────── */}
       {bioModal && (
         <Modal title="NOVA MEDIÇÃO DE BIOIMPEDÂNCIA" color="#dc2626" onClose={() => setBioModal(false)} wide>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10 }}>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8 }}>
             {[
               { k:'date',         l:'DATA',                    t:'date'   },
               { k:'body_fat',     l:'GORDURA CORPORAL (%)',    p:'ex: 18.5' },
@@ -340,17 +340,17 @@ export default function Profile({ user, userId, onUpdate }) {
               { k:'metabolic_age',l:'IDADE METABÓLICA',        p:'ex: 24' },
             ].map(f => (
               <div key={f.k}>
-                <label className="label" style={{ fontSize:14, marginBottom:5 }}>{f.l}</label>
+                <label className="label" style={{ fontSize:12, marginBottom:4 }}>{f.l}</label>
                 <input type={f.t||'number'} step="0.1" value={bio[f.k]} onChange={e=>setBio(b=>({...b,[f.k]:e.target.value}))} placeholder={f.p}
-                  className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'9px 14px', fontSize:19 }} />
+                  className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'8px 12px', fontSize:17 }} />
               </div>
             ))}
             <div style={{ gridColumn:'1/-1' }}>
-              <label className="label" style={{ fontSize:14, marginBottom:5 }}>OBSERVAÇÕES</label>
-              <input value={bio.note} onChange={e=>setBio(b=>({...b,note:e.target.value}))} placeholder="Notas opcionais..." className="input" style={{ borderColor:'rgba(220,38,38,0.15)', padding:'9px 14px', fontSize:19 }} />
+              <label className="label" style={{ fontSize:12, marginBottom:4 }}>OBSERVAÇÕES</label>
+              <input value={bio.note} onChange={e=>setBio(b=>({...b,note:e.target.value}))} placeholder="Notas opcionais..." className="input" style={{ borderColor:'rgba(220,38,38,0.15)', padding:'8px 12px', fontSize:17 }} />
             </div>
           </div>
-          <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:12, background:'rgba(220,38,38,0.15)', borderColor:'#dc2626', color:'#ef4444', padding:12, fontSize:17 }}>
+          <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:12, background:'rgba(220,38,38,0.15)', borderColor:'#dc2626', color:'#ef4444', padding:12, fontSize:16 }}>
             SALVAR MEDIÇÃO
           </button>
         </Modal>
