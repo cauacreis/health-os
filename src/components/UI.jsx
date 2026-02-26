@@ -147,7 +147,23 @@ function TermCard({ termKey, val, open, setOpen }) {
 
 
 // ── Modal ─────────────────────────────────────────────────────────────────────
-export function Modal({ title, color = '#dc2626', onClose, children, wide = false }) {
+export function Modal({ title, color = '#dc2626', onClose, children, wide = false, fullScreen = false }) {
+  if (fullScreen) {
+    return (
+      <div style={{ position:'fixed', inset:0, background:'#080808', zIndex:200, display:'flex', flexDirection:'column', overflow:'hidden' }}>
+        {/* Header */}
+        <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'18px 24px', borderBottom:`1px solid ${color}20`, flexShrink:0 }}>
+          <div style={{ color, fontSize:11, letterSpacing:3, textTransform:'uppercase', fontFamily:"'Space Mono',monospace", fontWeight:700 }}>{title}</div>
+          <button onClick={onClose} style={{ background:'none', border:'1px solid rgba(255,255,255,0.08)', color:'#666', cursor:'pointer', fontSize:16, width:36, height:36, display:'flex', alignItems:'center', justifyContent:'center', borderRadius:6 }}>✕</button>
+        </div>
+        {/* Scrollable content */}
+        <div style={{ flex:1, overflowY:'auto', padding:'24px', paddingBottom:'max(24px, env(safe-area-inset-bottom))' }}>
+          {children}
+        </div>
+      </div>
+    )
+  }
+
   return (
     <div onClick={e => e.target === e.currentTarget && onClose()}
       style={{ position:'fixed', inset:0, background:'rgba(0,0,0,0.88)', display:'flex', alignItems:'center', justifyContent:'center', zIndex:200, padding:16, overflowY:'auto' }}>

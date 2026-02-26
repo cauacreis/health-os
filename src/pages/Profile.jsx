@@ -327,7 +327,7 @@ export default function Profile({ user, userId, onUpdate }) {
 
       {/* ── Modal Bioimpedância ─────────────────────────────────── */}
       {bioModal && (
-        <Modal title="NOVA MEDIÇÃO DE BIOIMPEDÂNCIA" color="#94a3b8" onClose={() => setBioModal(false)} wide>
+        <Modal title="NOVA MEDIÇÃO DE BIOIMPEDÂNCIA" color="#dc2626" onClose={() => setBioModal(false)} fullScreen>
           <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
             {[
               { k:'date',         l:'DATA',                    t:'date'   },
@@ -350,7 +350,7 @@ export default function Profile({ user, userId, onUpdate }) {
               <input value={bio.note} onChange={e=>setBio(b=>({...b,note:e.target.value}))} placeholder="Notas opcionais..." className="input" style={{ borderColor:'rgba(148,163,184,0.2)' }} />
             </div>
           </div>
-          <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:16, background:'rgba(148,163,184,0.15)', borderColor:'#94a3b8', color:'#94a3b8', padding:14 }}>
+          <button className="btn" onClick={saveBio} style={{ width:'100%', marginTop:16, background:'rgba(220,38,38,0.15)', borderColor:'#dc2626', color:'#ef4444', padding:14 }}>
             SALVAR MEDIÇÃO
           </button>
         </Modal>
