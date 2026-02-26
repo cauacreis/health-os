@@ -89,7 +89,7 @@ export default function Dashboard({ user, userId }) {
           <SectionTitle color="#dc2626">PERFIL DE FITNESS</SectionTitle>
           <ResponsiveContainer width="100%" height={180}>
             <RadarChart data={RADAR_DATA}>
-              <PolarGrid stroke="#00ff8812" />
+              <PolarGrid stroke="#dc262618" />
               <PolarAngleAxis dataKey="metric" tick={{ fill:'#555', fontSize:9, fontFamily:'monospace' }} />
               <Radar dataKey="value" stroke="#dc2626" fill="#dc2626" fillOpacity={0.12} strokeWidth={1.5} />
             </RadarChart>
@@ -121,7 +121,7 @@ export default function Dashboard({ user, userId }) {
         <ProgressBar value={steps} max={10000} color="#94a3b8" label="Passos (10.000)" />
         <ProgressBar value={user.meals_today||0} max={6} color="#ef4444" label="Refeições (6)" />
         <ProgressBar value={todayFoodKcal} max={tdee} color="#dc2626" label="Kcal consumidas" />
-        <ProgressBar value={latestSleep?.hours||0} max={8} color="#64748b" label="Sono (8h)" />
+        <ProgressBar value={latestSleep?.hours||0} max={8} color="#94a3b8" label="Sono (8h)" />
       </NeonCard>
     </div>
   )

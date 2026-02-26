@@ -143,7 +143,7 @@ export default function Profile({ user, userId, onUpdate }) {
           <div style={{ display:'grid', gridTemplateColumns:'auto 1fr', gap:16, marginBottom:16 }}>
             <NeonCard color="#dc2626" style={{ padding:20, display:'flex', flexDirection:'column', alignItems:'center', gap:12, minWidth:140 }}>
               {/* Avatar — sem botão de foto */}
-              <div style={{ width:90, height:90, borderRadius:'50%', border:'2px solid rgba(220,38,38,0.3)', background:'rgba(220,38,38,0.08)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
+              <div style={{ width:90, height:90, borderRadius:'50%', border:'2px solid rgba(220,38,38,0.25)', background:'rgba(220,38,38,0.06)', overflow:'hidden', display:'flex', alignItems:'center', justifyContent:'center' }}>
                 {user.photo_url
                   ? <img src={user.photo_url} alt="" style={{ width:'100%', height:'100%', objectFit:'cover' }} onError={e=>e.target.style.display='none'} />
                   : <span style={{ color:'#dc2626', fontSize:36 }}>{(user.name||'?')[0].toUpperCase()}</span>
