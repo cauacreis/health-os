@@ -154,27 +154,25 @@ export function Modal({ title, color = '#dc2626', onClose, children, wide = fals
       style={{
         position: 'fixed',
         top: 0, left: 0, right: 0, bottom: 0,
-        background: 'rgba(0,0,0,0.85)',
+        background: 'rgba(0,0,0,0.96)',
         display: 'flex',
-        alignItems: 'flex-start',
+        alignItems: 'center',
         justifyContent: 'center',
         zIndex: 9999,
-        overflowY: 'auto',
-        paddingTop: 60,
-        paddingBottom: 40,
-        paddingLeft: 16,
-        paddingRight: 16,
+        padding: '16px',
       }}
     >
       <div style={{
         background: '#0e0e10',
         border: `1px solid ${color}30`,
         borderRadius: 10,
-        padding: '22px 24px',
+        padding: '18px 22px',
         width: '100%',
         maxWidth: wide ? 660 : 480,
+        maxHeight: '90vh',
+        overflowY: 'auto',
         animation: 'slideUp 0.25s ease',
-        boxShadow: `0 32px 80px rgba(0,0,0,0.95)`,
+        boxShadow: `0 32px 80px rgba(0,0,0,0.98)`,
         flexShrink: 0,
       }}>
         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom: 20 }}>
