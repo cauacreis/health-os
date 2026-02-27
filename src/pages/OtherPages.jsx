@@ -237,33 +237,29 @@ export function Water({ user, userId }) {
 // ─── MEALS ───────────────────────────────────────────────────────────────────
 const MEAL_TYPES = ['Café da manhã','Lanche manhã','Almoço','Lanche tarde','Jantar','Ceia']
 const FREQ_OPTS  = ['Todos os dias','Segunda a sexta','Fins de semana','Seg/Qua/Sex','Ter/Qui','Personalizado']
+const EMPTY_FORM = { name:'', meal_type:'Café da manhã', time:'', description:'', calories:'', protein:'', carbs:'', fat:'', frequency:'Todos os dias', active:true, id:undefined }
 
 export function Meals({ userId }) {
-  const [tab, setTab]         = useState('hoje')
-  const [plans, setPlans]     = useState([])
+  const [tab, setTab]             = useState('hoje')
+  const [plans, setPlans]         = useState([])
   const [plansLoaded, setPlansLoaded] = useState(false)
-  const [checkedMap, setCheckedMap]   = useState({})   // { mealId: bool }
+  const [checkedMap, setCheckedMap]   = useState({})
   const [logLoaded, setLogLoaded]     = useState(false)
-  const [addModal, setAddModal]       = useState(false)
-  const [editPlan, setEditPlan]       = useState(null)
   const [savingId, setSavingId]       = useState(null)
+  const [form, setForm]               = useState(EMPTY_FORM)
+  const [saving, setSaving]           = useState(false)
+  const [saved, setSaved]             = useState(false)
   const todayStr = today()
 
-  // Carrega planos
   useEffect(() => {
-    if (!plansLoaded) {
-      getMealPlans(userId).then(d => { setPlans(d); setPlansLoaded(true) })
-    }
+    if (!plansLoaded) getMealPlans(userId).then(d => { setPlans(d); setPlansLoaded(true) })
   }, [plansLoaded, userId])
 
-  // Carrega check-ins de hoje
   useEffect(() => {
     if (!logLoaded && plansLoaded) {
       getMealLog(userId, todayStr).then(logs => {
-        const map = {}
-        logs.forEach(l => { map[l.meal_id] = true })
-        setCheckedMap(map)
-        setLogLoaded(true)
+        const map = {}; logs.forEach(l => { map[l.meal_id] = true })
+        setCheckedMap(map); setLogLoaded(true)
       })
     }
   }, [logLoaded, plansLoaded, userId, todayStr])
@@ -272,23 +268,31 @@ export function Meals({ userId }) {
     const next = !checkedMap[plan.id]
     setCheckedMap(m => ({ ...m, [plan.id]: next }))
     setSavingId(plan.id)
-    try {
-      await toggleMealLog(userId, todayStr, plan.id, plan.name, next)
-    } catch(e) {
-      console.error(e)
-      setCheckedMap(m => ({ ...m, [plan.id]: !next })) // rollback
-    }
+    try { await toggleMealLog(userId, todayStr, plan.id, plan.name, next) }
+    catch(e) { console.error(e); setCheckedMap(m => ({ ...m, [plan.id]: !next })) }
     setSavingId(null)
   }
 
-  async function handleSavePlan(form) {
-    const saved = await saveMealPlan(userId, form)
-    setPlans(p => form.id ? p.map(x=>x.id===form.id?saved:x) : [...p, saved])
-    setAddModal(false)
-    setEditPlan(null)
+  async function handleSave() {
+    if (!form.name.trim()) return
+    setSaving(true)
+    try {
+      const saved = await saveMealPlan(userId, form)
+      setPlans(p => form.id ? p.map(x => x.id===form.id ? saved : x) : [...p, saved])
+      setForm(EMPTY_FORM)
+      setSaved(true); setTimeout(() => setSaved(false), 2000)
+      setTab('hoje')
+    } catch(e) { console.error(e) }
+    setSaving(false)
+  }
+
+  function editPlan(plan) {
+    setForm({ ...plan })
+    setTab('adicionar')
   }
 
   async function handleDelete(id) {
+    if (!confirm('Deletar esta refeição?')) return
     await deleteMealPlan(userId, id)
     setPlans(p => p.filter(x => x.id !== id))
     setCheckedMap(m => { const n={...m}; delete n[id]; return n })
@@ -296,43 +300,32 @@ export function Meals({ userId }) {
 
   const todayPlans = plans.filter(p => {
     if (!p.active) return false
-    if (p.frequency === 'Todos os dias') return true
-    if (p.frequency === 'Segunda a sexta') {
-      const d = new Date().getDay(); return d >= 1 && d <= 5
-    }
-    if (p.frequency === 'Fins de semana') {
-      const d = new Date().getDay(); return d === 0 || d === 6
-    }
-    return true // para outros tipos mostra sempre
+    if (p.frequency === 'Segunda a sexta') { const d=new Date().getDay(); return d>=1&&d<=5 }
+    if (p.frequency === 'Fins de semana')  { const d=new Date().getDay(); return d===0||d===6 }
+    return true
   })
 
   const doneCount  = todayPlans.filter(p => checkedMap[p.id]).length
   const totalCount = todayPlans.length
+  const f = k => e => setForm(v => ({...v, [k]: e.target.value}))
 
   return (
     <div className="animate-fade">
       <PageHeader title="REFEIÇÕES" sub="DIETA E CONTROLE DIÁRIO" />
 
+      {/* Tabs */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:18 }}>
-        {[
-          { id:'hoje',   label:'📋 Hoje'    },
-          { id:'planos', label:'🍽 Planos'  },
-        ].map(t => (
-          <button key={t.id} onClick={() => setTab(t.id)} className="btn"
-            style={{ padding:'10px 0', fontSize:12, background:tab===t.id?DIM:'transparent', borderColor:tab===t.id?R:'rgba(255,255,255,0.08)', color:tab===t.id?R2:'#555' }}>
+        {[{id:'hoje',label:'📋 Hoje'},{id:'planos',label:'🍽 Planos'},{id:'adicionar',label:'+ Nova'}].map(t => (
+          <button key={t.id} onClick={() => { setTab(t.id); if(t.id==='adicionar') setForm(EMPTY_FORM) }} className="btn"
+            style={{ padding:'10px 0', fontSize:11, background:tab===t.id?DIM:'transparent', borderColor:tab===t.id?R:'rgba(255,255,255,0.08)', color:tab===t.id?R2:'#555' }}>
             {t.label}
           </button>
         ))}
-        <button onClick={() => { setEditPlan(null); setAddModal(true) }} className="btn"
-          style={{ padding:'10px 0', fontSize:12, background:'rgba(34,197,94,0.08)', borderColor:`${G}40`, color:G }}>
-          + Refeição
-        </button>
       </div>
 
       {/* ── HOJE ── */}
       {tab === 'hoje' && (
         <>
-          {/* Progresso do dia */}
           <NeonCard color={R} style={{ padding:'16px 20px', marginBottom:14 }}>
             <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:10 }}>
               <div>
@@ -340,7 +333,7 @@ export function Meals({ userId }) {
                 <div style={{ color:'#555', fontSize:11, marginTop:2 }}>{new Date().toLocaleDateString('pt-BR',{weekday:'long',day:'numeric',month:'long'})}</div>
               </div>
               <div style={{ textAlign:'right' }}>
-                <div style={{ color: doneCount===totalCount&&totalCount>0 ? G : R2, fontSize:28, fontWeight:700, lineHeight:1 }}>{doneCount}/{totalCount}</div>
+                <div style={{ color:doneCount===totalCount&&totalCount>0?G:R2, fontSize:28, fontWeight:700, lineHeight:1 }}>{doneCount}/{totalCount}</div>
                 <div style={{ color:'#444', fontSize:9, letterSpacing:1 }}>CONCLUÍDAS</div>
               </div>
             </div>
@@ -357,63 +350,48 @@ export function Meals({ userId }) {
             <NeonCard color={R} style={{ padding:40, textAlign:'center' }}>
               <div style={{ fontSize:36, marginBottom:12 }}>🍽</div>
               <div style={{ color:'#555', fontSize:13, marginBottom:16 }}>Nenhuma refeição cadastrada para hoje.</div>
-              <button className="btn" onClick={() => setAddModal(true)} style={{ background:DIM, borderColor:R, color:R2 }}>
-                + ADICIONAR PRIMEIRA REFEIÇÃO
-              </button>
+              <button className="btn" onClick={() => setTab('adicionar')} style={{ background:DIM, borderColor:R, color:R2 }}>+ ADICIONAR PRIMEIRA REFEIÇÃO</button>
             </NeonCard>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
               {todayPlans.map(plan => {
-                const done = !!checkedMap[plan.id]
+                const done   = !!checkedMap[plan.id]
                 const saving = savingId === plan.id
                 return (
                   <NeonCard key={plan.id} color={done?G:R}
                     style={{ padding:'16px 18px', opacity:done?0.85:1, borderColor:done?`${G}30`:`${R}12`, background:done?'rgba(34,197,94,0.04)':'rgba(0,0,0,0.6)', transition:'all 0.25s' }}>
                     <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
-
-                      {/* Checkbox grande */}
+                      {/* Checkbox */}
                       <div onClick={() => !saving && handleToggle(plan)}
                         style={{ width:28, height:28, borderRadius:7, flexShrink:0, border:`2px solid ${done?G:R+'40'}`, background:done?`${G}20`:'transparent', display:'flex', alignItems:'center', justifyContent:'center', cursor:saving?'wait':'pointer', transition:'all 0.2s', fontSize:15 }}>
                         {saving ? '…' : done ? '✓' : ''}
                       </div>
-
                       <div style={{ flex:1, minWidth:0 }}>
                         <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:4 }}>
                           <div>
-                            <div style={{ color:done?G:'#e0e0e0', fontSize:15, fontWeight:700, textDecoration:done?'line-through':'none', transition:'all 0.2s' }}>{plan.name}</div>
+                            <div style={{ color:done?G:'#e0e0e0', fontSize:15, fontWeight:700, textDecoration:done?'line-through':'none' }}>{plan.name}</div>
                             <div style={{ display:'flex', gap:8, marginTop:3 }}>
                               {plan.meal_type && <span style={{ color:'#555', fontSize:11 }}>🕐 {plan.meal_type}</span>}
                               {plan.time      && <span style={{ color:R2, fontSize:11, fontWeight:700 }}>{plan.time}</span>}
                             </div>
                           </div>
-                          <button onClick={() => { setEditPlan(plan); setAddModal(true) }}
-                            style={{ background:'none', border:'none', color:'#333', cursor:'pointer', fontSize:14, padding:'0 4px' }}>✎</button>
+                          <div style={{ display:'flex', gap:4 }}>
+                            <button onClick={() => editPlan(plan)} style={{ background:'none', border:'none', color:'#444', cursor:'pointer', fontSize:14, padding:'0 4px' }}>✎</button>
+                            <button onClick={() => handleDelete(plan.id)} style={{ background:'none', border:'none', color:'#333', cursor:'pointer', fontSize:14, padding:'0 4px' }}>🗑</button>
+                          </div>
                         </div>
-
-                        {/* Descrição / alimentos */}
                         {plan.description && (
                           <div style={{ color:'#666', fontSize:12, lineHeight:1.6, marginTop:4, padding:'8px 12px', borderRadius:6, background:'rgba(255,255,255,0.02)', border:`1px solid ${done?G+'15':R+'08'}` }}>
                             {plan.description}
                           </div>
                         )}
-
-                        {/* Macros */}
-                        {(plan.calories || plan.protein || plan.carbs || plan.fat) && (
+                        {(plan.calories||plan.protein||plan.carbs||plan.fat) && (
                           <div style={{ display:'flex', gap:8, marginTop:8, flexWrap:'wrap' }}>
-                            {[
-                              { l:'Kcal',    v:plan.calories, c:R2  },
-                              { l:'Prot',    v:plan.protein?`${plan.protein}g`:null, c:'#818cf8' },
-                              { l:'Carbs',   v:plan.carbs?`${plan.carbs}g`:null,    c:'#f59e0b' },
-                              { l:'Gordura', v:plan.fat?`${plan.fat}g`:null,        c:S         },
-                            ].filter(m=>m.v).map(m=>(
-                              <span key={m.l} style={{ padding:'2px 8px', borderRadius:4, background:`${m.c}0f`, border:`1px solid ${m.c}20`, color:m.c, fontSize:10, fontFamily:'monospace' }}>
-                                {m.l}: {m.v}
-                              </span>
+                            {[{l:'Kcal',v:plan.calories,c:R2},{l:'Prot',v:plan.protein?`${plan.protein}g`:null,c:'#818cf8'},{l:'Carbs',v:plan.carbs?`${plan.carbs}g`:null,c:'#f59e0b'},{l:'Gord',v:plan.fat?`${plan.fat}g`:null,c:S}].filter(m=>m.v).map(m=>(
+                              <span key={m.l} style={{ padding:'2px 8px', borderRadius:4, background:`${m.c}0f`, border:`1px solid ${m.c}20`, color:m.c, fontSize:10, fontFamily:'monospace' }}>{m.l}: {m.v}</span>
                             ))}
                           </div>
                         )}
-
-                        {/* Frequência */}
                         {plan.frequency && plan.frequency !== 'Todos os dias' && (
                           <div style={{ color:'#444', fontSize:10, marginTop:6 }}>📅 {plan.frequency}</div>
                         )}
@@ -427,20 +405,17 @@ export function Meals({ userId }) {
         </>
       )}
 
-      {/* ── PLANOS ── */}
+      {/* ── PLANOS (todos) ── */}
       {tab === 'planos' && (
         <>
-          <div style={{ color:'#444', fontSize:11, marginBottom:14, lineHeight:1.6 }}>
-            Configure sua dieta aqui. Cada refeição cadastrada aparece na aba <strong style={{ color:R2 }}>Hoje</strong> para você marcar quando consumir.
+          <div style={{ color:'#555', fontSize:11, marginBottom:14, lineHeight:1.6 }}>
+            Sua dieta configurada. Refeições ativas aparecem no checklist diário.
           </div>
-
           {plans.length === 0 ? (
             <NeonCard color={R} style={{ padding:40, textAlign:'center' }}>
               <div style={{ fontSize:36, marginBottom:12 }}>🍽</div>
               <div style={{ color:'#555', fontSize:13, marginBottom:16 }}>Nenhuma refeição cadastrada.</div>
-              <button className="btn" onClick={() => setAddModal(true)} style={{ background:DIM, borderColor:R, color:R2 }}>
-                + CRIAR PRIMEIRA REFEIÇÃO
-              </button>
+              <button className="btn" onClick={() => setTab('adicionar')} style={{ background:DIM, borderColor:R, color:R2 }}>+ CRIAR PRIMEIRA REFEIÇÃO</button>
             </NeonCard>
           ) : (
             <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
@@ -448,27 +423,28 @@ export function Meals({ userId }) {
                 <NeonCard key={plan.id} color={plan.active!==false?R:S} style={{ padding:'14px 16px' }}>
                   <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
                     <div style={{ flex:1, minWidth:0 }}>
-                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4 }}>
+                      <div style={{ display:'flex', alignItems:'center', gap:8, marginBottom:4, flexWrap:'wrap' }}>
                         <span style={{ color:'#d0d0d0', fontSize:14, fontWeight:700 }}>{plan.name}</span>
                         {plan.meal_type && <span style={{ color:'#444', fontSize:10 }}>{plan.meal_type}</span>}
                         {plan.time      && <span style={{ color:R2, fontSize:11, fontWeight:700 }}>{plan.time}</span>}
+                        {plan.active===false && <span style={{ color:'#444', fontSize:9, border:'1px solid #333', padding:'1px 6px', borderRadius:3 }}>INATIVA</span>}
                       </div>
-                      {plan.description && <div style={{ color:'#555', fontSize:11, lineHeight:1.5, marginBottom:4 }}>{plan.description}</div>}
+                      {plan.description && <div style={{ color:'#555', fontSize:11, lineHeight:1.5, marginBottom:6 }}>{plan.description}</div>}
                       {(plan.calories||plan.protein||plan.carbs||plan.fat) && (
-                        <div style={{ display:'flex', gap:6, flexWrap:'wrap' }}>
+                        <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:4 }}>
                           {plan.calories && <span style={{ color:R2, fontSize:10 }}>{plan.calories} kcal</span>}
                           {plan.protein  && <span style={{ color:'#818cf8', fontSize:10 }}>{plan.protein}g prot</span>}
                           {plan.carbs    && <span style={{ color:'#f59e0b', fontSize:10 }}>{plan.carbs}g carbs</span>}
                           {plan.fat      && <span style={{ color:S, fontSize:10 }}>{plan.fat}g gord</span>}
                         </div>
                       )}
-                      <div style={{ color:'#444', fontSize:10, marginTop:4 }}>📅 {plan.frequency||'Todos os dias'}</div>
+                      <div style={{ color:'#444', fontSize:10 }}>📅 {plan.frequency||'Todos os dias'}</div>
                     </div>
-                    <div style={{ display:'flex', gap:6, flexShrink:0 }}>
-                      <button onClick={() => { setEditPlan(plan); setAddModal(true) }}
-                        style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'#555', fontSize:12, padding:'5px 10px', borderRadius:4, cursor:'pointer' }}>✎</button>
+                    <div style={{ display:'flex', gap:6, flexShrink:0, marginLeft:10 }}>
+                      <button onClick={() => editPlan(plan)}
+                        style={{ background:'rgba(255,255,255,0.04)', border:'1px solid rgba(255,255,255,0.08)', color:'#666', fontSize:12, padding:'6px 10px', borderRadius:4, cursor:'pointer' }}>✎</button>
                       <button onClick={() => handleDelete(plan.id)}
-                        style={{ background:'rgba(220,38,38,0.06)', border:`1px solid ${R}20`, color:R, fontSize:12, padding:'5px 10px', borderRadius:4, cursor:'pointer' }}>✕</button>
+                        style={{ background:`${R}08`, border:`1px solid ${R}25`, color:R, fontSize:12, padding:'6px 10px', borderRadius:4, cursor:'pointer' }}>🗑</button>
                     </div>
                   </div>
                 </NeonCard>
@@ -478,93 +454,75 @@ export function Meals({ userId }) {
         </>
       )}
 
-      {addModal && (
-        <MealPlanModal plan={editPlan} onSave={handleSavePlan} onClose={() => { setAddModal(false); setEditPlan(null) }} />
+      {/* ── ADICIONAR / EDITAR (form inline) ── */}
+      {tab === 'adicionar' && (
+        <NeonCard color={R} style={{ padding:22 }}>
+          <SectionTitle color={R}>{form.id ? 'EDITAR REFEIÇÃO' : 'NOVA REFEIÇÃO'}</SectionTitle>
+
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:12 }}>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label className="label">NOME *</label>
+              <input value={form.name} onChange={f('name')} placeholder="ex: Café da manhã pré-treino"
+                className="input" style={{ borderColor:`${R}35`, color:'#d0d0d0' }} />
+            </div>
+            <div>
+              <label className="label">TIPO</label>
+              <select value={form.meal_type} onChange={f('meal_type')} className="select">
+                {MEAL_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">HORÁRIO</label>
+              <input type="time" value={form.time} onChange={f('time')} className="input" style={{ color:R2 }} />
+            </div>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label className="label">ALIMENTOS / DESCRIÇÃO</label>
+              <textarea value={form.description} onChange={f('description')}
+                placeholder="ex: 3 ovos, 2 fatias pão integral, 1 banana, café sem açúcar"
+                className="input" style={{ height:80, resize:'vertical', lineHeight:1.6 }} />
+            </div>
+
+            <div style={{ gridColumn:'1/-1' }}>
+              <label className="label" style={{ marginBottom:4 }}>MACROS (OPCIONAL)</label>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8 }}>
+                {[{k:'calories',l:'KCAL',p:'450'},{k:'protein',l:'PROT (g)',p:'30'},{k:'carbs',l:'CARBS (g)',p:'50'},{k:'fat',l:'GORD (g)',p:'15'}].map(fld => (
+                  <div key={fld.k}>
+                    <label className="label" style={{ fontSize:9 }}>{fld.l}</label>
+                    <input type="number" value={form[fld.k]} onChange={f(fld.k)} placeholder={fld.p} className="input" style={{ padding:'7px 8px' }} />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <div>
+              <label className="label">FREQUÊNCIA</label>
+              <select value={form.frequency} onChange={f('frequency')} className="select">
+                {FREQ_OPTS.map(o => <option key={o}>{o}</option>)}
+              </select>
+            </div>
+            <div style={{ display:'flex', alignItems:'flex-end', paddingBottom:2 }}>
+              <label style={{ display:'flex', alignItems:'center', gap:8, cursor:'pointer' }}>
+                <input type="checkbox" checked={form.active} onChange={e=>setForm(v=>({...v,active:e.target.checked}))} style={{ accentColor:R, width:16, height:16 }} />
+                <span style={{ color:'#666', fontSize:12 }}>Refeição ativa</span>
+              </label>
+            </div>
+          </div>
+
+          <div style={{ display:'flex', gap:10 }}>
+            <button className="btn" onClick={handleSave} disabled={saving}
+              style={{ flex:1, background:DIM, borderColor:R, color:R2, padding:13, fontSize:13 }}>
+              {saving ? 'Salvando...' : saved ? '✓ Salvo!' : form.id ? '💾 SALVAR EDIÇÃO' : '➕ CRIAR REFEIÇÃO'}
+            </button>
+            {form.id && (
+              <button className="btn" onClick={() => { setForm(EMPTY_FORM) }}
+                style={{ background:'transparent', borderColor:'rgba(255,255,255,0.1)', color:'#555', padding:'13px 18px' }}>
+                Nova
+              </button>
+            )}
+          </div>
+        </NeonCard>
       )}
     </div>
-  )
-}
-
-// ─── Modal de criação/edição de refeição ──────────────────────────────────────
-function MealPlanModal({ plan, onSave, onClose }) {
-  const [form, setForm] = useState({
-    name:        plan?.name        || '',
-    meal_type:   plan?.meal_type   || MEAL_TYPES[0],
-    time:        plan?.time        || '',
-    description: plan?.description || '',
-    calories:    plan?.calories    || '',
-    protein:     plan?.protein     || '',
-    carbs:       plan?.carbs       || '',
-    fat:         plan?.fat         || '',
-    frequency:   plan?.frequency   || 'Todos os dias',
-    active:      plan?.active      !== false,
-    id:          plan?.id          || undefined,
-  })
-
-  function f(k) { return e => setForm(v => ({...v, [k]: e.target.value})) }
-
-  return (
-    <Modal title={plan ? 'EDITAR REFEIÇÃO' : 'NOVA REFEIÇÃO'} color={R} onClose={onClose}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-
-        <div style={{ gridColumn:'1/-1' }}>
-          <label className="label">NOME DA REFEIÇÃO *</label>
-          <input value={form.name} onChange={f('name')} placeholder="ex: Café da manhã pré-treino"
-            className="input" style={{ borderColor:`${R}35`, color:'#d0d0d0' }} />
-        </div>
-
-        <div>
-          <label className="label">TIPO</label>
-          <select value={form.meal_type} onChange={f('meal_type')} className="select">
-            {MEAL_TYPES.map(t => <option key={t}>{t}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="label">HORÁRIO</label>
-          <input type="time" value={form.time} onChange={f('time')} className="input" style={{ color:R2 }} />
-        </div>
-
-        <div style={{ gridColumn:'1/-1' }}>
-          <label className="label">ALIMENTOS / DESCRIÇÃO</label>
-          <textarea value={form.description} onChange={f('description')}
-            placeholder="ex: 3 ovos mexidos, 2 fatias de pão integral, 1 banana, café sem açúcar"
-            className="input" style={{ height:80, resize:'vertical', lineHeight:1.6 }} />
-        </div>
-
-        <div style={{ gridColumn:'1/-1', color:'#444', fontSize:10, letterSpacing:1 }}>MACROS (OPCIONAL)</div>
-
-        {[
-          { k:'calories', l:'CALORIAS (kcal)', p:'ex: 450' },
-          { k:'protein',  l:'PROTEÍNA (g)',    p:'ex: 30'  },
-          { k:'carbs',    l:'CARBOIDRATOS (g)',p:'ex: 50'  },
-          { k:'fat',      l:'GORDURAS (g)',    p:'ex: 15'  },
-        ].map(field => (
-          <div key={field.k}>
-            <label className="label">{field.l}</label>
-            <input type="number" value={form[field.k]} onChange={f(field.k)} placeholder={field.p} className="input" />
-          </div>
-        ))}
-
-        <div style={{ gridColumn:'1/-1' }}>
-          <label className="label">FREQUÊNCIA</label>
-          <select value={form.frequency} onChange={f('frequency')} className="select">
-            {FREQ_OPTS.map(o => <option key={o}>{o}</option>)}
-          </select>
-        </div>
-
-        <div style={{ gridColumn:'1/-1', display:'flex', alignItems:'center', gap:10 }}>
-          <input type="checkbox" id="active" checked={form.active} onChange={e => setForm(v=>({...v,active:e.target.checked}))}
-            style={{ accentColor:R, width:16, height:16 }} />
-          <label htmlFor="active" style={{ color:'#666', fontSize:12, cursor:'pointer' }}>Refeição ativa (aparece no checklist diário)</label>
-        </div>
-      </div>
-
-      <button className="btn" onClick={() => { if (!form.name.trim()) return; onSave(form) }}
-        style={{ width:'100%', marginTop:14, background:DIM, borderColor:R, color:R2, padding:13, fontSize:13 }}>
-        💾 {plan ? 'SALVAR ALTERAÇÕES' : 'CRIAR REFEIÇÃO'}
-      </button>
-    </Modal>
   )
 }
 
@@ -620,11 +578,11 @@ export function BMI({ user }) {
 
 // ─── CARDIO ──────────────────────────────────────────────────────────────────
 export function Cardio({ user, userId }) {
-  const [tab, setTab]     = useState('zonas')
+  const [tab, setTab]     = useState('registrar')
   const [log, setLog]     = useState([])
-  const [modal, setModal] = useState(false)
   const [loaded, setLoaded] = useState(false)
   const [form, setForm]   = useState({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avg_hr:'', kcal:'' })
+  const [saved, setSaved]   = useState(false)
   const maxHR = 220 - (user.age||25)
 
   if (!loaded) {
@@ -636,8 +594,9 @@ export function Cardio({ user, userId }) {
     await saveCardioEntry(userId, { ...form, minutes:+form.minutes, avg_hr:+form.avg_hr||null, kcal:+form.kcal||null })
     await addCalendarEntry(userId, { date:form.date, type:'cardio', note:`${form.type} ${form.minutes}min`, label:'Cardio' }).catch(()=>{})
     setLog(await getCardioLog(userId, 30))
-    setModal(false)
     setForm({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avg_hr:'', kcal:'' })
+    setSaved(true); setTimeout(() => setSaved(false), 2500)
+    setTab('historico')
   }
 
   const TYPES    = ['Corrida','Caminhada','Bike','Natação','Remo','HIIT','Elíptico','Pular Corda']
@@ -646,13 +605,10 @@ export function Cardio({ user, userId }) {
 
   return (
     <div className="animate-fade">
-      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start', marginBottom:18 }}>
-        <PageHeader title="CARDIO" sub={`FC MÁX ESTIMADA: ${maxHR} BPM`} noMargin />
-        <button className="btn" onClick={() => setModal(true)} style={{ background:DIM, borderColor:R, color:R2, fontSize:12 }}>+ REGISTRAR</button>
-      </div>
+      <PageHeader title="CARDIO" sub={`FC MÁX ESTIMADA: ${maxHR} BPM`} />
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:18 }}>
-        {[{id:'zonas',label:'❤️ Zonas FC'},{id:'sugestoes',label:'🎯 Sugestões'},{id:'historico',label:'📊 Histórico'}].map(t=>(
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginBottom:18 }}>
+        {[{id:'registrar',label:'➕ Registrar'},{id:'zonas',label:'❤️ Zonas FC'},{id:'sugestoes',label:'🎯 Sugestões'},{id:'historico',label:'📊 Histórico'}].map(t=>(
           <button key={t.id} onClick={()=>setTab(t.id)} className="btn"
             style={{ padding:'10px 0', fontSize:10, background:tab===t.id?DIM:'transparent', borderColor:tab===t.id?R:'rgba(255,255,255,0.08)', color:tab===t.id?R2:'#555' }}>
             {t.label}
@@ -766,18 +722,44 @@ export function Cardio({ user, userId }) {
         </>
       )}
 
-      {modal&&(
-        <Modal title="REGISTRAR SESSÃO DE CARDIO" color={R} onClose={()=>setModal(false)}>
-          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-            <div><label className="label">DATA</label><input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} className="input" style={{ borderColor:'rgba(220,38,38,0.3)', color:R2 }} /></div>
-            <div><label className="label">TIPO</label><select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="select">{TYPES.map(t=><option key={t}>{t}</option>)}</select></div>
-            <div><label className="label">ZONA</label><select value={form.zone} onChange={e=>setForm(f=>({...f,zone:e.target.value}))} className="select">{['Z1','Z2','Z3','Z4','Z5'].map(z=><option key={z}>{z}</option>)}</select></div>
-            <div><label className="label">DURAÇÃO (min)</label><input type="number" value={form.minutes} onChange={e=>setForm(f=>({...f,minutes:e.target.value}))} placeholder="30" className="input" style={{ borderColor:'rgba(220,38,38,0.3)', color:R2 }} /></div>
-            <div><label className="label">FC MÉDIA (bpm)</label><input type="number" value={form.avg_hr} onChange={e=>setForm(f=>({...f,avg_hr:e.target.value}))} placeholder="140" className="input" /></div>
-            <div><label className="label">CALORIAS (kcal)</label><input type="number" value={form.kcal} onChange={e=>setForm(f=>({...f,kcal:e.target.value}))} placeholder="250" className="input" /></div>
+      {tab==='registrar' && (
+        <NeonCard color={R} style={{ padding:22 }}>
+          <SectionTitle color={R}>REGISTRAR SESSÃO DE CARDIO</SectionTitle>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+            <div>
+              <label className="label">DATA</label>
+              <input type="date" value={form.date} onChange={e=>setForm(f=>({...f,date:e.target.value}))} className="input" style={{ borderColor:`${R}35`, color:R2 }} />
+            </div>
+            <div>
+              <label className="label">TIPO</label>
+              <select value={form.type} onChange={e=>setForm(f=>({...f,type:e.target.value}))} className="select">
+                {TYPES.map(t=><option key={t}>{t}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">ZONA</label>
+              <select value={form.zone} onChange={e=>setForm(f=>({...f,zone:e.target.value}))} className="select">
+                {['Z1','Z2','Z3','Z4','Z5'].map(z=><option key={z}>{z}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">DURAÇÃO (min)</label>
+              <input type="number" value={form.minutes} onChange={e=>setForm(f=>({...f,minutes:e.target.value}))} placeholder="30" className="input" style={{ borderColor:`${R}35`, color:R2 }} />
+            </div>
+            <div>
+              <label className="label">FC MÉDIA (bpm)</label>
+              <input type="number" value={form.avg_hr} onChange={e=>setForm(f=>({...f,avg_hr:e.target.value}))} placeholder="140" className="input" />
+            </div>
+            <div>
+              <label className="label">CALORIAS (kcal)</label>
+              <input type="number" value={form.kcal} onChange={e=>setForm(f=>({...f,kcal:e.target.value}))} placeholder="250" className="input" />
+            </div>
           </div>
-          <button className="btn" onClick={saveEntry} style={{ width:'100%', marginTop:16, background:DIM, borderColor:R, color:R2, padding:14, fontSize:13 }}>SALVAR SESSÃO</button>
-        </Modal>
+          <button className="btn" onClick={saveEntry}
+            style={{ width:'100%', background:saved?'rgba(34,197,94,0.15)':DIM, borderColor:saved?G:R, color:saved?G:R2, padding:14, fontSize:13, transition:'all 0.3s' }}>
+            {saved ? '✓ SESSÃO SALVA!' : '💾 SALVAR SESSÃO'}
+          </button>
+        </NeonCard>
       )}
     </div>
   )
