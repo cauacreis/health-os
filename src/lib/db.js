@@ -243,3 +243,54 @@ export async function saveWaterLog(userId, date, ml) {
   if (error) return null
   return data
 }
+
+// ── Exercise history ──────────────────────────────────────────────────────────
+export async function getExerciseHistory(userId, exerciseName, limit = 20) {
+  // Busca nos workout_logs todas as séries daquele exercício
+  const { data, error } = await supabase
+    .from('workout_logs')
+    .select('date, exercises')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(100)
+  if (error) return []
+  const history = []
+  for (const log of (data || [])) {
+    const exArr = log.exercises || []
+    const match = exArr.find(e => e.name?.toLowerCase() === exerciseName.toLowerCase())
+    if (match && match.sets?.length) {
+      const sets = match.sets.filter(s => s.weight || s.reps)
+      if (sets.length) history.push({ date: log.date, sets })
+    }
+  }
+  return history.slice(0, limit)
+}
+
+// ── Custom exercises ──────────────────────────────────────────────────────────
+export async function getCustomExercises(userId) {
+  const { data, error } = await supabase
+    .from('custom_exercises')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+  if (error) return []
+  return data || []
+}
+
+export async function saveCustomExercise(userId, exercise) {
+  const { data, error } = await supabase
+    .from('custom_exercises')
+    .insert({ user_id: userId, ...exercise })
+    .select().single()
+  if (error) throw error
+  return data
+}
+
+export async function deleteCustomExercise(userId, id) {
+  const { error } = await supabase
+    .from('custom_exercises')
+    .delete()
+    .eq('id', id)
+    .eq('user_id', userId)
+  if (error) throw error
+}
