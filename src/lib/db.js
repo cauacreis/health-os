@@ -231,7 +231,7 @@ export async function getWaterLog(userId, limit = 30) {
     .eq('user_id', userId)
     .order('date', { ascending: false })
     .limit(limit)
-  if (error) return []   // table may not exist yet — silent fail
+  if (error) { console.error("getWaterLog error:", error); return [] }
   return data || []
 }
 
@@ -240,7 +240,7 @@ export async function saveWaterLog(userId, date, ml) {
     .from('water_log')
     .upsert({ user_id: userId, date, ml }, { onConflict: 'user_id,date' })
     .select().single()
-  if (error) return null
+  if (error) { console.error("saveWaterLog error:", error); return null }
   return data
 }
 
