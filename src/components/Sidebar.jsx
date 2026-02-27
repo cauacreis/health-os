@@ -6,6 +6,7 @@ const NAV = [
   { id:'calendar',  label:'Calendário', icon:'◫' },
   { id:'calories',  label:'Calorias',   icon:'◉' },
   { id:'water',     label:'Hidratação', icon:'◌' },
+  { id:'meals',     label:'Refeições',  icon:'⬡' },
   { id:'bmi',       label:'IMC',        icon:'◎' },
   { id:'cardio',    label:'Cardio',     icon:'♡' },
   { id:'steps',     label:'Passos',     icon:'▷' },

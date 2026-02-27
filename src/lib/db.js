@@ -294,3 +294,67 @@ export async function deleteCustomExercise(userId, id) {
     .eq('user_id', userId)
   if (error) throw error
 }
+
+// ── Meal plans ────────────────────────────────────────────────────────────────
+export async function getMealPlans(userId) {
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .select('*')
+    .eq('user_id', userId)
+    .order('created_at', { ascending: true })
+  if (error) { console.error('getMealPlans:', error); return [] }
+  return data || []
+}
+
+export async function saveMealPlan(userId, plan) {
+  const { data, error } = await supabase
+    .from('meal_plans')
+    .upsert({ user_id: userId, ...plan, updated_at: new Date().toISOString() })
+    .select().single()
+  if (error) { console.error('saveMealPlan:', error); throw error }
+  return data
+}
+
+export async function deleteMealPlan(userId, id) {
+  const { error } = await supabase
+    .from('meal_plans')
+    .delete().eq('id', id).eq('user_id', userId)
+  if (error) throw error
+}
+
+// ── Meal log (check-ins diários) ──────────────────────────────────────────────
+export async function getMealLog(userId, date) {
+  const { data, error } = await supabase
+    .from('meal_log')
+    .select('*')
+    .eq('user_id', userId)
+    .eq('date', date)
+  if (error) { console.error('getMealLog:', error); return [] }
+  return data || []
+}
+
+export async function toggleMealLog(userId, date, mealId, mealName, checked) {
+  if (checked) {
+    const { error } = await supabase.from('meal_log')
+      .upsert({ user_id: userId, date, meal_id: mealId, meal_name: mealName, checked: true },
+               { onConflict: 'user_id,date,meal_id' })
+    if (error) { console.error('toggleMealLog insert:', error); throw error }
+  } else {
+    const { error } = await supabase.from('meal_log')
+      .delete().eq('user_id', userId).eq('date', date).eq('meal_id', mealId)
+    if (error) { console.error('toggleMealLog delete:', error); throw error }
+  }
+}
+
+// ── Water log — load today ────────────────────────────────────────────────────
+export async function getTodayWater(userId) {
+  const date = new Date().toISOString().split('T')[0]
+  const { data, error } = await supabase
+    .from('water_log')
+    .select('ml')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .maybeSingle()
+  if (error) { console.error('getTodayWater:', error); return 0 }
+  return data?.ml || 0
+}

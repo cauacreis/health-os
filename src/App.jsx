@@ -8,7 +8,7 @@ import WorkoutProgram from './pages/WorkoutProgram'
 import CalendarPage from './pages/Calendar'
 import Calories from './pages/Calories'
 import Profile from './pages/Profile'
-import { Water, BMI, Cardio, Steps } from './pages/OtherPages'
+import { Water, BMI, Cardio, Steps, Meals } from './pages/OtherPages'
 import MoreMenu from './components/MoreMenu'
 import { GlossaryPage } from './components/UI'
 
@@ -59,7 +59,8 @@ export default function App() {
       case 'workout':    return <WorkoutProgram user={profile} userId={userId} />
       case 'calendar':   return <CalendarPage  user={profile} userId={userId} />
       case 'calories':   return <Calories      user={profile} userId={userId} onUpdate={setProfile} />
-      case 'water':      return <Water         user={profile} userId={userId} onUpdate={setProfile} />
+      case 'water':      return <Water  user={profile} userId={userId} />
+      case 'meals':      return <Meals  userId={userId} />
       case 'bmi':        return <BMI           user={profile} />
       case 'cardio':     return <Cardio        user={profile} userId={userId} />
       case 'steps':      return <Steps         user={profile} userId={userId} onUpdate={setProfile} />
