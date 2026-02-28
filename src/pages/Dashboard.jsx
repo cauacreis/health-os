@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { NeonCard, SectionTitle, ProgressBar } from '../components/UI'
-import { getBioLog, getSleepLog, getFoodLog, getStepsLog, getTodaySteps, today } from '../lib/db'
+import { getBioLog, getSleepLog, getFoodLog, getStepsLog, getTodaySteps, getTodayWater, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
 const RADAR_KEYS = [
@@ -28,6 +28,7 @@ export default function Dashboard({ user, userId }) {
   const [foodLog, setFoodLog] = useState([])
   const [stepsLog, setStepsLog] = useState([])
   const [todaySteps, setTodaySteps] = useState(null)
+  const [todayWater, setTodayWater] = useState(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
@@ -36,6 +37,7 @@ export default function Dashboard({ user, userId }) {
     getFoodLog(userId, today()).then(setFoodLog).catch(()=>{})
     getStepsLog(userId, 7).then(setStepsLog).catch(()=>{})
     getTodaySteps(userId).then(setTodaySteps).catch(()=> setTodaySteps(0))
+    getTodayWater(userId).then(setTodayWater).catch(()=> setTodayWater(0))
   }, [userId])
 
   const fitnessProfile = user.fitness_profile || { strength:50, cardio:50, flex:50, resistance:50, balance:50, speed:50 }
@@ -60,11 +62,12 @@ export default function Dashboard({ user, userId }) {
   const bmi = (user.weight/Math.pow(user.height/100,2)).toFixed(1)
   const bmiColor = bmi<18.5?'#94a3b8':bmi<25?'#dc2626':bmi<30?'#ef4444':'#ff6b6b'
   const waterGoal = Math.round(user.weight*35)
-  const waterConsumed = (user.water_today||0)*250
+  const waterConsumed = todayWater !== null ? todayWater : (user.water_today||0)*250
   const steps = todaySteps !== null ? todaySteps : (user.steps_today||0)
   const latestBio = bioLog[0]
   const latestSleep = sleepLog[0]
   const todayFoodKcal = foodLog.reduce((s,e)=>s+e.calories,0)
+  const mealsToday = new Set(foodLog.map(e=>e.meal).filter(Boolean)).size
   const fact = FUN_FACTS[factIdx % FUN_FACTS.length]
 
   const stats = [
@@ -140,7 +143,7 @@ export default function Dashboard({ user, userId }) {
         <SectionTitle color="#94a3b8">METAS DIÁRIAS</SectionTitle>
         <ProgressBar value={waterConsumed} max={waterGoal} color="#94a3b8" label={`Água (${waterGoal}ml)`} />
         <ProgressBar value={steps} max={10000} color="#94a3b8" label="Passos (10.000)" />
-        <ProgressBar value={user.meals_today||0} max={6} color="#ef4444" label="Refeições (6)" />
+        <ProgressBar value={mealsToday} max={6} color="#ef4444" label="Refeições (6)" />
         <ProgressBar value={todayFoodKcal} max={tdee} color="#dc2626" label="Kcal consumidas" />
         <ProgressBar value={latestSleep?.hours||0} max={8} color="#94a3b8" label="Sono (8h)" />
       </NeonCard>

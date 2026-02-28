@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { NeonCard, SectionTitle, Modal } from '../components/UI'
-import { getFoodLog, addFoodEntry, deleteFoodEntry, today } from '../lib/storage'
+import { getFoodLog, addFoodEntry, deleteFoodEntry, today } from '../lib/db'
 import { getMealPlans, saveMealPlan, deleteMealPlan, getMealLog, toggleMealLog } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
@@ -35,7 +35,7 @@ export default function Calories({ user, userId, onUpdate }) {
   const todayStr = today()
 
   // ─── Calorias (food log) ───
-  const [foodLog, setFoodLog] = useState(() => getFoodLog(uid, todayStr))
+  const [foodLog, setFoodLog] = useState([])
   const [modalFood, setModalFood] = useState(false)
   const [formFood, setFormFood] = useState({ name:'', calories:'', meal:'breakfast', note:'' })
 
@@ -57,7 +57,11 @@ export default function Calories({ user, userId, onUpdate }) {
   const fact = FUN_FACTS.filter(f=>f.category==='Nutrição')[factIdx % Math.max(FUN_FACTS.filter(f=>f.category==='Nutrição').length, 1)]
 
   // Load food log
-  function refreshFood() { setFoodLog(getFoodLog(uid, todayStr)) }
+  function refreshFood() { getFoodLog(uid, todayStr).then(setFoodLog).catch(()=>setFoodLog([])) }
+
+  useEffect(() => {
+    if (uid) getFoodLog(uid, todayStr).then(setFoodLog).catch(() => setFoodLog([]))
+  }, [uid, todayStr])
 
   // Load plans & log
   useEffect(() => {
@@ -101,17 +105,26 @@ export default function Calories({ user, userId, onUpdate }) {
     setCheckedMap(m => { const n={...m}; delete n[id]; return n })
   }
 
-  function handleAddFood() {
+  async function handleAddFood() {
     if (!formFood.name || !formFood.calories) return
-    addFoodEntry(uid, { name:formFood.name, calories:+formFood.calories, meal:formFood.meal, note:formFood.note })
-    refreshFood()
-    setFormFood({ name:'', calories:'', meal:'breakfast', note:'' })
-    setModalFood(false)
+    try {
+      await addFoodEntry(uid, { name:formFood.name, calories:+formFood.calories, meal:formFood.meal, note:formFood.note })
+      refreshFood()
+      setFormFood({ name:'', calories:'', meal:'breakfast', note:'' })
+      setModalFood(false)
+    } catch (e) {
+      console.error(e)
+      alert(`Erro ao adicionar: ${e?.message || 'erro desconhecido'}`)
+    }
   }
 
-  function handleDeleteFood(id) {
-    deleteFoodEntry(uid, id)
-    refreshFood()
+  async function handleDeleteFood(id) {
+    try {
+      await deleteFoodEntry(uid, id)
+      refreshFood()
+    } catch (e) {
+      console.error(e)
+    }
   }
 
   const totalKcal = foodLog.reduce((s,e) => s+e.calories, 0)
