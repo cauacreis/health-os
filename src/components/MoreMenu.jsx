@@ -4,7 +4,7 @@ const ALL_PAGES = [
   { id:'dashboard', label:'Dashboard',  icon:'◈', color:'#dc2626' },
   { id:'workout',   label:'Treinos',    icon:'⬡', color:'#dc2626' },
   { id:'calendar',  label:'Calendário', icon:'◫', color:'#94a3b8' },
-  { id:'calories',  label:'Calorias',   icon:'◉', color:'#f97316' },
+  { id:'calories',  label:'Calorias & Refeições', icon:'◉', color:'#f97316' },
   { id:'water',     label:'Hidratação', icon:'◌', color:'#94a3b8' },
   { id:'bmi',       label:'IMC',        icon:'◎', color:'#dc2626' },
   { id:'cardio',    label:'Cardio',     icon:'♡', color:'#ef4444' },
