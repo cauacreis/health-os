@@ -381,6 +381,19 @@ export async function saveStepsEntry(userId, date, steps) {
   return data
 }
 
+// ── Steps — load today ─────────────────────────────────────────────────────────
+export async function getTodaySteps(userId) {
+  const date = new Date().toISOString().split('T')[0]
+  const { data, error } = await supabase
+    .from('steps_log')
+    .select('steps')
+    .eq('user_id', userId)
+    .eq('date', date)
+    .maybeSingle()
+  if (error) { console.error('getTodaySteps:', error); return 0 }
+  return data?.steps ?? 0
+}
+
 // ── Water log — load today ────────────────────────────────────────────────────
 export async function getTodayWater(userId) {
   const date = new Date().toISOString().split('T')[0]

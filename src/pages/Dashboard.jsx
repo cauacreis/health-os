@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { NeonCard, SectionTitle, ProgressBar } from '../components/UI'
-import { getBioLog, getSleepLog, getFoodLog, getStepsLog, today } from '../lib/db'
+import { getBioLog, getSleepLog, getFoodLog, getStepsLog, getTodaySteps, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
 const RADAR_KEYS = [
@@ -27,6 +27,7 @@ export default function Dashboard({ user, userId }) {
   const [sleepLog, setSleepLog] = useState([])
   const [foodLog, setFoodLog] = useState([])
   const [stepsLog, setStepsLog] = useState([])
+  const [todaySteps, setTodaySteps] = useState(null)
   const isMobile = useIsMobile()
 
   useEffect(() => {
@@ -34,6 +35,7 @@ export default function Dashboard({ user, userId }) {
     getSleepLog(userId, 7).then(setSleepLog).catch(()=>{})
     getFoodLog(userId, today()).then(setFoodLog).catch(()=>{})
     getStepsLog(userId, 7).then(setStepsLog).catch(()=>{})
+    getTodaySteps(userId).then(setTodaySteps).catch(()=> setTodaySteps(0))
   }, [userId])
 
   const fitnessProfile = user.fitness_profile || { strength:50, cardio:50, flex:50, resistance:50, balance:50, speed:50 }
@@ -59,7 +61,7 @@ export default function Dashboard({ user, userId }) {
   const bmiColor = bmi<18.5?'#94a3b8':bmi<25?'#dc2626':bmi<30?'#ef4444':'#ff6b6b'
   const waterGoal = Math.round(user.weight*35)
   const waterConsumed = (user.water_today||0)*250
-  const steps = user.steps_today||0
+  const steps = todaySteps !== null ? todaySteps : (user.steps_today||0)
   const latestBio = bioLog[0]
   const latestSleep = sleepLog[0]
   const todayFoodKcal = foodLog.reduce((s,e)=>s+e.calories,0)

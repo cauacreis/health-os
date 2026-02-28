@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 import { NeonCard, SectionTitle, ProgressBar, Modal } from '../components/UI'
 import { CARDIO_ZONES } from '../data/nutrition'
 import { saveCardioEntry, getCardioLog, addCalendarEntry, getWaterLog, saveWaterLog, getTodayWater,
-         today } from '../lib/db'
+         getTodaySteps, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
 const R   = '#dc2626'
@@ -513,13 +513,21 @@ function CardioContent({ user, userId }) {
 
 // ─── STEPS (conteúdo interno da página Atividade) ─────────────────────────────
 function StepsContent({ user, userId, onUpdate }) {
-  const [steps, setStepsLocal] = useState(user.steps_today||0)
+  const [steps, setStepsLocal] = useState(null)  // null = loading
   const [saving, setSaving]    = useState(false)
+  const [customAdd, setCustomAdd] = useState('')
   const facts = FUN_FACTS.filter(f=>f.category==='Passos')
   const [factIdx,setFactIdx]   = useState(0)
   const fact  = facts[factIdx % Math.max(facts.length,1)]
-  const kcal  = Math.round(steps*0.04)
-  const km    = (steps*0.00075).toFixed(2)
+
+  useEffect(() => {
+    getTodaySteps(userId).then(v => setStepsLocal(v ?? 0)).catch(() => setStepsLocal(0))
+  }, [userId])
+
+  const stepsVal = steps ?? 0
+  const kcal  = Math.round(stepsVal*0.04)
+  const km    = (stepsVal*0.00075).toFixed(2)
+
   async function saveSteps(val) {
     const v=Math.max(0,Math.min(50000,val)); setStepsLocal(v); setSaving(true)
     try {
@@ -529,12 +537,25 @@ function StepsContent({ user, userId, onUpdate }) {
       onUpdate(u)
     } catch(e){console.error(e)} finally{setSaving(false)}
   }
+  function addSteps(n) {
+    const newVal = Math.min(50000, stepsVal + n)
+    saveSteps(newVal)
+  }
+  function addCustom() {
+    const n = parseInt(customAdd)
+    if (!n || n <= 0) return
+    setCustomAdd('')
+    addSteps(n)
+  }
+
+  if (steps === null) return <div style={{ padding:60, textAlign:'center', color:'#555' }}>Carregando...</div>
+
   return (
     <div className="animate-fade">
       <PageHeader title="PASSOS DO DIA" sub="ATIVIDADE DIÁRIA" />
       <FactBanner fact={fact} onNext={()=>setFactIdx(i=>i+1)} />
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:12, marginBottom:20 }}>
-        {[{l:'Passos',v:steps.toLocaleString('pt-BR'),big:true},{l:'Calorias',v:`${kcal} kcal`},{l:'Distância',v:`${km} km`}].map(s=>(
+        {[{l:'Passos',v:stepsVal.toLocaleString('pt-BR'),big:true},{l:'Calorias',v:`${kcal} kcal`},{l:'Distância',v:`${km} km`}].map(s=>(
           <NeonCard key={s.l} color={R} style={{ padding:'16px 10px', textAlign:'center' }}>
             <div style={{ color:R2, fontSize:s.big?26:20, fontWeight:700 }}>{s.v}</div>
             <div style={{ color:'#444', fontSize:9, marginTop:4, textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
@@ -543,16 +564,29 @@ function StepsContent({ user, userId, onUpdate }) {
       </div>
       <NeonCard color={R} style={{ padding:22, marginBottom:16 }}>
         <SectionTitle color={R}>REGISTRAR PASSOS</SectionTitle>
-        <input type="range" min="0" max="20000" step="100" value={steps} onChange={e=>setStepsLocal(+e.target.value)} onMouseUp={e=>saveSteps(+e.target.value)} onTouchEnd={e=>saveSteps(+e.target.value)} style={{ width:'100%', accentColor:R, height:6, cursor:'pointer', marginBottom:14 }} />
-        <input type="number" value={steps} onChange={e=>setStepsLocal(+e.target.value)} onBlur={e=>saveSteps(+e.target.value)} className="input" style={{ borderColor:'rgba(220,38,38,0.3)', color:R2 }} />
-        <ProgressBar value={steps} max={10000} color={R} label="Meta: 10.000 passos" />
+        <input type="range" min="0" max="20000" step="100" value={stepsVal} onChange={e=>setStepsLocal(+e.target.value)} onMouseUp={e=>saveSteps(+e.target.value)} onTouchEnd={e=>saveSteps(+e.target.value)} style={{ width:'100%', accentColor:R, height:6, cursor:'pointer', marginBottom:14 }} />
+        <input type="number" value={stepsVal} onChange={e=>setStepsLocal(+e.target.value||0)} onBlur={e=>{ const v=+e.target.value; if (!isNaN(v)) saveSteps(v) }} className="input" style={{ borderColor:'rgba(220,38,38,0.3)', color:R2 }} />
+        <SectionTitle color={S} style={{ marginTop:16, marginBottom:10 }}>ADICIONAR PASSOS PERSONALIZADOS</SectionTitle>
+        <div style={{ display:'flex', gap:6, marginBottom:10, flexWrap:'wrap' }}>
+          {[1000, 2000, 3000, 5000, 10000].map(v => (
+            <button key={v} onClick={()=>addSteps(v)}
+              style={{ flex:1, minWidth:60, padding:'10px 0', borderRadius:6, border:`1px solid ${S}25`, background:`${S}08`, color:S, fontFamily:"'Space Mono',monospace", fontSize:11, cursor:'pointer' }}>
+              +{v.toLocaleString('pt-BR')}
+            </button>
+          ))}
+        </div>
+        <div style={{ display:'flex', gap:8 }}>
+          <input type="number" value={customAdd} onChange={e=>setCustomAdd(e.target.value)} placeholder="Quantidade personalizada" className="input" style={{ flex:1, borderColor:`${S}30`, color:S }} onKeyDown={e=>e.key==='Enter'&&addCustom()} />
+          <button className="btn" onClick={addCustom} style={{ background:`${S}10`, borderColor:`${S}50`, color:S, padding:'0 18px', fontSize:18 }}>+</button>
+        </div>
+        <ProgressBar value={stepsVal} max={10000} color={R} label="Meta: 10.000 passos" />
         {saving&&<div style={{ color:'#444', fontSize:11, marginTop:6, textAlign:'right' }}>salvando...</div>}
       </NeonCard>
       <NeonCard color={R} style={{ padding:20 }}>
         <SectionTitle color={R}>METAS E BENEFÍCIOS</SectionTitle>
         <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:10 }}>
           {[{steps:5000,label:'5.000',benefit:'Reduz sedentarismo'},{steps:7500,label:'7.500',benefit:'Melhora cardiovascular'},{steps:10000,label:'10.000',benefit:'Controle de peso'},{steps:12500,label:'12.500+',benefit:'Longevidade máxima'}].map(m=>{
-            const reached=steps>=m.steps
+            const reached=stepsVal>=m.steps
             return (
               <div key={m.label} style={{ padding:'16px 14px', borderRadius:8, background:reached?DIM:'rgba(255,255,255,0.02)', border:`1px solid ${reached?R+'40':'rgba(255,255,255,0.06)'}`, borderLeft:`3px solid ${reached?R:'rgba(255,255,255,0.06)'}` }}>
                 <div style={{ color:reached?R2:'#555', fontSize:18, fontWeight:700, marginBottom:4 }}>{m.label}</div>
