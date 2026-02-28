@@ -7,8 +7,7 @@ const NAV = [
   { id:'calories',  label:'Calorias & Refeições', icon:'◉' },
   { id:'water',     label:'Hidratação', icon:'◌' },
   { id:'bmi',       label:'IMC',        icon:'◎' },
-  { id:'cardio',    label:'Cardio',     icon:'♡' },
-  { id:'steps',     label:'Passos',     icon:'▷' },
+  { id:'activity',  label:'Atividade (Cardio & Passos)', icon:'♡' },
   { id:'profile',   label:'Perfil',     icon:'◯' },
   { id:'glossary',  label:'Glossário',  icon:'?' },
 ]

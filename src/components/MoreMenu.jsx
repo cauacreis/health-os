@@ -7,8 +7,7 @@ const ALL_PAGES = [
   { id:'calories',  label:'Calorias & Refeições', icon:'◉', color:'#f97316' },
   { id:'water',     label:'Hidratação', icon:'◌', color:'#94a3b8' },
   { id:'bmi',       label:'IMC',        icon:'◎', color:'#dc2626' },
-  { id:'cardio',    label:'Cardio',     icon:'♡', color:'#ef4444' },
-  { id:'steps',     label:'Passos',     icon:'▷', color:'#94a3b8' },
+  { id:'activity',  label:'Atividade',  icon:'♡', color:'#ef4444' },
   { id:'profile',   label:'Perfil',     icon:'◯', color:'#64748b' },
   { id:'glossary',  label:'Glossário',  icon:'?', color:'#94a3b8' },
 ]

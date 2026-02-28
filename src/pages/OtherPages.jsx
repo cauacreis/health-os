@@ -284,8 +284,33 @@ export function BMI({ user }) {
   )
 }
 
-// ─── CARDIO ──────────────────────────────────────────────────────────────────
-export function Cardio({ user, userId }) {
+// ─── CARDIO & PASSOS (página unificada) ────────────────────────────────────────
+export function CardioSteps({ user, userId, onUpdate }) {
+  const [mainTab, setMainTab] = useState('passos')
+
+  return (
+    <div className="animate-fade">
+      <PageHeader title="ATIVIDADE" sub="Cardio & Passos do dia" noMargin />
+      <div style={{ display:'flex', gap:6, marginBottom:18, flexWrap:'wrap' }}>
+        {[
+          { id:'passos', label:'Passos', icon:'▷' },
+          { id:'cardio',  label:'Cardio', icon:'♡' },
+        ].map(t => (
+          <button key={t.id} onClick={()=>setMainTab(t.id)} className="btn"
+            style={{ flex:1, minWidth:120, padding:'12px 16px', fontSize:12, display:'flex', alignItems:'center', justifyContent:'center', gap:8, background:mainTab===t.id?DIM:'transparent', borderColor:mainTab===t.id?R:'rgba(255,255,255,0.08)', color:mainTab===t.id?R2:'#555' }}>
+            <span>{t.icon}</span>
+            {t.label}
+          </button>
+        ))}
+      </div>
+      {mainTab === 'passos' && <StepsContent user={user} userId={userId} onUpdate={onUpdate} />}
+      {mainTab === 'cardio'  && <CardioContent user={user} userId={userId} />}
+    </div>
+  )
+}
+
+// ─── CARDIO (conteúdo interno) ─────────────────────────────────────────────────
+function CardioContent({ user, userId }) {
   const [tab, setTab]     = useState('registrar')
   const [log, setLog]     = useState([])
   const [loaded, setLoaded] = useState(false)
@@ -473,8 +498,8 @@ export function Cardio({ user, userId }) {
   )
 }
 
-// ─── STEPS ───────────────────────────────────────────────────────────────────
-export function Steps({ user, userId, onUpdate }) {
+// ─── STEPS (conteúdo interno da página Atividade) ─────────────────────────────
+function StepsContent({ user, userId, onUpdate }) {
   const [steps, setStepsLocal] = useState(user.steps_today||0)
   const [saving, setSaving]    = useState(false)
   const facts = FUN_FACTS.filter(f=>f.category==='Passos')

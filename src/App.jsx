@@ -8,7 +8,7 @@ import WorkoutProgram from './pages/WorkoutProgram'
 import CalendarPage from './pages/Calendar'
 import Calories from './pages/Calories'
 import Profile from './pages/Profile'
-import { Water, BMI, Cardio, Steps } from './pages/OtherPages'
+import { Water, BMI, CardioSteps } from './pages/OtherPages'
 import MoreMenu from './components/MoreMenu'
 import { GlossaryPage } from './components/UI'
 
@@ -61,8 +61,7 @@ export default function App() {
       case 'calories':   return <Calories      user={profile} userId={userId} onUpdate={setProfile} />
       case 'water':      return <Water  user={profile} userId={userId} />
       case 'bmi':        return <BMI           user={profile} />
-      case 'cardio':     return <Cardio        user={profile} userId={userId} />
-      case 'steps':      return <Steps         user={profile} userId={userId} onUpdate={setProfile} />
+      case 'activity': case 'cardio': case 'steps': return <CardioSteps user={profile} userId={userId} onUpdate={setProfile} />
       case 'profile':    return <Profile       user={profile} userId={userId} onUpdate={setProfile} />
       case 'glossary':   return <GlossaryPage />
       case 'more':       return <MoreMenu      setTab={setTab} user={profile} onLogout={handleLogout} />
@@ -86,7 +85,7 @@ const BOTTOM = [
   { id:'dashboard', label:'Home',   icon:'◈' },
   { id:'workout',   label:'Treino', icon:'⬡' },
   { id:'calories',  label:'Comida', icon:'◉' },
-  { id:'cardio',    label:'Cardio', icon:'♡' },
+  { id:'activity',  label:'Atividade', icon:'♡' },
   { id:'more',      label:'Mais',   icon:'≡' },
 ]
 
