@@ -56,7 +56,7 @@ export default function CalendarPage({ user, userId }) {
     if (tab === 'body' && !bioLoaded) {
       getBioLog(userId, 40).then(d => { setBioLog(d); setBioLoaded(true) }).catch(() => setBioLoaded(true))
     }
-  }, [tab, perfLoaded, sleepLoaded, bioLoaded, userId])
+  }, [tab, sleepLoaded, bioLoaded, userId])
 
   const firstDay    = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
