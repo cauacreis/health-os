@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { getCalendar, addCalendarEntry, removeCalendarEntry, getWorkoutLogs, getCardioLog,
+import { getCalendar, addCalendarEntry, removeCalendarEntry,
          getSleepLog, saveSleepEntry, getBioLog, saveBioEntry, today } from '../lib/db'
 import { NeonCard, SectionTitle, Modal } from '../components/UI'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
@@ -31,11 +31,6 @@ export default function CalendarPage({ user, userId }) {
   const [noteText, setNoteText] = useState('')
   const [addType,  setAddType]  = useState('workout')
 
-  // Desempenho
-  const [workoutLogs, setWorkoutLogs] = useState([])
-  const [cardioLogs,  setCardioLogs]  = useState([])
-  const [perfLoaded,  setPerfLoaded]  = useState(false)
-
   // Sono
   const [sleepLogs,   setSleepLogs]   = useState([])
   const [sleepLoaded, setSleepLoaded] = useState(false)
@@ -45,19 +40,16 @@ export default function CalendarPage({ user, userId }) {
   // Composição
   const [bioLog,    setBioLog]    = useState([])
   const [bioLoaded, setBioLoaded] = useState(false)
-  const [bioModal,  setBioModal]  = useState(false)
   const [bioForm,   setBioForm]   = useState({ date: today(), body_fat:'', muscle_mass:'', visceral_fat:'', bone_mass:'', water_pct:'', bmr:'', metabolic_age:'', note:'' })
+  const [bioSaving, setBioSaving] = useState(false)
+  const [bioSaved,  setBioSaved]  = useState(false)
+  const [bioError,  setBioError]  = useState('')
 
   useEffect(() => {
     getCalendar(userId).then(setEntries).catch(() => {})
   }, [userId])
 
   useEffect(() => {
-    if (tab === 'performance' && !perfLoaded) {
-      Promise.all([getWorkoutLogs(userId, 60), getCardioLog(userId, 60)])
-        .then(([w, c]) => { setWorkoutLogs(w); setCardioLogs(c); setPerfLoaded(true) })
-        .catch(() => setPerfLoaded(true))
-    }
     if (tab === 'sleep' && !sleepLoaded) {
       getSleepLog(userId, 60).then(d => { setSleepLogs(d); setSleepLoaded(true) }).catch(() => setSleepLoaded(true))
     }
@@ -112,27 +104,36 @@ export default function CalendarPage({ user, userId }) {
   }
 
   async function saveBio() {
-    if (!bioForm.body_fat && !bioForm.muscle_mass) return
-    await saveBioEntry(userId, bioForm)
-    setBioLog(await getBioLog(userId, 40))
-    setBioModal(false)
-    setBioForm({ date: today(), body_fat:'', muscle_mass:'', visceral_fat:'', bone_mass:'', water_pct:'', bmr:'', metabolic_age:'', note:'' })
+    if (!bioForm.body_fat && !bioForm.muscle_mass) {
+      setBioError('Preencha ao menos Gordura Corporal ou Massa Muscular.')
+      return
+    }
+    setBioSaving(true); setBioError('')
+    try {
+      await saveBioEntry(userId, bioForm)
+      const fresh = await getBioLog(userId, 40)
+      setBioLog(fresh)
+      setBioLoaded(true)
+      setBioForm({ date: today(), body_fat:'', muscle_mass:'', visceral_fat:'', bone_mass:'', water_pct:'', bmr:'', metabolic_age:'', note:'' })
+      setBioSaved(true); setTimeout(() => setBioSaved(false), 3000)
+    } catch(e) {
+      console.error('saveBio error:', e)
+      setBioError('Erro: ' + (e?.message || JSON.stringify(e)))
+    }
+    setBioSaving(false)
   }
 
   const todayStr  = new Date().toISOString().split('T')[0]
   const thisMonth = entries.filter(e => e.date.startsWith(`${year}-${String(month+1).padStart(2,'0')}`))
   const streak    = calcStreak(entries)
-  const weeklyData   = buildWeeklyData(workoutLogs, cardioLogs)
-  const cardioByType = buildCardioByType(cardioLogs)
   const sleepData  = sleepLogs.slice(0, 30).reverse().map(e => ({ date: e.date?.slice(5), horas: +e.hours, qualidade: e.quality }))
   const avgSleep   = sleepLogs.length ? (sleepLogs.reduce((s,e) => s + +e.hours, 0) / sleepLogs.length).toFixed(1) : '—'
   const bioChartData = bioLog.filter(e => e.body_fat || e.muscle_mass).map(e => ({ date: e.date?.slice(5), gordura: e.body_fat, musculo: e.muscle_mass })).reverse()
 
   const TABS = [
-    { id:'calendar',    label:'📅 Calendário' },
-    { id:'performance', label:'📊 Treinos' },
-    { id:'sleep',       label:'😴 Sono' },
-    { id:'body',        label:'🧬 Composição' },
+    { id:'calendar', label:'📅 Calendário' },
+    { id:'sleep',    label:'😴 Sono' },
+    { id:'body',     label:'🧬 Composição' },
   ]
 
   return (
@@ -245,84 +246,6 @@ export default function CalendarPage({ user, userId }) {
                 className="input" style={{ height:64, resize:'vertical', marginBottom:12, fontSize:13 }} />
               <button className="btn" onClick={handleAdd} style={{ width:'100%', background:'rgba(220,38,38,0.15)', borderColor:R, color:R2, padding:13, fontSize:13 }}>SALVAR</button>
             </Modal>
-          )}
-        </>
-      )}
-
-      {/* ── DESEMPENHO ───────────────────────────────────────────── */}
-      {tab === 'performance' && (
-        <>
-          {!perfLoaded ? <div style={{ padding:40, textAlign:'center', color:'#444' }}>Carregando...</div> : (
-            <>
-              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 }}>
-                {[
-                  { l:'Treinos totais', v: workoutLogs.length, c: R },
-                  { l:'Sessões cardio', v: cardioLogs.length,  c: S },
-                  { l:'Dias seguidos',  v: streak,             c: R },
-                ].map(s => (
-                  <NeonCard key={s.l} color={s.c} style={{ padding:'16px 10px', textAlign:'center' }}>
-                    <div style={{ color: s.c === R ? R2 : s.c, fontSize:26, fontWeight:700 }}>{s.v}</div>
-                    <div style={{ color:'#555', fontSize:9, marginTop:4, textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
-                  </NeonCard>
-                ))}
-              </div>
-
-              {weeklyData.length > 0 && (
-                <NeonCard color={R} style={{ padding:18, marginBottom:14 }}>
-                  <SectionTitle color={R}>TREINOS POR SEMANA</SectionTitle>
-                  <ResponsiveContainer width="100%" height={180}>
-                    <BarChart data={weeklyData} barGap={4}>
-                      <CartesianGrid stroke="rgba(255,255,255,0.04)" vertical={false} />
-                      <XAxis dataKey="week" tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} />
-                      <YAxis tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} width={22} allowDecimals={false} />
-                      <Tooltip contentStyle={{ background:'#0d0d10', border:`1px solid ${R}25`, borderRadius:6, fontFamily:"'Space Mono',monospace", fontSize:11 }} />
-                      <Bar dataKey="treinos" fill={R} opacity={0.85} radius={[4,4,0,0]} name="Treinos" />
-                      <Bar dataKey="cardio"  fill={S} opacity={0.7}  radius={[4,4,0,0]} name="Cardio" />
-                    </BarChart>
-                  </ResponsiveContainer>
-                  <div style={{ display:'flex', gap:14, justifyContent:'center', marginTop:8 }}>
-                    <LegendDot color={R} label="Treinos" /><LegendDot color={S} label="Cardio" />
-                  </div>
-                </NeonCard>
-              )}
-
-              {cardioByType.length > 0 && (
-                <NeonCard color={R} style={{ padding:18, marginBottom:14 }}>
-                  <SectionTitle color={R}>CARDIO POR TIPO</SectionTitle>
-                  {cardioByType.map(ct => (
-                    <div key={ct.type} style={{ display:'flex', alignItems:'center', gap:12, marginBottom:8 }}>
-                      <div style={{ color:'#999', fontSize:12, minWidth:90 }}>{ct.type}</div>
-                      <div style={{ flex:1, height:7, background:'rgba(255,255,255,0.05)', borderRadius:4, overflow:'hidden' }}>
-                        <div style={{ height:'100%', width:`${(ct.count/cardioByType[0].count)*100}%`, background:R, borderRadius:4 }} />
-                      </div>
-                      <div style={{ color:R2, fontSize:12, fontWeight:700, minWidth:24, textAlign:'right' }}>{ct.count}x</div>
-                    </div>
-                  ))}
-                </NeonCard>
-              )}
-
-              {workoutLogs.length > 0 && (
-                <NeonCard color={R} style={{ padding:18 }}>
-                  <SectionTitle color={R}>ÚLTIMOS TREINOS</SectionTitle>
-                  {workoutLogs.slice(0,8).map((w,i) => (
-                    <div key={i} style={{ padding:'11px 14px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(220,38,38,0.1)', display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:8 }}>
-                      <div>
-                        <div style={{ color:'#d0d0d0', fontSize:13, fontWeight:700 }}>{w.day_name||'Treino'}</div>
-                        <div style={{ color:'#555', fontSize:11, marginTop:2 }}>{w.date} · {w.program_name||''}</div>
-                      </div>
-                      <div style={{ color: w.completed ? R2 : '#333', fontSize:12, fontWeight:700 }}>{w.completed ? '✓ Concluído' : '○ Parcial'}</div>
-                    </div>
-                  ))}
-                </NeonCard>
-              )}
-
-              {workoutLogs.length === 0 && cardioLogs.length === 0 && (
-                <NeonCard color={R} style={{ padding:40, textAlign:'center' }}>
-                  <div style={{ fontSize:32, marginBottom:12 }}>📊</div>
-                  <div style={{ color:'#444', fontSize:13 }}>Nenhum dado ainda.</div>
-                </NeonCard>
-              )}
-            </>
           )}
         </>
       )}
@@ -454,9 +377,14 @@ export default function CalendarPage({ user, userId }) {
                   style={{ borderColor:'rgba(220,38,38,0.15)', padding:'8px 12px', fontSize:14 }} />
               </div>
             </div>
-            <button className="btn" onClick={saveBio}
-              style={{ width:'100%', background:'rgba(220,38,38,0.15)', borderColor:R, color:R2, padding:12, fontSize:13 }}>
-              💾 SALVAR MEDIÇÃO
+            {bioError && (
+              <div style={{ color:'#ff6b6b', fontSize:12, marginBottom:8, padding:'8px 12px', background:'rgba(255,0,0,0.08)', borderRadius:6, border:'1px solid rgba(255,0,0,0.2)' }}>
+                ⚠️ {bioError}
+              </div>
+            )}
+            <button className="btn" onClick={saveBio} disabled={bioSaving}
+              style={{ width:'100%', background: bioSaved ? 'rgba(34,197,94,0.15)' : 'rgba(220,38,38,0.15)', borderColor: bioSaved ? '#22c55e' : R, color: bioSaved ? '#22c55e' : R2, padding:12, fontSize:13, transition:'all 0.3s' }}>
+              {bioSaving ? '⏳ Salvando...' : bioSaved ? '✓ MEDIÇÃO SALVA!' : '💾 SALVAR MEDIÇÃO'}
             </button>
           </NeonCard>
 
@@ -563,28 +491,6 @@ function calcStreak(entries) {
     d.setDate(d.getDate()-1)
   }
   return streak
-}
-
-function buildWeeklyData(workoutLogs, cardioLogs) {
-  const weeks = {}
-  const add = (date, type) => {
-    if (!date) return
-    const d = new Date(date), day = d.getDay()
-    const mon = new Date(d)
-    mon.setDate(d.getDate()-(day===0?6:day-1))
-    const key = mon.toISOString().split('T')[0].slice(5)
-    if (!weeks[key]) weeks[key] = { week:key, treinos:0, cardio:0 }
-    if (type==='workout') weeks[key].treinos++; else weeks[key].cardio++
-  }
-  workoutLogs.forEach(w => add(w.date,'workout'))
-  cardioLogs .forEach(c => add(c.date,'cardio'))
-  return Object.values(weeks).sort((a,b)=>a.week.localeCompare(b.week)).slice(-8)
-}
-
-function buildCardioByType(cardioLogs) {
-  const map = {}
-  cardioLogs.forEach(c => { const t = c.type||'Outro'; map[t]=(map[t]||0)+1 })
-  return Object.entries(map).map(([type,count])=>({type,count})).sort((a,b)=>b.count-a.count)
 }
 
 // ── Bio alert helpers ─────────────────────────────────────────────────────────
