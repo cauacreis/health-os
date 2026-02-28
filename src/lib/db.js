@@ -228,7 +228,7 @@ export async function getCardioLog(userId, limit = 30) {
 export async function saveCardioEntry(userId, entry) {
   const { data, error } = await supabase
     .from('cardio_log')
-    .upsert({ user_id: userId, ...entry }, { onConflict: 'user_id,date' })
+    .insert({ user_id: userId, ...entry })
     .select()
     .single()
   if (error) throw error

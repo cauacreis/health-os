@@ -316,6 +316,8 @@ function CardioContent({ user, userId }) {
   const [loaded, setLoaded] = useState(false)
   const [form, setForm]   = useState({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avg_hr:'', kcal:'' })
   const [saved, setSaved]   = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [error, setError]   = useState(null)
   const maxHR = 220 - (user.age||25)
 
   if (!loaded) {
@@ -324,12 +326,18 @@ function CardioContent({ user, userId }) {
 
   async function saveEntry() {
     if (!form.minutes) return
-    await saveCardioEntry(userId, { ...form, minutes:+form.minutes, avg_hr:+form.avg_hr||null, kcal:+form.kcal||null })
-    await addCalendarEntry(userId, { date:form.date, type:'cardio', note:`${form.type} ${form.minutes}min`, label:'Cardio' }).catch(()=>{})
-    setLog(await getCardioLog(userId, 30))
-    setForm({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avg_hr:'', kcal:'' })
-    setSaved(true); setTimeout(() => setSaved(false), 2500)
-    setTab('historico')
+    setSaving(true); setError(null)
+    try {
+      await saveCardioEntry(userId, { ...form, minutes:+form.minutes, avg_hr:+form.avg_hr||null, kcal:+form.kcal||null })
+      await addCalendarEntry(userId, { date:form.date, type:'cardio', note:`${form.type} ${form.minutes}min`, label:'Cardio' }).catch(()=>{})
+      setLog(await getCardioLog(userId, 30))
+      setForm({ date:today(), type:'Corrida', zone:'Z2', minutes:'', avg_hr:'', kcal:'' })
+      setSaved(true); setTimeout(() => setSaved(false), 2500)
+      setTab('historico')
+    } catch (e) {
+      console.error('Erro ao salvar cardio:', e)
+      setError(e?.message || 'Não foi possível salvar. Verifique a conexão e tente novamente.')
+    } finally { setSaving(false) }
   }
 
   const TYPES    = ['Corrida','Caminhada','Bike','Natação','Remo','HIIT','Elíptico','Pular Corda']
@@ -488,9 +496,14 @@ function CardioContent({ user, userId }) {
               <input type="number" value={form.kcal} onChange={e=>setForm(f=>({...f,kcal:e.target.value}))} placeholder="250" className="input" />
             </div>
           </div>
-          <button className="btn" onClick={saveEntry}
-            style={{ width:'100%', background:saved?'rgba(34,197,94,0.15)':DIM, borderColor:saved?G:R, color:saved?G:R2, padding:14, fontSize:13, transition:'all 0.3s' }}>
-            {saved ? '✓ SESSÃO SALVA!' : '💾 SALVAR SESSÃO'}
+          {error && (
+            <div style={{ padding:'10px 14px', marginBottom:12, background:'rgba(239,68,68,0.1)', border:'1px solid rgba(239,68,68,0.3)', borderRadius:8, color:'#ef4444', fontSize:12 }}>
+              {error}
+            </div>
+          )}
+          <button className="btn" onClick={saveEntry} disabled={saving}
+            style={{ width:'100%', background:saved?'rgba(34,197,94,0.15)':DIM, borderColor:saved?G:R, color:saved?G:R2, padding:14, fontSize:13, transition:'all 0.3s', opacity:saving?0.7:1 }}>
+            {saved ? '✓ SESSÃO SALVA!' : saving ? 'Salvando...' : '💾 SALVAR SESSÃO'}
           </button>
         </NeonCard>
       )}
