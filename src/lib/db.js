@@ -358,6 +358,29 @@ export async function toggleMealLog(userId, date, mealId, mealName, checked) {
   }
 }
 
+// ── Steps log ────────────────────────────────────────────────────────────────
+export async function getStepsLog(userId, limit = 7) {
+  const { data, error } = await supabase
+    .from('steps_log')
+    .select('date, steps')
+    .eq('user_id', userId)
+    .order('date', { ascending: false })
+    .limit(limit)
+  if (error) { console.error('getStepsLog:', error); return [] }
+  return data || []
+}
+
+export async function saveStepsEntry(userId, date, steps) {
+  const v = Math.max(0, Math.min(50000, steps))
+  const { data, error } = await supabase
+    .from('steps_log')
+    .upsert({ user_id: userId, date, steps: v }, { onConflict: 'user_id,date' })
+    .select()
+    .single()
+  if (error) { console.error('saveStepsEntry:', error); throw error }
+  return data
+}
+
 // ── Water log — load today ────────────────────────────────────────────────────
 export async function getTodayWater(userId) {
   const date = new Date().toISOString().split('T')[0]

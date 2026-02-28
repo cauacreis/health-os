@@ -186,3 +186,25 @@ CREATE POLICY "Avatar delete" ON storage.objects
 -- MIGRATION: adicionar gym_type ao profiles 
 -- ════════════════════════════════════════════════════════════════
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gym_type TEXT DEFAULT 'full';
+
+-- ════════════════════════════════════════════════════════════════
+-- MIGRATION: steps_log para histórico de passos diários
+-- ════════════════════════════════════════════════════════════════
+CREATE TABLE IF NOT EXISTS steps_log (
+  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  date       DATE NOT NULL DEFAULT CURRENT_DATE,
+  steps      INTEGER NOT NULL DEFAULT 0 CHECK (steps >= 0),
+  created_at TIMESTAMPTZ DEFAULT NOW(),
+  UNIQUE(user_id, date)
+);
+
+ALTER TABLE steps_log ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "own_steps_select" ON steps_log FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "own_steps_insert" ON steps_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_steps_update" ON steps_log FOR UPDATE USING (auth.uid() = user_id);
+
+-- ════════════════════════════════════════════════════════════════
+-- MIGRATION: fitness_profile no perfil (Força, Cardio, Flex, etc)
+-- ════════════════════════════════════════════════════════════════
+ALTER TABLE profiles ADD COLUMN IF NOT EXISTS fitness_profile JSONB DEFAULT '{"strength":50,"cardio":50,"flex":50,"resistance":50,"balance":50,"speed":50}'::jsonb;

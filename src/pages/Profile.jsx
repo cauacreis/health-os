@@ -21,6 +21,9 @@ export default function Profile({ user, userId, onUpdate }) {
   const [factIdx, setFactIdx]     = useState(0)
   const [saving, setSaving]       = useState(false)
 
+  const defaultFitness = { strength:50, cardio:50, flex:50, resistance:50, balance:50, speed:50 }
+  const fitnessProfile = user.fitness_profile || defaultFitness
+
   const [edit, setEdit] = useState({
     name:     user.name || '',
     age:      user.age  || '',
@@ -30,6 +33,7 @@ export default function Profile({ user, userId, onUpdate }) {
     goal:     user.goal || 'muscleGain',
     activity: String(user.activity || '1.55'),
     program:  user.program || 'upperLower5',
+    fitness:  { ...defaultFitness, ...fitnessProfile },
   })
 
   async function saveProfile() {
@@ -45,6 +49,7 @@ export default function Profile({ user, userId, onUpdate }) {
         goal:     edit.goal,
         activity: +edit.activity,
         program:  edit.program,
+        fitness_profile: edit.fitness,
       })
       onUpdate(updated)
       setActiveTab('perfil')
@@ -192,6 +197,26 @@ export default function Profile({ user, userId, onUpdate }) {
                   <button key={p.v} type="button" onClick={() => setEdit(v=>({...v,program:p.v}))} style={{ padding:'12px 16px', textAlign:'left', borderRadius:6, border:`1px solid ${edit.program===p.v?'rgba(220,38,38,0.5)':'rgba(255,255,255,0.08)'}`, background:edit.program===p.v?'rgba(220,38,38,0.1)':'transparent', color:edit.program===p.v?'#dc2626':'#666', fontFamily:'monospace', fontSize:11, cursor:'pointer', transition:'all 0.15s' }}>
                     {p.l}
                   </button>
+                ))}
+              </div>
+            </div>
+            <div style={{ gridColumn:'1/-1', marginTop:16, paddingTop:16, borderTop:'1px solid rgba(220,38,38,0.15)' }}>
+              <label className="label" style={{ marginBottom:12 }}>PERFIL DE FITNESS (1-100)</label>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+                {[
+                  { k:'strength',  l:'Força', c:'#dc2626' },
+                  { k:'cardio',    l:'Cardio', c:'#dc2626' },
+                  { k:'flex',      l:'Flexibilidade', c:'#dc2626' },
+                  { k:'resistance',l:'Resistência', c:'#dc2626' },
+                  { k:'balance',   l:'Equilíbrio', c:'#dc2626' },
+                  { k:'speed',     l:'Velocidade', c:'#dc2626' },
+                ].map(f => (
+                  <div key={f.k}>
+                    <label style={{ color:'#666', fontSize:9, letterSpacing:1 }}>{f.l} — {edit.fitness[f.k]}</label>
+                    <input type="range" min="0" max="100" value={edit.fitness[f.k]||50}
+                      onChange={e=>setEdit(v=>({...v,fitness:{...v.fitness,[f.k]:+e.target.value}}))}
+                      style={{ width:'100%', accentColor:f.c, height:6, cursor:'pointer' }} />
+                  </div>
                 ))}
               </div>
             </div>

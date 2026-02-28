@@ -484,8 +484,12 @@ export function Steps({ user, userId, onUpdate }) {
   const km    = (steps*0.00075).toFixed(2)
   async function saveSteps(val) {
     const v=Math.max(0,Math.min(50000,val)); setStepsLocal(v); setSaving(true)
-    try { const u=await import('../lib/db').then(m=>m.upsertProfile(userId,{steps_today:v})); onUpdate(u) }
-    catch(e){console.error(e)} finally{setSaving(false)}
+    try {
+      const db = await import('../lib/db')
+      await db.saveStepsEntry(userId, db.today(), v)
+      const u = await db.upsertProfile(userId, { steps_today: v })
+      onUpdate(u)
+    } catch(e){console.error(e)} finally{setSaving(false)}
   }
   return (
     <div className="animate-fade">

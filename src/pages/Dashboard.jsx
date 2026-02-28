@@ -1,15 +1,15 @@
 import { useState, useEffect } from 'react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { NeonCard, SectionTitle, ProgressBar } from '../components/UI'
-import { WEEKLY_STEPS } from '../data/nutrition'
-import { getBioLog, getSleepLog, getFoodLog, getCardioLog, today } from '../lib/db'
+import { getBioLog, getSleepLog, getFoodLog, getStepsLog, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
-const RADAR_DATA = [
-  { metric:'Força', value:70 },{ metric:'Cardio', value:55 },
-  { metric:'Flex', value:40 },{ metric:'Resistência', value:65 },
-  { metric:'Equilíbrio', value:50 },{ metric:'Velocidade', value:60 },
+const RADAR_KEYS = [
+  { metric:'Força', key:'strength' },{ metric:'Cardio', key:'cardio' },
+  { metric:'Flex', key:'flex' },{ metric:'Resistência', key:'resistance' },
+  { metric:'Equilíbrio', key:'balance' },{ metric:'Velocidade', key:'speed' },
 ]
+const DAY_ABBREV = ['Dom','Seg','Ter','Qua','Qui','Sex','Sáb']
 
 function useIsMobile() {
   const [mobile, setMobile] = useState(window.innerWidth < 769)
@@ -26,13 +26,32 @@ export default function Dashboard({ user, userId }) {
   const [bioLog, setBioLog] = useState([])
   const [sleepLog, setSleepLog] = useState([])
   const [foodLog, setFoodLog] = useState([])
+  const [stepsLog, setStepsLog] = useState([])
   const isMobile = useIsMobile()
 
   useEffect(() => {
     getBioLog(userId, 1).then(setBioLog).catch(()=>{})
     getSleepLog(userId, 7).then(setSleepLog).catch(()=>{})
     getFoodLog(userId, today()).then(setFoodLog).catch(()=>{})
+    getStepsLog(userId, 7).then(setStepsLog).catch(()=>{})
   }, [userId])
+
+  const fitnessProfile = user.fitness_profile || { strength:50, cardio:50, flex:50, resistance:50, balance:50, speed:50 }
+  const radarData = RADAR_KEYS.map(({ metric, key }) => ({ metric, value: fitnessProfile[key] ?? 50 }))
+
+  const weeklySteps = (() => {
+    const byDate = {}
+    stepsLog.forEach(e => { byDate[e.date] = e.steps })
+    const out = []
+    for (let i = 6; i >= 0; i--) {
+      const d = new Date()
+      d.setDate(d.getDate() - i)
+      const dStr = d.toISOString().split('T')[0]
+      const dayName = DAY_ABBREV[d.getDay()]
+      out.push({ day: dayName, steps: byDate[dStr] ?? 0, date: dStr })
+    }
+    return out
+  })()
 
   const bmr = user.sex==='male' ? 88.36+13.4*user.weight+4.8*user.height-5.7*user.age : 447.6+9.2*user.weight+3.1*user.height-4.3*user.age
   const tdee = Math.round(bmr*(user.activity||1.55))
@@ -88,7 +107,7 @@ export default function Dashboard({ user, userId }) {
         <NeonCard color="#dc2626" style={{ padding:16 }}>
           <SectionTitle color="#dc2626">PERFIL DE FITNESS</SectionTitle>
           <ResponsiveContainer width="100%" height={180}>
-            <RadarChart data={RADAR_DATA}>
+            <RadarChart data={radarData}>
               <PolarGrid stroke="#dc262618" />
               <PolarAngleAxis dataKey="metric" tick={{ fill:'#555', fontSize:9, fontFamily:'monospace' }} />
               <Radar dataKey="value" stroke="#dc2626" fill="#dc2626" fillOpacity={0.12} strokeWidth={1.5} />
@@ -98,7 +117,7 @@ export default function Dashboard({ user, userId }) {
         <NeonCard color="#94a3b8" style={{ padding:16 }}>
           <SectionTitle color="#94a3b8">PASSOS SEMANAIS</SectionTitle>
           <ResponsiveContainer width="100%" height={180}>
-            <AreaChart data={WEEKLY_STEPS}>
+            <AreaChart data={weeklySteps}>
               <defs>
                 <linearGradient id="sg" x1="0" y1="0" x2="0" y2="1">
                   <stop offset="5%" stopColor="#94a3b8" stopOpacity={0.3} />
