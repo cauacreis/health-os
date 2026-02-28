@@ -122,10 +122,10 @@ export async function getWorkoutLogs(userId, limit = 30) {
 export async function saveWorkoutLog(userId, log) {
   const { data, error } = await supabase
     .from('workout_logs')
-    .upsert({ user_id: userId, ...log })
+    .insert({ user_id: userId, ...log })
     .select()
     .single()
-  if (error) throw error
+  if (error) { console.error('saveWorkoutLog:', error); throw error }
   return data
 }
 
@@ -192,12 +192,24 @@ export async function getBioLog(userId, limit = 20) {
 }
 
 export async function saveBioEntry(userId, entry) {
+  const num = v => (v === '' || v === null || v === undefined) ? null : +v
+  const clean = {
+    date: entry.date,
+    body_fat:      num(entry.body_fat),
+    muscle_mass:   num(entry.muscle_mass),
+    visceral_fat:  num(entry.visceral_fat),
+    water_pct:     num(entry.water_pct),
+    bone_mass:     num(entry.bone_mass),
+    bmr:           num(entry.bmr),
+    metabolic_age: num(entry.metabolic_age),
+    note:          entry.note || null,
+  }
   const { data, error } = await supabase
     .from('bio_log')
-    .upsert({ user_id: userId, ...entry }, { onConflict: 'user_id,date' })
+    .upsert({ user_id: userId, ...clean }, { onConflict: 'user_id,date' })
     .select()
     .single()
-  if (error) throw error
+  if (error) { console.error('saveBioEntry:', error); throw error }
   return data
 }
 

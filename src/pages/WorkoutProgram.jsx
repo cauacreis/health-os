@@ -1,8 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { PROGRAMS } from '../data/workouts'
 import { NeonCard, SectionTitle, Tag, Modal } from '../components/UI'
-import { saveWorkoutLog, addCalendarEntry, today } from '../lib/storage'
-import { getExerciseHistory, getCustomExercises, saveCustomExercise, deleteCustomExercise } from '../lib/db'
+import { saveWorkoutLog, addCalendarEntry, getExerciseHistory, getCustomExercises, saveCustomExercise, deleteCustomExercise, today } from '../lib/db'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { FUN_FACTS } from '../data/funfacts'
 
@@ -419,9 +418,8 @@ export default function WorkoutProgram({ user, userId }) {
 
   async function finishWorkout() {
     const logEntry = {
-      id: `${userId}_${today()}_${day.id}`,
       date: today(),
-      dayId: day.id,
+      day_id: day.id,
       day_name: day.name,
       program_name: program.name,
       exercises: allExs.map((ex, i) => ({
@@ -431,8 +429,13 @@ export default function WorkoutProgram({ user, userId }) {
       })),
       completed: allDone,
     }
-    saveWorkoutLog(userId, logEntry)
-    addCalendarEntry(userId, { date: today(), type:'workout', label: day.name, note:`${dayCompletedCount}/${allExs.length} exercícios` })
+    try {
+      await saveWorkoutLog(userId, logEntry)
+      await addCalendarEntry(userId, { date: today(), type:'workout', label: day.name, note:`${dayCompletedCount}/${allExs.length} exercícios` })
+    } catch(e) {
+      console.error('finishWorkout error:', e)
+      alert('Erro ao salvar treino: ' + (e?.message || JSON.stringify(e)))
+    }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
   }
