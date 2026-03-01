@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef } from 'react'
 import { PROGRAMS } from '../data/workouts'
+import { MUSCLE_GROUPS, EXERCISES_BY_MUSCLE, searchExercises } from '../data/exercises'
 import { NeonCard, SectionTitle, Tag, Modal } from '../components/UI'
-import { saveWorkoutLog, addCalendarEntry, getExerciseHistory, getCustomExercises, saveCustomExercise, deleteCustomExercise, today } from '../lib/db'
+import { saveWorkoutLog, addCalendarEntry, getExerciseHistory, getCustomExercises, saveCustomExercise, deleteCustomExercise, getCustomWorkoutSheet, saveCustomWorkoutSheet, today } from '../lib/db'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { FUN_FACTS } from '../data/funfacts'
 
@@ -10,8 +11,6 @@ const R2 = '#ef4444'
 const S  = '#94a3b8'
 
 const SET_TYPES = ['Normal','Dropset','Rest-pause','Cluster','Myo-reps','Pausa','Excêntrico','Forçada','Pirâmide']
-
-const MUSCLE_GROUPS = ['Peitoral','Costas','Ombro','Bíceps','Tríceps','Antebraço','Quadríceps','Isquiotibiais','Glúteo','Panturrilha','Abdômen','Lombar']
 
 // ─── Video paths — coloque aqui o caminho dos seus vídeos ─────────────────────
 // Exemplo: 'Supino Inclinado': '/videos/supino-inclinado.mp4'
@@ -303,95 +302,176 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
 }
 
 // ─── AddCustomExerciseModal ───────────────────────────────────────────────────
+// Duas opções: Buscar na lista (com filtro de músculo) ou Digitar exercício específico
 function AddCustomModal({ dayColor, onSave, onClose }) {
+  const [mode, setMode] = useState('lista') // 'lista' | 'manual'
+  const [muscleFilter, setMuscleFilter] = useState('')
+  const [searchText, setSearchText] = useState('')
+  const [selectedFromList, setSelectedFromList] = useState(null) // { name, muscle, equipment, note }
   const [form, setForm] = useState({
     name:'', muscle: MUSCLE_GROUPS[0], sets:'3', reps:'10–12', rest:'90s', rir:'RIR 2', equipment:'', note:'', video:''
   })
 
+  const filtered = searchExercises(muscleFilter || null, searchText)
+  const [listParams, setListParams] = useState({ sets:'3', reps:'10–12', rest:'90s', rir:'RIR 2' })
+
+  function handleSaveFromList() {
+    if (!selectedFromList) return
+    onSave({
+      ...selectedFromList,
+      ...listParams,
+    })
+    onClose()
+  }
+
+  function handleSaveManual() {
+    if (!form.name.trim()) return
+    onSave(form)
+    onClose()
+  }
+
   return (
-    <Modal title="ADICIONAR EXERCÍCIO CUSTOMIZADO" color={dayColor} onClose={onClose}>
-      <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
-
-        <div style={{ gridColumn:'1/-1' }}>
-          <label className="label">NOME DO EXERCÍCIO *</label>
-          <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder="ex: Remada Cavalinho"
-            className="input" style={{ borderColor:`${dayColor}30`, color:'#d0d0d0' }} />
-        </div>
-
-        <div>
-          <label className="label">GRUPO MUSCULAR</label>
-          <select value={form.muscle} onChange={e => setForm(f=>({...f,muscle:e.target.value}))} className="select">
-            {MUSCLE_GROUPS.map(m => <option key={m}>{m}</option>)}
-          </select>
-        </div>
-
-        <div>
-          <label className="label">EQUIPAMENTO</label>
-          <input value={form.equipment} onChange={e => setForm(f=>({...f,equipment:e.target.value}))} placeholder="ex: Halter, Barra..."
-            className="input" />
-        </div>
-
-        {[
-          { k:'sets',  l:'SÉRIES',  p:'3' },
-          { k:'reps',  l:'REPS',    p:'10–12' },
-          { k:'rest',  l:'DESCANSO',p:'90s' },
-          { k:'rir',   l:'RIR',     p:'RIR 2' },
-        ].map(f => (
-          <div key={f.k}>
-            <label className="label">{f.l}</label>
-            <input value={form[f.k]} onChange={e => setForm(v=>({...v,[f.k]:e.target.value}))} placeholder={f.p}
-              className="input" />
-          </div>
-        ))}
-
-        <div style={{ gridColumn:'1/-1' }}>
-          <label className="label">OBSERVAÇÕES / EXECUÇÃO</label>
-          <textarea value={form.note} onChange={e => setForm(f=>({...f,note:e.target.value}))} placeholder="Dicas de execução, erros comuns..."
-            className="input" style={{ height:70, resize:'vertical' }} />
-        </div>
-
-        <div style={{ gridColumn:'1/-1' }}>
-          <label className="label">CAMINHO DO VÍDEO</label>
-          <input value={form.video} onChange={e => setForm(f=>({...f,video:e.target.value}))}
-            placeholder="/videos/meu-exercicio.mp4"
-            className="input" style={{ borderColor:'rgba(99,102,241,0.3)', color:'#818cf8' }} />
-          <div style={{ color:'#444', fontSize:10, marginTop:4 }}>
-            Coloque o arquivo em <code style={{ color:'#6366f1' }}>/public/videos/</code> e informe o caminho aqui
-          </div>
-        </div>
-
+    <Modal title="ADICIONAR EXERCÍCIO" color={dayColor} onClose={onClose}>
+      {/* Tabs: Buscar na lista | Digitar específico */}
+      <div style={{ display:'flex', gap:6, marginBottom:16 }}>
+        <button onClick={() => setMode('lista')} style={{ flex:1, padding:'10px', borderRadius:6, border:`1px solid ${mode==='lista'?dayColor:'#333'}`, background:mode==='lista'?`${dayColor}15`:'transparent', color:mode==='lista'?dayColor:'#555', fontSize:11, cursor:'pointer', fontFamily:'monospace' }}>
+          🔍 BUSCAR NA LISTA
+        </button>
+        <button onClick={() => setMode('manual')} style={{ flex:1, padding:'10px', borderRadius:6, border:`1px solid ${mode==='manual'?dayColor:'#333'}`, background:mode==='manual'?`${dayColor}15`:'transparent', color:mode==='manual'?dayColor:'#555', fontSize:11, cursor:'pointer', fontFamily:'monospace' }}>
+          ✏️ DIGITAR EXERCÍCIO ESPECÍFICO
+        </button>
       </div>
 
-      <button className="btn" onClick={() => { if (!form.name) return; onSave(form) }}
-        style={{ width:'100%', marginTop:14, background:`${dayColor}15`, borderColor:dayColor, color:dayColor === R ? R2 : dayColor, padding:13, fontSize:13 }}>
-        ➕ ADICIONAR AO TREINO
-      </button>
+      {mode === 'lista' ? (
+        <>
+          <div style={{ display:'flex', gap:8, marginBottom:12, flexWrap:'wrap' }}>
+            <select value={muscleFilter} onChange={e => setMuscleFilter(e.target.value)}
+              className="select" style={{ flex:1, minWidth:140, borderColor:`${dayColor}30` }}>
+              <option value="">Todos os músculos</option>
+              {MUSCLE_GROUPS.map(m => <option key={m} value={m}>{m}</option>)}
+            </select>
+            <input value={searchText} onChange={e => setSearchText(e.target.value)} placeholder="Buscar exercício..."
+              className="input" style={{ flex:1, minWidth:140, borderColor:`${dayColor}20` }} />
+          </div>
+          <div style={{ maxHeight:240, overflowY:'auto', border:`1px solid ${dayColor}15`, borderRadius:6, marginBottom:12 }}>
+            {filtered.length === 0 ? (
+              <div style={{ padding:24, textAlign:'center', color:'#444', fontSize:12 }}>Nenhum exercício encontrado. Use "Digitar exercício específico" para adicionar.</div>
+            ) : (
+              filtered.map((ex, i) => (
+                <div key={i} onClick={() => setSelectedFromList(prev => prev?.name === ex.name ? null : ex)}
+                  style={{ padding:'10px 12px', borderBottom:'1px solid rgba(255,255,255,0.04)', cursor:'pointer', background:selectedFromList?.name === ex.name ? `${dayColor}15` : 'transparent', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                  <div>
+                    <div style={{ color:'#d0d0d0', fontSize:13, fontWeight:600 }}>{ex.name}</div>
+                    <div style={{ color:'#555', fontSize:10, marginTop:2 }}>{ex.muscle} · {ex.equipment}</div>
+                  </div>
+                  {selectedFromList?.name === ex.name && <span style={{ color:dayColor, fontSize:14 }}>✓</span>}
+                </div>
+              ))
+            )}
+          </div>
+          {selectedFromList && (
+            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:8, marginBottom:12 }}>
+              {['sets','reps','rest','rir'].map(k => (
+                <div key={k}>
+                  <label className="label">{k.toUpperCase()}</label>
+                  <input value={listParams[k]} onChange={e => setListParams(p=>({...p,[k]:e.target.value}))}
+                    placeholder={k==='sets'?'3':k==='reps'?'10–12':k==='rest'?'90s':'RIR 2'} className="input" style={{ fontSize:11 }} />
+                </div>
+              ))}
+            </div>
+          )}
+          <button className="btn" onClick={handleSaveFromList} disabled={!selectedFromList}
+            style={{ width:'100%', background:`${dayColor}15`, borderColor:dayColor, color:dayColor, padding:12, fontSize:12, opacity:selectedFromList?1:0.5 }}>
+            ➕ ADICIONAR {selectedFromList ? `"${selectedFromList.name}"` : ''}
+          </button>
+        </>
+      ) : (
+        <>
+          <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12 }}>
+            <div style={{ gridColumn:'1/-1' }}>
+              <label className="label">NOME DO EXERCÍCIO *</label>
+              <input value={form.name} onChange={e => setForm(f=>({...f,name:e.target.value}))} placeholder="ex: Remada Cavalinho"
+                className="input" style={{ borderColor:`${dayColor}30`, color:'#d0d0d0' }} />
+            </div>
+            <div>
+              <label className="label">GRUPO MUSCULAR</label>
+              <select value={form.muscle} onChange={e => setForm(f=>({...f,muscle:e.target.value}))} className="select">
+                {MUSCLE_GROUPS.map(m => <option key={m}>{m}</option>)}
+              </select>
+            </div>
+            <div>
+              <label className="label">EQUIPAMENTO</label>
+              <input value={form.equipment} onChange={e => setForm(f=>({...f,equipment:e.target.value}))} placeholder="ex: Halter, Barra..." className="input" />
+            </div>
+            {['sets','reps','rest','rir'].map(f => (
+              <div key={f}>
+                <label className="label">{f.toUpperCase()}</label>
+                <input value={form[f]} onChange={e => setForm(v=>({...v,[f]:e.target.value}))} placeholder={f==='sets'?'3':f==='reps'?'10–12':f==='rest'?'90s':'RIR 2'} className="input" />
+              </div>
+            ))}
+            <div style={{ gridColumn:'1/-1' }}>
+              <label className="label">OBSERVAÇÕES / EXECUÇÃO</label>
+              <textarea value={form.note} onChange={e => setForm(f=>({...f,note:e.target.value}))} placeholder="Dicas de execução, séries, tipo..."
+                className="input" style={{ height:60, resize:'vertical' }} />
+            </div>
+          </div>
+          <button className="btn" onClick={handleSaveManual}
+            style={{ width:'100%', marginTop:14, background:`${dayColor}15`, borderColor:dayColor, color:dayColor === R ? R2 : dayColor, padding:13, fontSize:13 }}>
+            ➕ ADICIONAR AO TREINO
+          </button>
+        </>
+      )}
     </Modal>
   )
 }
 
-// ─── Main component ───────────────────────────────────────────────────────────
-export default function WorkoutProgram({ user, userId }) {
-  const programKey = user.program || 'upperLower5'
-  const program    = PROGRAMS[programKey]
+// Estrutura padrão para ficha própria
+const DEFAULT_CUSTOM_SHEET = {
+  name: 'Minha Ficha',
+  days: [{ id: 1, name: 'Dia A', focus: 'Personalize', tag: 'DIA A', color: '#dc2626', exercises: [] }]
+}
 
+// ─── Main component ───────────────────────────────────────────────────────────
+export default function WorkoutProgram({ user, userId, onUpdateUser }) {
+  const programKey = user.program || 'upperLower5'
+  const isCustom   = programKey === 'custom'
+  const program    = isCustom ? null : PROGRAMS[programKey]
+
+  const [customSheet, setCustomSheet]     = useState(null)
+  const [customSheetLoaded, setCustomSheetLoaded] = useState(false)
   const [tab, setTab]             = useState('treino')
   const [selectedDay, setSelectedDay] = useState(0)
   const [completed,   setCompleted]   = useState({})
   const [logData,     setLogData]     = useState({})
   const [saved,       setSaved]       = useState(false)
   const [factIdx,     setFactIdx]     = useState(0)
-  const [customExs,   setCustomExs]   = useState({})   // { dayId: [exercises] }
+  const [customExs,   setCustomExs]   = useState({})
   const [customLoaded,setCustomLoaded]= useState(false)
   const [addModal,    setAddModal]    = useState(false)
-  const [historyEx,   setHistoryEx]   = useState(null) // exercise being viewed in history tab
+  const [historyEx,   setHistoryEx]   = useState(null)
 
-  const day       = program.days[selectedDay]
-  const dayCustom = customExs[day.id] || []
-  const allExs    = [...day.exercises, ...dayCustom]
+  // Programa efetivo: pre-made ou ficha própria
+  const activeProgram = isCustom ? (customSheet && { name: customSheet.name, days: customSheet.days }) : program
+  const day = activeProgram?.days?.[selectedDay]
+  const dayCustom = customExs[day?.id] || []
+  const allExs = day ? [...(day.exercises || []), ...dayCustom] : []
 
   const facts = FUN_FACTS.filter(f => f.category === 'Treino')
   const fact  = facts[factIdx % Math.max(facts.length, 1)]
+
+  // Carrega ficha própria (quando programa é custom)
+  useEffect(() => {
+    if (isCustom && !customSheetLoaded && userId) {
+      getCustomWorkoutSheet(userId).then(async sheet => {
+        const s = sheet || DEFAULT_CUSTOM_SHEET
+        setCustomSheet(s)
+        if (!sheet) await saveCustomWorkoutSheet(userId, s)
+        setCustomSheetLoaded(true)
+      }).catch(() => { setCustomSheet(DEFAULT_CUSTOM_SHEET); setCustomSheetLoaded(true) })
+    } else if (!isCustom) {
+      setCustomSheetLoaded(true)
+    }
+  }, [isCustom, userId, customSheetLoaded])
 
   // Carrega exercícios customizados
   useEffect(() => {
@@ -421,7 +501,7 @@ export default function WorkoutProgram({ user, userId }) {
       date: today(),
       day_id: day.id,
       day_name: day.name,
-      program_name: program.name,
+      program_name: activeProgram?.name || 'Minha Ficha',
       exercises: allExs.map((ex, i) => ({
         name: ex.name,
         completed: !!completed[`${day.id}-${i}`],
@@ -451,11 +531,48 @@ export default function WorkoutProgram({ user, userId }) {
     setCustomExs(prev => ({ ...prev, [day.id]: (prev[day.id]||[]).filter(e => e.id !== id) }))
   }
 
+  async function addCustomDay() {
+    const nextId = Math.max(...(customSheet.days || []).map(d => d.id), 0) + 1
+    const colors = ['#dc2626', '#94a3b8', '#16a34a', '#6366f1', '#eab308', '#ec4899']
+    const newDay = { id: nextId, name: `Dia ${String.fromCharCode(64 + nextId)}`, focus: 'Personalize', tag: `DIA ${String.fromCharCode(64 + nextId)}`, color: colors[(nextId - 1) % colors.length], exercises: [] }
+    const updated = { ...customSheet, days: [...(customSheet.days || []), newDay] }
+    setCustomSheet(updated)
+    await saveCustomWorkoutSheet(userId, updated)
+    setSelectedDay(updated.days.length - 1)
+  }
+
+  async function removeCustomDay(dayId) {
+    const newDays = (customSheet.days || []).filter(d => d.id !== dayId)
+    if (newDays.length === 0) return
+    const updated = { ...customSheet, days: newDays }
+    setCustomSheet(updated)
+    await saveCustomWorkoutSheet(userId, updated)
+    setSelectedDay(Math.min(selectedDay, newDays.length - 1))
+  }
+
+  if (isCustom && !customSheetLoaded) {
+    return <div style={{ padding:40, textAlign:'center', color:'#555' }}>Carregando sua ficha...</div>
+  }
+
+  if (isCustom && !activeProgram?.days?.length) {
+    return (
+      <div className="animate-fade">
+        <div style={{ color:R, fontSize:20, letterSpacing:4, fontWeight:700, marginBottom:16 }}>MONTAR MINHA FICHA</div>
+        <NeonCard color={R} style={{ padding:24, marginBottom:14 }}>
+          <div style={{ color:'#d0d0d0', fontSize:14, marginBottom:12 }}>Crie seu primeiro dia de treino para começar.</div>
+          <button onClick={addCustomDay} className="btn" style={{ background:`${R}15`, borderColor:R, color:R, padding:12, fontSize:12 }}>
+            ➕ CRIAR PRIMEIRO DIA
+          </button>
+        </NeonCard>
+      </div>
+    )
+  }
+
   return (
     <div className="animate-fade">
       <div style={{ marginBottom:18 }}>
         <div style={{ color:R, fontSize:20, letterSpacing:4, fontWeight:700 }}>PROGRAMA DE TREINO</div>
-        <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>{program.name.toUpperCase()} · {program.frequency.toUpperCase()}</div>
+        <div style={{ color:'#444', fontSize:10, letterSpacing:3, marginTop:4 }}>{(activeProgram?.name || 'Treino').toUpperCase()} · {(activeProgram?.frequency || 'Personalizado').toUpperCase()}</div>
       </div>
 
       {/* Fun fact */}
@@ -482,7 +599,7 @@ export default function WorkoutProgram({ user, userId }) {
         <>
           {/* Seletor de dias */}
           <div style={{ display:'flex', gap:6, marginBottom:18, flexWrap:'wrap' }}>
-            {program.days.map((d,i) => {
+            {(activeProgram?.days || []).map((d,i) => {
               const active = i === selectedDay
               return (
                 <button key={d.id} onClick={() => { setSelectedDay(i); setCompleted({}); setLogData({}) }}
@@ -492,6 +609,12 @@ export default function WorkoutProgram({ user, userId }) {
                 </button>
               )
             })}
+            {isCustom && (
+              <button onClick={addCustomDay}
+                style={{ padding:'8px 14px', borderRadius:6, border:'1px dashed rgba(99,102,241,0.5)', background:'rgba(99,102,241,0.06)', color:'#818cf8', fontFamily:'monospace', fontSize:10, letterSpacing:1.5, cursor:'pointer', transition:'all 0.2s' }}>
+                ➕ NOVO DIA
+              </button>
+            )}
           </div>
 
           {/* Header do dia */}
@@ -513,9 +636,11 @@ export default function WorkoutProgram({ user, userId }) {
             <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,0.05)', borderRadius:2, overflow:'hidden' }}>
               <div style={{ height:'100%', width:`${allExs.length > 0 ? (dayCompletedCount/allExs.length)*100 : 0}%`, background:day.color, borderRadius:2, transition:'width 0.4s ease' }} />
             </div>
-            <div style={{ marginTop:10, padding:'8px 12px', borderRadius:6, background:`${day.color}06`, borderLeft:`2px solid ${day.color}25` }}>
-              <span style={{ color:'#555', fontSize:11 }}>{day.rationale}</span>
-            </div>
+            {day.rationale && (
+              <div style={{ marginTop:10, padding:'8px 12px', borderRadius:6, background:`${day.color}06`, borderLeft:`2px solid ${day.color}25` }}>
+                <span style={{ color:'#555', fontSize:11 }}>{day.rationale}</span>
+              </div>
+            )}
           </NeonCard>
 
           {/* Exercícios do programa */}
@@ -563,23 +688,24 @@ export default function WorkoutProgram({ user, userId }) {
 
       {/* ── TAB: HISTÓRICO GERAL ─────────────────────────────────────── */}
       {tab === 'historico' && (
-        <HistoricoGeral userId={userId} program={program} />
+        <HistoricoGeral userId={userId} program={activeProgram} customExs={customExs} />
       )}
     </div>
   )
 }
 
 // ─── Histórico Geral ──────────────────────────────────────────────────────────
-function HistoricoGeral({ userId, program }) {
+function HistoricoGeral({ userId, program, customExs = {} }) {
   const [selectedEx, setSelectedEx] = useState(null)
   const [history,    setHistory]    = useState([])
   const [loading,    setLoading]    = useState(false)
   const [search,     setSearch]     = useState('')
 
-  // Todos os exercícios do programa
-  const allExercises = program.days.flatMap(d =>
-    d.exercises.map(ex => ({ ...ex, day: d.name, dayColor: d.color }))
-  )
+  // Todos os exercícios do programa + custom
+  const allExercises = (program?.days || []).flatMap(d => [
+    ...(d.exercises || []).map(ex => ({ ...ex, day: d.name, dayColor: d.color })),
+    ...(customExs[d.id] || []).map(ex => ({ ...ex, day: d.name, dayColor: d.color })),
+  ])
   const filtered = allExercises.filter(ex => ex.name.toLowerCase().includes(search.toLowerCase()))
 
   async function selectExercise(ex) {

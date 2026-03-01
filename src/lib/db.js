@@ -64,6 +64,21 @@ export async function upsertProfile(userId, patch) {
   return data
 }
 
+// ── Custom workout sheet (ficha própria) ──────────────────────────────────────
+export async function getCustomWorkoutSheet(userId) {
+  try {
+    const profile = await getProfile(userId)
+    return profile?.custom_workout_sheet || null
+  } catch {
+    return null
+  }
+}
+
+export async function saveCustomWorkoutSheet(userId, sheet) {
+  const profile = await getProfile(userId)
+  return upsertProfile(userId, { ...(profile || {}), id: userId, custom_workout_sheet: sheet })
+}
+
 export async function uploadAvatar(userId, file) {
   const ext  = file.name.split('.').pop()
   const path = `${userId}/avatar.${ext}`

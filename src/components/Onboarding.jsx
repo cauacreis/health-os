@@ -23,8 +23,8 @@ export default function Onboarding({ userId, initialName, onComplete }) {
 
   function set(k, v) { setForm(f => ({ ...f, [k]: v })); setErrors(e => ({ ...e, [k]: undefined })) }
 
-  // Filtered programs by gym type
-  const filteredPrograms = Object.entries(PROGRAMS).filter(([,p]) => p.gymType === form.gymType)
+  // Filtered programs by gym type (custom sempre disponível)
+  const filteredPrograms = Object.entries(PROGRAMS).filter(([k, p]) => k === 'custom' || p.gymType === form.gymType)
 
   function validate1() {
     const e = {}

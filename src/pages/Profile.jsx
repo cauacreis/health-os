@@ -14,6 +14,7 @@ const ACTIVITY_OPTS = [
 const PROGRAMS = [
   { v:'upperLower5', l:'Upper/Lower 5x — Intermediário' },
   { v:'ppl6',        l:'PPL 6x — Avançado' },
+  { v:'custom',      l:'Montar minha própria ficha — Personalizado' },
 ]
 
 export default function Profile({ user, userId, onUpdate }) {

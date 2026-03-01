@@ -572,6 +572,16 @@ export const PROGRAMS = {
     ]
   },
 
+  // Montar ficha própria — usuário cria seus próprios dias e exercícios
+  custom: {
+    name: 'Minha Ficha',
+    gymType: 'full', // aparece em todos os tipos
+    description: 'Monte sua própria ficha com dias e exercícios personalizados',
+    frequency: 'Personalizado',
+    level: 'Personalizado',
+    days: [], // preenchido pelo usuário
+  },
+
   functionalFull4: {
     name: 'Funcional 4x (Box ou Parque)',
     gymType: 'crossfit',
