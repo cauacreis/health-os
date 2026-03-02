@@ -63,46 +63,52 @@ function ExerciseLogger({ ex, dayColor, onChange, data, lastSession }) {
     <div>
       {/* Header das colunas */}
       {sets.length > 0 && (
-        <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:4, paddingLeft:30 }}>
-          <div style={{ width:64, color:'#333', fontSize:9, letterSpacing:1, textAlign:'center' }}>REPS</div>
-          <div style={{ width:64, color:'#333', fontSize:9, letterSpacing:1, textAlign:'center' }}>KG</div>
-          <div style={{ flex:1, color:'#333', fontSize:9, letterSpacing:1 }}>TIPO</div>
-          <div style={{ flex:1, color:'#333', fontSize:9, letterSpacing:1 }}>NOTA</div>
-          <div style={{ width:22 }} />
+        <div style={{ marginBottom:4 }}>
+          <div style={{ display:'flex', gap:6, alignItems:'center', paddingLeft:30 }}>
+            <div style={{ flex:1, color:'#333', fontSize:9, letterSpacing:1, textAlign:'center' }}>REPS</div>
+            <div style={{ flex:1, color:'#333', fontSize:9, letterSpacing:1, textAlign:'center' }}>KG</div>
+            <div style={{ width:22 }} />
+          </div>
         </div>
       )}
 
       {sets.map((s, i) => {
         const lastSet = lastSession?.sets?.[i]
         return (
-          <div key={i} style={{ display:'flex', gap:6, alignItems:'center', marginBottom:6 }}>
-            <div style={{ color:dayColor, fontSize:10, minWidth:24, textAlign:'center', fontWeight:700, fontFamily:'monospace' }}>{i+1}</div>
+          <div key={i} style={{ marginBottom:8 }}>
+            {/* Linha 1: número + REPS + KG + ✕ */}
+            <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:4 }}>
+              <div style={{ color:dayColor, fontSize:10, minWidth:24, textAlign:'center', fontWeight:700, fontFamily:'monospace' }}>{i+1}</div>
 
-            <div style={{ position:'relative', width:64 }}>
-              <input value={s.reps} onChange={e => updateSet(i,{reps:e.target.value})} placeholder="—"
-                className="input" style={{ width:'100%', padding:'7px 8px', fontSize:13, borderColor:`${dayColor}30`, color:dayColor, fontWeight:700, textAlign:'center' }} />
-              {lastSet?.reps && !s.reps && (
-                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', color:'#333', fontSize:11, pointerEvents:'none' }}>{lastSet.reps}</div>
-              )}
+              <div style={{ position:'relative', flex:1 }}>
+                <input value={s.reps} onChange={e => updateSet(i,{reps:e.target.value})} placeholder="—"
+                  className="input" style={{ width:'100%', padding:'7px 8px', fontSize:13, borderColor:`${dayColor}30`, color:dayColor, fontWeight:700, textAlign:'center' }} />
+                {lastSet?.reps && !s.reps && (
+                  <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', color:'#333', fontSize:11, pointerEvents:'none' }}>{lastSet.reps}</div>
+                )}
+              </div>
+
+              <div style={{ position:'relative', flex:1 }}>
+                <input value={s.weight} onChange={e => updateSet(i,{weight:e.target.value})} placeholder="—"
+                  className="input" style={{ width:'100%', padding:'7px 8px', fontSize:13, borderColor:`${dayColor}30`, color:dayColor, fontWeight:700, textAlign:'center' }} />
+                {lastSet?.weight && !s.weight && (
+                  <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', color:'#333', fontSize:11, pointerEvents:'none' }}>{lastSet.weight}</div>
+                )}
+              </div>
+
+              <button onClick={() => removeSet(i)} style={{ background:'none', border:'none', color:'#333', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1, width:22 }}>✕</button>
             </div>
 
-            <div style={{ position:'relative', width:64 }}>
-              <input value={s.weight} onChange={e => updateSet(i,{weight:e.target.value})} placeholder="—"
-                className="input" style={{ width:'100%', padding:'7px 8px', fontSize:13, borderColor:`${dayColor}30`, color:dayColor, fontWeight:700, textAlign:'center' }} />
-              {lastSet?.weight && !s.weight && (
-                <div style={{ position:'absolute', top:'50%', left:'50%', transform:'translate(-50%,-50%)', color:'#333', fontSize:11, pointerEvents:'none' }}>{lastSet.weight}</div>
-              )}
+            {/* Linha 2: TIPO + NOTA (indentada) */}
+            <div style={{ display:'flex', gap:6, alignItems:'center', paddingLeft:30 }}>
+              <select value={s.type} onChange={e => updateSet(i,{type:e.target.value})}
+                className="select" style={{ flex:1, padding:'5px 8px', fontSize:11, borderColor:`${dayColor}20`, color:dayColor, background:'#0a0a0c' }}>
+                {SET_TYPES.map(t => <option key={t}>{t}</option>)}
+              </select>
+
+              <input value={s.note} onChange={e => updateSet(i,{note:e.target.value})} placeholder="nota..."
+                className="input" style={{ flex:1, padding:'5px 8px', fontSize:11, borderColor:`${dayColor}15`, color:'#666' }} />
             </div>
-
-            <select value={s.type} onChange={e => updateSet(i,{type:e.target.value})}
-              className="select" style={{ flex:1, minWidth:90, padding:'7px 8px', fontSize:11, borderColor:`${dayColor}20`, color:dayColor, background:'#0a0a0c' }}>
-              {SET_TYPES.map(t => <option key={t}>{t}</option>)}
-            </select>
-
-            <input value={s.note} onChange={e => updateSet(i,{note:e.target.value})} placeholder="nota"
-              className="input" style={{ flex:1, minWidth:70, padding:'7px 8px', fontSize:11, borderColor:`${dayColor}15`, color:'#666' }} />
-
-            <button onClick={() => removeSet(i)} style={{ background:'none', border:'none', color:'#333', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1 }}>✕</button>
           </div>
         )
       })}
