@@ -13,8 +13,6 @@ const S  = '#94a3b8'
 const SET_TYPES = ['Normal','Dropset','Rest-pause','Cluster','Myo-reps','Pausa','Excêntrico','Forçada','Pirâmide']
 
 // ─── Video paths — coloque aqui o caminho dos seus vídeos ─────────────────────
-// Exemplo: 'Supino Inclinado': '/videos/supino-inclinado.mp4'
-// Coloque os arquivos em /public/videos/ do projeto
 const EXERCISE_VIDEOS = {
   'Supino Inclinado':       '/videos/supino-inclinado.mp4',
   'Supino Reto':            '/videos/supino-reto.mp4',
@@ -40,7 +38,6 @@ const EXERCISE_VIDEOS = {
   'Afundo com Barra':       '/videos/afundo.mp4',
   'Panturrilha Sentada':    '/videos/panturrilha-sentada.mp4',
   'Panturrilha em Pé':      '/videos/panturrilha-pe.mp4',
-  // Adicione mais exercícios aqui seguindo o mesmo padrão
 }
 
 // ─── ExerciseLogger ───────────────────────────────────────────────────────────
@@ -48,7 +45,6 @@ function ExerciseLogger({ ex, dayColor, onChange, data, lastSession }) {
   const sets = data?.sets || []
 
   function addSet() {
-    // pré-preenche com o último peso/reps se existir
     const last = lastSession?.sets?.[sets.length] || {}
     onChange({ ...data, sets: [...sets, { reps: last.reps || '', weight: last.weight || '', type: 'Normal', note: '' }] })
   }
@@ -61,7 +57,6 @@ function ExerciseLogger({ ex, dayColor, onChange, data, lastSession }) {
 
   return (
     <div>
-      {/* Header das colunas */}
       {sets.length > 0 && (
         <div style={{ marginBottom:4 }}>
           <div style={{ display:'flex', gap:6, alignItems:'center', paddingLeft:30 }}>
@@ -76,7 +71,6 @@ function ExerciseLogger({ ex, dayColor, onChange, data, lastSession }) {
         const lastSet = lastSession?.sets?.[i]
         return (
           <div key={i} style={{ marginBottom:8 }}>
-            {/* Linha 1: número + REPS + KG + ✕ */}
             <div style={{ display:'flex', gap:6, alignItems:'center', marginBottom:4 }}>
               <div style={{ color:dayColor, fontSize:10, minWidth:24, textAlign:'center', fontWeight:700, fontFamily:'monospace' }}>{i+1}</div>
 
@@ -99,7 +93,6 @@ function ExerciseLogger({ ex, dayColor, onChange, data, lastSession }) {
               <button onClick={() => removeSet(i)} style={{ background:'none', border:'none', color:'#333', cursor:'pointer', fontSize:16, padding:'0 4px', lineHeight:1, width:22 }}>✕</button>
             </div>
 
-            {/* Linha 2: TIPO + NOTA (indentada) */}
             <div style={{ display:'flex', gap:6, alignItems:'center', paddingLeft:30 }}>
               <select value={s.type} onChange={e => updateSet(i,{type:e.target.value})}
                 className="select" style={{ flex:1, padding:'5px 8px', fontSize:11, borderColor:`${dayColor}20`, color:dayColor, background:'#0a0a0c' }}>
@@ -141,7 +134,6 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
     setHistLoaded(true)
   }
 
-  // Dados para gráfico — melhor peso por sessão
   const chartData = history.map(h => {
     const best = h.sets.reduce((max, s) => {
       const w = parseFloat(s.weight) || 0
@@ -154,9 +146,7 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
     <>
       <NeonCard color={dayColor} style={{ padding:'16px 18px', opacity: done?0.6:1, borderColor:`${done ? dayColor+'35' : dayColor+'12'}`, background: done?`${dayColor}04`:'rgba(0,0,0,0.6)', transition:'all 0.2s' }}>
 
-        {/* Header do exercício */}
         <div style={{ display:'flex', gap:12, alignItems:'flex-start' }}>
-          {/* Checkbox */}
           <div onClick={() => onToggle(key)} style={{ width:24, height:24, borderRadius:5, flexShrink:0, border:`1.5px solid ${done?dayColor:'#2a2a2a'}`, background:done?`${dayColor}25`:'transparent', display:'flex', alignItems:'center', justifyContent:'center', color:dayColor, fontSize:13, marginTop:2, cursor:'pointer', transition:'all 0.2s' }}>
             {done && '✓'}
           </div>
@@ -169,7 +159,6 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
               <Tag color={dayColor}>{ex.muscle}</Tag>
             </div>
 
-            {/* Parâmetros */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:8 }}>
               {[
                 { l:'SÉRIES',   v:ex.sets },
@@ -185,7 +174,6 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
               ))}
             </div>
 
-            {/* Botões de ação */}
             <div style={{ display:'flex', gap:6, flexWrap:'wrap', marginBottom:10 }}>
               <button onClick={() => { setShowDetail(d => !d); if (!histLoaded) loadHistory() }}
                 style={{ background:`${dayColor}0a`, border:`1px solid ${dayColor}20`, color:showDetail?dayColor:S, fontSize:10, padding:'5px 10px', borderRadius:4, cursor:'pointer', fontFamily:'monospace', letterSpacing:1 }}>
@@ -205,17 +193,14 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
               )}
             </div>
 
-            {/* Detalhes expandidos */}
             {showDetail && (
               <div style={{ marginBottom:12, padding:14, borderRadius:8, background:'rgba(0,0,0,0.3)', border:`1px solid ${dayColor}10` }}>
-                {/* Nota */}
                 {ex.note && (
                   <div style={{ color:'#666', fontSize:11, lineHeight:1.6, marginBottom:12, padding:'8px 12px', borderRadius:6, background:'rgba(255,255,255,0.02)', borderLeft:`2px solid ${dayColor}30` }}>
                     📋 {ex.note}
                   </div>
                 )}
 
-                {/* Gráfico de progresso */}
                 {!histLoaded ? (
                   <div style={{ color:'#444', fontSize:11, padding:8 }}>Carregando histórico...</div>
                 ) : chartData.length >= 2 ? (
@@ -237,7 +222,6 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
                   <div style={{ color:'#444', fontSize:11, marginBottom:12 }}>Nenhum histórico ainda. Registre suas séries abaixo!</div>
                 )}
 
-                {/* Histórico de sessões */}
                 {history.length > 0 && (
                   <div>
                     <div style={{ color:'#444', fontSize:9, letterSpacing:2, marginBottom:8 }}>ÚLTIMAS SESSÕES</div>
@@ -269,7 +253,6 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
               </div>
             )}
 
-            {/* Logger de séries */}
             <div style={{ borderTop:`1px solid ${dayColor}10`, paddingTop:10 }}>
               <div style={{ color:'#333', fontSize:9, letterSpacing:2, marginBottom:8, display:'flex', alignItems:'center', gap:8 }}>
                 REGISTRAR SÉRIES
@@ -282,14 +265,12 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
             </div>
           </div>
 
-          {/* Número */}
           <div style={{ width:26, height:26, borderRadius:'50%', background:`${dayColor}10`, border:`1px solid ${dayColor}18`, display:'flex', alignItems:'center', justifyContent:'center', color:dayColor, fontSize:11, fontWeight:700, flexShrink:0 }}>
             {idx+1}
           </div>
         </div>
       </NeonCard>
 
-      {/* Modal de vídeo */}
       {showVideo && videoSrc && (
         <Modal title={`${ex.name} — COMO EXECUTAR`} color={dayColor} onClose={() => { setShowVideo(false); videoRef.current?.pause() }}>
           <video ref={videoRef} src={videoSrc} controls autoPlay playsInline
@@ -308,12 +289,11 @@ function ExerciseCard({ ex, idx, dayColor, dayId, completed, onToggle, logData, 
 }
 
 // ─── AddCustomExerciseModal ───────────────────────────────────────────────────
-// Duas opções: Buscar na lista (com filtro de músculo) ou Digitar exercício específico
 function AddCustomModal({ dayColor, onSave, onClose }) {
-  const [mode, setMode] = useState('lista') // 'lista' | 'manual'
+  const [mode, setMode] = useState('lista')
   const [muscleFilter, setMuscleFilter] = useState('')
   const [searchText, setSearchText] = useState('')
-  const [selectedFromList, setSelectedFromList] = useState(null) // { name, muscle, equipment, note }
+  const [selectedFromList, setSelectedFromList] = useState(null)
   const [form, setForm] = useState({
     name:'', muscle: MUSCLE_GROUPS[0], sets:'3', reps:'10–12', rest:'90s', rir:'RIR 2', equipment:'', note:'', video:''
   })
@@ -323,10 +303,7 @@ function AddCustomModal({ dayColor, onSave, onClose }) {
 
   function handleSaveFromList() {
     if (!selectedFromList) return
-    onSave({
-      ...selectedFromList,
-      ...listParams,
-    })
+    onSave({ ...selectedFromList, ...listParams })
     onClose()
   }
 
@@ -338,7 +315,6 @@ function AddCustomModal({ dayColor, onSave, onClose }) {
 
   return (
     <Modal title="ADICIONAR EXERCÍCIO" color={dayColor} onClose={onClose}>
-      {/* Tabs: Buscar na lista | Digitar específico */}
       <div style={{ display:'flex', gap:6, marginBottom:16 }}>
         <button onClick={() => setMode('lista')} style={{ flex:1, padding:'10px', borderRadius:6, border:`1px solid ${mode==='lista'?dayColor:'#333'}`, background:mode==='lista'?`${dayColor}15`:'transparent', color:mode==='lista'?dayColor:'#555', fontSize:11, cursor:'pointer', fontFamily:'monospace' }}>
           🔍 BUSCAR NA LISTA
@@ -437,26 +413,31 @@ const DEFAULT_CUSTOM_SHEET = {
   days: [{ id: 1, name: 'Dia A', focus: 'Personalize', tag: 'DIA A', color: '#dc2626', exercises: [] }]
 }
 
+// ─── Chave do rascunho de treino no localStorage ──────────────────────────────
+function sessionKey(userId) {
+  return `hos_${userId}_wksession_${new Date().toISOString().split('T')[0]}`
+}
+
 // ─── Main component ───────────────────────────────────────────────────────────
 export default function WorkoutProgram({ user, userId, onUpdateUser }) {
   const programKey = user.program || 'upperLower5'
   const isCustom   = programKey === 'custom'
   const program    = isCustom ? null : PROGRAMS[programKey]
 
-  const [customSheet, setCustomSheet]     = useState(null)
+  const [customSheet, setCustomSheet]         = useState(null)
   const [customSheetLoaded, setCustomSheetLoaded] = useState(false)
   const [tab, setTab]             = useState('treino')
-  const [selectedDay, setSelectedDay] = useState(0)
-  const [completed,   setCompleted]   = useState({})
-  const [logData,     setLogData]     = useState({})
-  const [saved,       setSaved]       = useState(false)
-  const [factIdx,     setFactIdx]     = useState(0)
-  const [customExs,   setCustomExs]   = useState({})
-  const [customLoaded,setCustomLoaded]= useState(false)
-  const [addModal,    setAddModal]    = useState(false)
-  const [historyEx,   setHistoryEx]   = useState(null)
+  const [selectedDay, setSelectedDay]         = useState(0)
+  const [completed,   setCompleted]           = useState({})
+  const [logData,     setLogData]             = useState({})
+  const [saved,       setSaved]               = useState(false)
+  const [factIdx,     setFactIdx]             = useState(0)
+  const [customExs,   setCustomExs]           = useState({})
+  const [customLoaded,setCustomLoaded]        = useState(false)
+  const [addModal,    setAddModal]            = useState(false)
+  const [historyEx,   setHistoryEx]           = useState(null)
+  const [sessionRestored, setSessionRestored] = useState(false)
 
-  // Programa efetivo: pre-made ou ficha própria
   const activeProgram = isCustom ? (customSheet && { name: customSheet.name, days: customSheet.days }) : program
   const day = activeProgram?.days?.[selectedDay]
   const dayCustom = customExs[day?.id] || []
@@ -465,7 +446,30 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
   const facts = FUN_FACTS.filter(f => f.category === 'Treino')
   const fact  = facts[factIdx % Math.max(facts.length, 1)]
 
-  // Carrega ficha própria (quando programa é custom)
+  // ── Restaura rascunho do treino ao abrir a página ─────────────────────────
+  useEffect(() => {
+    if (!userId || sessionRestored) return
+    try {
+      const raw = localStorage.getItem(sessionKey(userId))
+      if (raw) {
+        const { logData: ld, completed: co, selectedDay: sd } = JSON.parse(raw)
+        if (ld && Object.keys(ld).length)  setLogData(ld)
+        if (co && Object.keys(co).length)  setCompleted(co)
+        if (typeof sd === 'number')        setSelectedDay(sd)
+      }
+    } catch {}
+    setSessionRestored(true)
+  }, [userId, sessionRestored])
+
+  // ── Auto-salva rascunho a cada mudança de série ou exercício marcado ──────
+  useEffect(() => {
+    if (!userId || !sessionRestored) return
+    try {
+      localStorage.setItem(sessionKey(userId), JSON.stringify({ logData, completed, selectedDay }))
+    } catch {}
+  }, [logData, completed, selectedDay, userId, sessionRestored])
+
+  // ── Carrega ficha própria ─────────────────────────────────────────────────
   useEffect(() => {
     if (isCustom && !customSheetLoaded && userId) {
       getCustomWorkoutSheet(userId).then(async sheet => {
@@ -479,7 +483,7 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
     }
   }, [isCustom, userId, customSheetLoaded])
 
-  // Carrega exercícios customizados
+  // ── Carrega exercícios customizados ───────────────────────────────────────
   useEffect(() => {
     if (!customLoaded && userId) {
       getCustomExercises(userId).then(data => {
@@ -499,7 +503,7 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
     setCompleted(c => ({ ...c, [key]: !c[key] }))
   }
 
-  const dayCompletedCount = allExs.filter((_,i) => completed[`${day.id}-${i}`]).length
+  const dayCompletedCount = day ? allExs.filter((_,i) => completed[`${day.id}-${i}`]).length : 0
   const allDone = dayCompletedCount === allExs.length && allExs.length > 0
 
   async function finishWorkout() {
@@ -518,9 +522,16 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
     try {
       await saveWorkoutLog(userId, logEntry)
       await addCalendarEntry(userId, { date: today(), type:'workout', label: day.name, note:`${dayCompletedCount}/${allExs.length} exercícios` })
+
+      // ✅ Limpa o rascunho local após salvar no banco com sucesso
+      localStorage.removeItem(sessionKey(userId))
+      setLogData({})
+      setCompleted({})
+
     } catch(e) {
       console.error('finishWorkout error:', e)
       alert('Erro ao salvar treino: ' + (e?.message || JSON.stringify(e)))
+      return
     }
     setSaved(true)
     setTimeout(() => setSaved(false), 3000)
@@ -603,12 +614,12 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
       {/* ── TAB: TREINO ──────────────────────────────────────────────── */}
       {tab === 'treino' && (
         <>
-          {/* Seletor de dias */}
+          {/* Seletor de dias — NÃO limpa logData/completed ao trocar (dados persistem por chave dayId-idx) */}
           <div style={{ display:'flex', gap:6, marginBottom:18, flexWrap:'wrap' }}>
             {(activeProgram?.days || []).map((d,i) => {
               const active = i === selectedDay
               return (
-                <button key={d.id} onClick={() => { setSelectedDay(i); setCompleted({}); setLogData({}) }}
+                <button key={d.id} onClick={() => setSelectedDay(i)}
                   style={{ padding:'8px 14px', borderRadius:6, border:`1px solid ${active?d.color+'60':'#ffffff08'}`, background:active?`${d.color}12`:'rgba(255,255,255,0.01)', color:active?d.color:'#444', fontFamily:'monospace', fontSize:10, letterSpacing:1.5, cursor:'pointer', transition:'all 0.2s', textTransform:'uppercase' }}>
                   <span style={{ fontSize:9, display:'block', color:active?d.color:'#333', marginBottom:2 }}>DIA {i+1}</span>
                   {d.tag}
@@ -638,7 +649,6 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
                 <div style={{ color:'#444', fontSize:9, letterSpacing:1, marginTop:2 }}>CONCLUÍDOS</div>
               </div>
             </div>
-            {/* Barra de progresso */}
             <div style={{ marginTop:12, height:4, background:'rgba(255,255,255,0.05)', borderRadius:2, overflow:'hidden' }}>
               <div style={{ height:'100%', width:`${allExs.length > 0 ? (dayCompletedCount/allExs.length)*100 : 0}%`, background:day.color, borderRadius:2, transition:'width 0.4s ease' }} />
             </div>
@@ -707,7 +717,6 @@ function HistoricoGeral({ userId, program, customExs = {} }) {
   const [loading,    setLoading]    = useState(false)
   const [search,     setSearch]     = useState('')
 
-  // Todos os exercícios do programa + custom
   const allExercises = (program?.days || []).flatMap(d => [
     ...(d.exercises || []).map(ex => ({ ...ex, day: d.name, dayColor: d.color })),
     ...(customExs[d.id] || []).map(ex => ({ ...ex, day: d.name, dayColor: d.color })),
@@ -734,11 +743,9 @@ function HistoricoGeral({ userId, program, customExs = {} }) {
 
   return (
     <div>
-      {/* Busca */}
       <input value={search} onChange={e => setSearch(e.target.value)} placeholder="Buscar exercício..."
         className="input" style={{ marginBottom:14, borderColor:`${R}20` }} />
 
-      {/* Lista de exercícios */}
       {!selectedEx ? (
         <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
           {filtered.map((ex, i) => (
@@ -811,7 +818,6 @@ function HistoricoGeral({ userId, program, customExs = {} }) {
             </NeonCard>
           )}
 
-          {/* Todas as sessões */}
           {history.length > 0 && (
             <NeonCard color={selectedEx.dayColor} style={{ padding:18 }}>
               <SectionTitle color={selectedEx.dayColor}>TODAS AS SESSÕES</SectionTitle>
