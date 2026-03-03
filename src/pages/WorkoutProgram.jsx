@@ -508,6 +508,7 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
 
   async function finishWorkout() {
     const logEntry = {
+          id: `${userId}_${day.id}_${today()}`,
       date: today(),
       day_id: day.id,
       day_name: day.name,
