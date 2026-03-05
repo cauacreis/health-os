@@ -61,8 +61,9 @@ export default function Subscription() {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [toast, setToast]     = useState(null);
 
-  const isSuccess  = searchParams.get("success") === "true";
-  const isCanceled = searchParams.get("canceled") === "true";
+  const params     = new URLSearchParams(window.location.search);
+  const isSuccess  = params.get("success") === "true";
+  const isCanceled = params.get("canceled") === "true";
 
   // ── Carregar assinatura ──────────────────────────────────────
   useEffect(() => {
