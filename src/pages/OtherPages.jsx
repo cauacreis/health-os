@@ -5,6 +5,7 @@ import { CARDIO_ZONES } from '../data/nutrition'
 import { saveCardioEntry, getCardioLog, addCalendarEntry, getWaterLog, saveWaterLog, getTodayWater,
          getTodaySteps, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
+import ProGate from '../components/ProGate'
 
 const R   = '#dc2626'
 const R2  = '#ef4444'
@@ -358,6 +359,7 @@ function CardioContent({ user, userId }) {
       </div>
 
       {tab==='zonas' && (
+          <ProGate isPro={user?.isPro} feature="As zonas de frequência cardíaca personalizadas">
         <NeonCard color={R} style={{ padding:20 }}>
           <SectionTitle color={R}>ZONAS DE FREQUÊNCIA CARDÍACA</SectionTitle>
           <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
@@ -379,6 +381,7 @@ function CardioContent({ user, userId }) {
             })}
           </div>
         </NeonCard>
+          </ProGate>
       )}
 
       {tab==='sugestoes' && (

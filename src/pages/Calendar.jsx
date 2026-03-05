@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react'
 import { getCalendar, addCalendarEntry, removeCalendarEntry,
          getSleepLog, saveSleepEntry, getBioLog, saveBioEntry, today } from '../lib/db'
 import { NeonCard, SectionTitle, Modal } from '../components/UI'
+import ProGate from '../components/ProGate'
 import { BarChart, Bar, LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 
 const MONTH_NAMES = ['Janeiro','Fevereiro','Março','Abril','Maio','Junho','Julho','Agosto','Setembro','Outubro','Novembro','Dezembro']
@@ -22,6 +23,8 @@ const TYPE_CFG = {
 
 export default function CalendarPage({ user, userId }) {
   const now = new Date()
+  const isPro = user?.isPro || false
+
   const [tab,     setTab]     = useState('calendar')
   const [year,    setYear]    = useState(now.getFullYear())
   const [month,   setMonth]   = useState(now.getMonth())
@@ -50,13 +53,13 @@ export default function CalendarPage({ user, userId }) {
   }, [userId])
 
   useEffect(() => {
-    if (tab === 'sleep' && !sleepLoaded) {
+    if (tab === 'sleep' && !sleepLoaded && isPro) {
       getSleepLog(userId, 60).then(d => { setSleepLogs(d); setSleepLoaded(true) }).catch(() => setSleepLoaded(true))
     }
-    if (tab === 'body' && !bioLoaded) {
+    if (tab === 'body' && !bioLoaded && isPro) {
       getBioLog(userId, 40).then(d => { setBioLog(d); setBioLoaded(true) }).catch(() => setBioLoaded(true))
     }
-  }, [tab, sleepLoaded, bioLoaded, userId])
+  }, [tab, sleepLoaded, bioLoaded, userId, isPro])
 
   const firstDay    = new Date(year, month, 1).getDay()
   const daysInMonth = new Date(year, month + 1, 0).getDate()
@@ -88,7 +91,6 @@ export default function CalendarPage({ user, userId }) {
     setSavingSleep(true)
     try {
       await saveSleepEntry(userId, sleepForm)
-      // Marca no calendário como 🌙
       await addCalendarEntry(userId, {
         date: sleepForm.date,
         type: 'sleep',
@@ -123,17 +125,17 @@ export default function CalendarPage({ user, userId }) {
     setBioSaving(false)
   }
 
-  const todayStr  = new Date().toISOString().split('T')[0]
-  const thisMonth = entries.filter(e => e.date.startsWith(`${year}-${String(month+1).padStart(2,'0')}`))
-  const streak    = calcStreak(entries)
-  const sleepData  = sleepLogs.slice(0, 30).reverse().map(e => ({ date: e.date?.slice(5), horas: +e.hours, qualidade: e.quality }))
-  const avgSleep   = sleepLogs.length ? (sleepLogs.reduce((s,e) => s + +e.hours, 0) / sleepLogs.length).toFixed(1) : '—'
+  const todayStr     = new Date().toISOString().split('T')[0]
+  const thisMonth    = entries.filter(e => e.date.startsWith(`${year}-${String(month+1).padStart(2,'0')}`))
+  const streak       = calcStreak(entries)
+  const sleepData    = sleepLogs.slice(0, 30).reverse().map(e => ({ date: e.date?.slice(5), horas: +e.hours, qualidade: e.quality }))
+  const avgSleep     = sleepLogs.length ? (sleepLogs.reduce((s,e) => s + +e.hours, 0) / sleepLogs.length).toFixed(1) : '—'
   const bioChartData = bioLog.filter(e => e.body_fat || e.muscle_mass).map(e => ({ date: e.date?.slice(5), gordura: e.body_fat, musculo: e.muscle_mass })).reverse()
 
   const TABS = [
-    { id:'calendar', label:'📅 Calendário' },
-    { id:'sleep',    label:'😴 Sono' },
-    { id:'body',     label:'🧬 Composição' },
+    { id:'calendar', label:'📅 Calendário', pro: false },
+    { id:'sleep',    label:'😴 Sono',       pro: true  },
+    { id:'body',     label:'🧬 Composição', pro: true  },
   ]
 
   return (
@@ -143,16 +145,17 @@ export default function CalendarPage({ user, userId }) {
         <div style={{ color:'#555', fontSize:10, letterSpacing:2, marginTop:4 }}>HISTÓRICO & DESEMPENHO</div>
       </div>
 
-      <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:6, marginBottom:20 }}>
+      <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:6, marginBottom:20 }}>
         {TABS.map(t => (
           <button key={t.id} onClick={() => setTab(t.id)} className="btn"
-            style={{ padding:'10px 0', fontSize:10, background: tab===t.id ? 'rgba(220,38,38,0.15)' : 'transparent', borderColor: tab===t.id ? R : 'rgba(255,255,255,0.08)', color: tab===t.id ? R2 : '#555' }}>
+            style={{ padding:'10px 0', fontSize:10, background: tab===t.id ? 'rgba(220,38,38,0.15)' : 'transparent', borderColor: tab===t.id ? R : 'rgba(255,255,255,0.08)', color: tab===t.id ? R2 : '#555', position:'relative' }}>
             {t.label}
+            {t.pro && !isPro && <span style={{ position:'absolute', top:4, right:6, fontSize:8, color:R }}>🔒</span>}
           </button>
         ))}
       </div>
 
-      {/* ── CALENDÁRIO ───────────────────────────────────────────── */}
+      {/* ── CALENDÁRIO ─────────────────────────────────────────────── */}
       {tab === 'calendar' && (
         <>
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:8, marginBottom:16 }}>
@@ -250,227 +253,229 @@ export default function CalendarPage({ user, userId }) {
         </>
       )}
 
-      {/* ── SONO ─────────────────────────────────────────────────── */}
+      {/* ── SONO (PRO) ─────────────────────────────────────────────── */}
       {tab === 'sleep' && (
-        <>
-          <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 }}>
-            {[
-              { l:'Noites registradas', v: sleepLogs.length,    c: SL },
-              { l:'Média de sono',      v: `${avgSleep}h`,      c: S },
-              { l:'Meta diária',        v: '8h',                c: R },
-            ].map(s => (
-              <NeonCard key={s.l} color={s.c} style={{ padding:'14px 10px', textAlign:'center' }}>
-                <div style={{ color: s.c === SL ? '#818cf8' : s.c === S ? S : R2, fontSize:22, fontWeight:700 }}>{s.v}</div>
-                <div style={{ color:'#444', fontSize:9, marginTop:4, textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
-              </NeonCard>
-            ))}
-          </div>
-
-          <NeonCard color={SL} style={{ padding:18, marginBottom:14 }}>
-            <SectionTitle color={SL}>REGISTRAR NOITE DE SONO</SectionTitle>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
-              <div>
-                <label className="label">DATA</label>
-                <input type="date" value={sleepForm.date} onChange={e => setSleepForm(s=>({...s,date:e.target.value}))} className="input" style={{ borderColor:'rgba(99,102,241,0.3)', color:'#818cf8' }} />
-              </div>
-              <div>
-                <label className="label">HORAS DORMIDAS</label>
-                <input type="number" step="0.5" min="0" max="24" value={sleepForm.hours} onChange={e => setSleepForm(s=>({...s,hours:e.target.value}))} placeholder="ex: 7.5" className="input" style={{ borderColor:'rgba(99,102,241,0.3)', color:'#818cf8' }} />
-              </div>
-            </div>
-            <label className="label">QUALIDADE DO SONO</label>
-            <div style={{ display:'flex', gap:6, marginBottom:14 }}>
-              {[1,2,3,4,5].map(q => (
-                <button key={q} onClick={() => setSleepForm(s=>({...s,quality:q}))}
-                  style={{ flex:1, padding:'10px 0', borderRadius:6, border:`1px solid ${sleepForm.quality===q ? SL+'80' : 'rgba(255,255,255,0.08)'}`, background: sleepForm.quality===q ? 'rgba(99,102,241,0.15)' : 'transparent', color: sleepForm.quality===q ? '#818cf8' : '#555', fontFamily:"'Space Mono',monospace", fontSize:10, cursor:'pointer' }}>
-                  {QUALITY_LABELS[q]}
-                </button>
+        <ProGate isPro={isPro} feature="O registro e histórico de sono">
+          <>
+            <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10, marginBottom:16 }}>
+              {[
+                { l:'Noites registradas', v: sleepLogs.length,    c: SL },
+                { l:'Média de sono',      v: `${avgSleep}h`,      c: S },
+                { l:'Meta diária',        v: '8h',                c: R },
+              ].map(s => (
+                <NeonCard key={s.l} color={s.c} style={{ padding:'14px 10px', textAlign:'center' }}>
+                  <div style={{ color: s.c === SL ? '#818cf8' : s.c === S ? S : R2, fontSize:22, fontWeight:700 }}>{s.v}</div>
+                  <div style={{ color:'#444', fontSize:9, marginTop:4, textTransform:'uppercase', letterSpacing:1 }}>{s.l}</div>
+                </NeonCard>
               ))}
             </div>
-            <label className="label">OBSERVAÇÕES</label>
-            <input value={sleepForm.note} onChange={e => setSleepForm(s=>({...s,note:e.target.value}))} placeholder="ex: acordei 2x, pesadelo..." className="input" style={{ marginBottom:14, borderColor:'rgba(99,102,241,0.2)' }} />
-            <button className="btn" onClick={saveSleep} disabled={savingSleep}
-              style={{ width:'100%', background:'rgba(99,102,241,0.15)', borderColor:SL, color:'#818cf8', padding:13, fontSize:13 }}>
-              {savingSleep ? 'SALVANDO...' : '🌙 REGISTRAR SONO'}
-            </button>
-          </NeonCard>
 
-          {sleepData.length > 1 && (
             <NeonCard color={SL} style={{ padding:18, marginBottom:14 }}>
-              <SectionTitle color={SL}>HISTÓRICO DE SONO</SectionTitle>
-              <ResponsiveContainer width="100%" height={180}>
-                <LineChart data={sleepData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="date" tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} width={24} domain={[4,10]} />
-                  <Tooltip contentStyle={{ background:'#0d0d10', border:`1px solid ${SL}40`, borderRadius:6, fontFamily:"'Space Mono',monospace", fontSize:11 }} />
-                  <Line type="monotone" dataKey="horas" stroke="#818cf8" strokeWidth={2} dot={{ r:3, fill:'#818cf8' }} name="Horas" />
-                  <Line type="monotone" dataKey={() => 8} stroke="rgba(99,102,241,0.25)" strokeWidth={1} strokeDasharray="4 4" dot={false} name="Meta 8h" />
-                </LineChart>
-              </ResponsiveContainer>
-            </NeonCard>
-          )}
-
-          {!sleepLoaded ? (
-            <div style={{ padding:40, textAlign:'center', color:'#444' }}>Carregando...</div>
-          ) : sleepLogs.length === 0 ? (
-            <NeonCard color={SL} style={{ padding:40, textAlign:'center' }}>
-              <div style={{ fontSize:32, marginBottom:12 }}>😴</div>
-              <div style={{ color:'#444', fontSize:13 }}>Nenhuma noite registrada ainda.</div>
-            </NeonCard>
-          ) : (
-            <NeonCard color={SL} style={{ padding:18 }}>
-              <SectionTitle color={SL}>TODAS AS NOITES</SectionTitle>
-              <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
-                {sleepLogs.map((e, i) => {
-                  const q = e.quality || 3
-                  const qColor = q >= 4 ? '#818cf8' : q === 3 ? S : '#64748b'
-                  const horasNum = +e.hours
-                  const metColor = horasNum >= 8 ? '#818cf8' : horasNum >= 6 ? S : R2
-                  return (
-                    <div key={i} style={{ padding:'11px 14px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(99,102,241,0.12)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
-                      <div>
-                        <div style={{ color:'#d0d0d0', fontSize:13, fontWeight:700 }}>{e.date}</div>
-                        {e.note && <div style={{ color:'#555', fontSize:11, marginTop:2 }}>{e.note}</div>}
-                      </div>
-                      <div style={{ textAlign:'right' }}>
-                        <div style={{ color:metColor, fontSize:16, fontWeight:700 }}>{e.hours}h</div>
-                        <div style={{ color:qColor, fontSize:10, marginTop:2 }}>{QUALITY_LABELS[q]}</div>
-                      </div>
-                    </div>
-                  )
-                })}
+              <SectionTitle color={SL}>REGISTRAR NOITE DE SONO</SectionTitle>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:12, marginBottom:14 }}>
+                <div>
+                  <label className="label">DATA</label>
+                  <input type="date" value={sleepForm.date} onChange={e => setSleepForm(s=>({...s,date:e.target.value}))} className="input" style={{ borderColor:'rgba(99,102,241,0.3)', color:'#818cf8' }} />
+                </div>
+                <div>
+                  <label className="label">HORAS DORMIDAS</label>
+                  <input type="number" step="0.5" min="0" max="24" value={sleepForm.hours} onChange={e => setSleepForm(s=>({...s,hours:e.target.value}))} placeholder="ex: 7.5" className="input" style={{ borderColor:'rgba(99,102,241,0.3)', color:'#818cf8' }} />
+                </div>
               </div>
+              <label className="label">QUALIDADE DO SONO</label>
+              <div style={{ display:'flex', gap:6, marginBottom:14 }}>
+                {[1,2,3,4,5].map(q => (
+                  <button key={q} onClick={() => setSleepForm(s=>({...s,quality:q}))}
+                    style={{ flex:1, padding:'10px 0', borderRadius:6, border:`1px solid ${sleepForm.quality===q ? SL+'80' : 'rgba(255,255,255,0.08)'}`, background: sleepForm.quality===q ? 'rgba(99,102,241,0.15)' : 'transparent', color: sleepForm.quality===q ? '#818cf8' : '#555', fontFamily:"'Space Mono',monospace", fontSize:10, cursor:'pointer' }}>
+                    {QUALITY_LABELS[q]}
+                  </button>
+                ))}
+              </div>
+              <label className="label">OBSERVAÇÕES</label>
+              <input value={sleepForm.note} onChange={e => setSleepForm(s=>({...s,note:e.target.value}))} placeholder="ex: acordei 2x, pesadelo..." className="input" style={{ marginBottom:14, borderColor:'rgba(99,102,241,0.2)' }} />
+              <button className="btn" onClick={saveSleep} disabled={savingSleep}
+                style={{ width:'100%', background:'rgba(99,102,241,0.15)', borderColor:SL, color:'#818cf8', padding:13, fontSize:13 }}>
+                {savingSleep ? 'SALVANDO...' : '🌙 REGISTRAR SONO'}
+              </button>
             </NeonCard>
-          )}
-        </>
+
+            {sleepData.length > 1 && (
+              <NeonCard color={SL} style={{ padding:18, marginBottom:14 }}>
+                <SectionTitle color={SL}>HISTÓRICO DE SONO</SectionTitle>
+                <ResponsiveContainer width="100%" height={180}>
+                  <LineChart data={sleepData}>
+                    <CartesianGrid stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="date" tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} width={24} domain={[4,10]} />
+                    <Tooltip contentStyle={{ background:'#0d0d10', border:`1px solid ${SL}40`, borderRadius:6, fontFamily:"'Space Mono',monospace", fontSize:11 }} />
+                    <Line type="monotone" dataKey="horas" stroke="#818cf8" strokeWidth={2} dot={{ r:3, fill:'#818cf8' }} name="Horas" />
+                    <Line type="monotone" dataKey={() => 8} stroke="rgba(99,102,241,0.25)" strokeWidth={1} strokeDasharray="4 4" dot={false} name="Meta 8h" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </NeonCard>
+            )}
+
+            {!sleepLoaded ? (
+              <div style={{ padding:40, textAlign:'center', color:'#444' }}>Carregando...</div>
+            ) : sleepLogs.length === 0 ? (
+              <NeonCard color={SL} style={{ padding:40, textAlign:'center' }}>
+                <div style={{ fontSize:32, marginBottom:12 }}>😴</div>
+                <div style={{ color:'#444', fontSize:13 }}>Nenhuma noite registrada ainda.</div>
+              </NeonCard>
+            ) : (
+              <NeonCard color={SL} style={{ padding:18 }}>
+                <SectionTitle color={SL}>TODAS AS NOITES</SectionTitle>
+                <div style={{ display:'flex', flexDirection:'column', gap:8 }}>
+                  {sleepLogs.map((e, i) => {
+                    const q = e.quality || 3
+                    const qColor = q >= 4 ? '#818cf8' : q === 3 ? S : '#64748b'
+                    const horasNum = +e.hours
+                    const metColor = horasNum >= 8 ? '#818cf8' : horasNum >= 6 ? S : R2
+                    return (
+                      <div key={i} style={{ padding:'11px 14px', borderRadius:8, background:'rgba(255,255,255,0.02)', border:'1px solid rgba(99,102,241,0.12)', display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div>
+                          <div style={{ color:'#d0d0d0', fontSize:13, fontWeight:700 }}>{e.date}</div>
+                          {e.note && <div style={{ color:'#555', fontSize:11, marginTop:2 }}>{e.note}</div>}
+                        </div>
+                        <div style={{ textAlign:'right' }}>
+                          <div style={{ color:metColor, fontSize:16, fontWeight:700 }}>{e.hours}h</div>
+                          <div style={{ color:qColor, fontSize:10, marginTop:2 }}>{QUALITY_LABELS[q]}</div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </NeonCard>
+            )}
+          </>
+        </ProGate>
       )}
 
-      {/* ── COMPOSIÇÃO ───────────────────────────────────────────── */}
+      {/* ── COMPOSIÇÃO (PRO) ───────────────────────────────────────── */}
       {tab === 'body' && (
-        <>
-          {/* Form sempre visível */}
-          <NeonCard color={R} style={{ padding:20, marginBottom:16 }}>
-            <SectionTitle color={R}>NOVA MEDIÇÃO DE BIOIMPEDÂNCIA</SectionTitle>
-            <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
-              {[
-                { k:'date',         l:'DATA',                    t:'date' },
-                { k:'body_fat',     l:'GORDURA CORPORAL (%)',    p:'ex: 18.5' },
-                { k:'muscle_mass',  l:'MASSA MUSCULAR (%)',      p:'ex: 42.0' },
-                { k:'visceral_fat', l:'GORDURA VISCERAL (nível)',p:'ex: 5' },
-                { k:'water_pct',    l:'ÁGUA CORPORAL (%)',       p:'ex: 55.0' },
-                { k:'bone_mass',    l:'MASSA ÓSSEA (kg)',        p:'ex: 3.2' },
-                { k:'bmr',          l:'TMB PELA BALANÇA (kcal)', p:'ex: 1650' },
-                { k:'metabolic_age',l:'IDADE METABÓLICA',        p:'ex: 24' },
-              ].map(f => (
-                <div key={f.k}>
-                  <label className="label" style={{ fontSize:10 }}>{f.l}</label>
-                  <input type={f.t||'number'} step="0.1" value={bioForm[f.k]}
-                    onChange={e=>setBioForm(b=>({...b,[f.k]:e.target.value}))} placeholder={f.p}
-                    className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'8px 12px', fontSize:14 }} />
+        <ProGate isPro={isPro} feature="O histórico de bioimpedância e composição corporal">
+          <>
+            <NeonCard color={R} style={{ padding:20, marginBottom:16 }}>
+              <SectionTitle color={R}>NOVA MEDIÇÃO DE BIOIMPEDÂNCIA</SectionTitle>
+              <div style={{ display:'grid', gridTemplateColumns:'1fr 1fr', gap:10, marginBottom:12 }}>
+                {[
+                  { k:'date',         l:'DATA',                    t:'date' },
+                  { k:'body_fat',     l:'GORDURA CORPORAL (%)',    p:'ex: 18.5' },
+                  { k:'muscle_mass',  l:'MASSA MUSCULAR (%)',      p:'ex: 42.0' },
+                  { k:'visceral_fat', l:'GORDURA VISCERAL (nível)',p:'ex: 5' },
+                  { k:'water_pct',    l:'ÁGUA CORPORAL (%)',       p:'ex: 55.0' },
+                  { k:'bone_mass',    l:'MASSA ÓSSEA (kg)',        p:'ex: 3.2' },
+                  { k:'bmr',          l:'TMB PELA BALANÇA (kcal)', p:'ex: 1650' },
+                  { k:'metabolic_age',l:'IDADE METABÓLICA',        p:'ex: 24' },
+                ].map(f => (
+                  <div key={f.k}>
+                    <label className="label" style={{ fontSize:10 }}>{f.l}</label>
+                    <input type={f.t||'number'} step="0.1" value={bioForm[f.k]}
+                      onChange={e=>setBioForm(b=>({...b,[f.k]:e.target.value}))} placeholder={f.p}
+                      className="input" style={{ borderColor:'rgba(220,38,38,0.25)', color:'#d0d0d0', padding:'8px 12px', fontSize:14 }} />
+                  </div>
+                ))}
+                <div style={{ gridColumn:'1/-1' }}>
+                  <label className="label" style={{ fontSize:10 }}>OBSERVAÇÕES</label>
+                  <input value={bioForm.note} onChange={e=>setBioForm(b=>({...b,note:e.target.value}))}
+                    placeholder="Notas opcionais..." className="input"
+                    style={{ borderColor:'rgba(220,38,38,0.15)', padding:'8px 12px', fontSize:14 }} />
                 </div>
-              ))}
-              <div style={{ gridColumn:'1/-1' }}>
-                <label className="label" style={{ fontSize:10 }}>OBSERVAÇÕES</label>
-                <input value={bioForm.note} onChange={e=>setBioForm(b=>({...b,note:e.target.value}))}
-                  placeholder="Notas opcionais..." className="input"
-                  style={{ borderColor:'rgba(220,38,38,0.15)', padding:'8px 12px', fontSize:14 }} />
               </div>
-            </div>
-            {bioError && (
-              <div style={{ color:'#ff6b6b', fontSize:12, marginBottom:8, padding:'8px 12px', background:'rgba(255,0,0,0.08)', borderRadius:6, border:'1px solid rgba(255,0,0,0.2)' }}>
-                ⚠️ {bioError}
-              </div>
+              {bioError && (
+                <div style={{ color:'#ff6b6b', fontSize:12, marginBottom:8, padding:'8px 12px', background:'rgba(255,0,0,0.08)', borderRadius:6, border:'1px solid rgba(255,0,0,0.2)' }}>
+                  ⚠️ {bioError}
+                </div>
+              )}
+              <button className="btn" onClick={saveBio} disabled={bioSaving}
+                style={{ width:'100%', background: bioSaved ? 'rgba(34,197,94,0.15)' : 'rgba(220,38,38,0.15)', borderColor: bioSaved ? '#22c55e' : R, color: bioSaved ? '#22c55e' : R2, padding:12, fontSize:13, transition:'all 0.3s' }}>
+                {bioSaving ? '⏳ Salvando...' : bioSaved ? '✓ MEDIÇÃO SALVA!' : '💾 SALVAR MEDIÇÃO'}
+              </button>
+            </NeonCard>
+
+            {bioChartData.length >= 2 && (
+              <NeonCard color={S} style={{ padding:18, marginBottom:14 }}>
+                <SectionTitle color={S}>EVOLUÇÃO DA COMPOSIÇÃO CORPORAL</SectionTitle>
+                <ResponsiveContainer width="100%" height={200}>
+                  <LineChart data={bioChartData}>
+                    <CartesianGrid stroke="rgba(255,255,255,0.04)" />
+                    <XAxis dataKey="date" tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} />
+                    <YAxis tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} width={28} />
+                    <Tooltip contentStyle={{ background:'#0d0d10', border:`1px solid ${R}25`, borderRadius:6, fontFamily:"'Space Mono',monospace", fontSize:11 }} />
+                    <Line type="monotone" dataKey="gordura" stroke="#ff6b6b" strokeWidth={2} dot={{ r:3, fill:'#ff6b6b' }} name="Gordura %" />
+                    <Line type="monotone" dataKey="musculo" stroke={R2} strokeWidth={2} dot={{ r:3, fill:R2 }} name="Músculo %" />
+                  </LineChart>
+                </ResponsiveContainer>
+                <div style={{ display:'flex', gap:16, justifyContent:'center', marginTop:8 }}>
+                  <LegendDot color="#ff6b6b" label="Gordura %" />
+                  <LegendDot color={R2} label="Músculo %" />
+                </div>
+              </NeonCard>
             )}
-            <button className="btn" onClick={saveBio} disabled={bioSaving}
-              style={{ width:'100%', background: bioSaved ? 'rgba(34,197,94,0.15)' : 'rgba(220,38,38,0.15)', borderColor: bioSaved ? '#22c55e' : R, color: bioSaved ? '#22c55e' : R2, padding:12, fontSize:13, transition:'all 0.3s' }}>
-              {bioSaving ? '⏳ Salvando...' : bioSaved ? '✓ MEDIÇÃO SALVA!' : '💾 SALVAR MEDIÇÃO'}
-            </button>
-          </NeonCard>
 
-          {/* Gráfico evolução */}
-          {bioChartData.length >= 2 && (
-            <NeonCard color={S} style={{ padding:18, marginBottom:14 }}>
-              <SectionTitle color={S}>EVOLUÇÃO DA COMPOSIÇÃO CORPORAL</SectionTitle>
-              <ResponsiveContainer width="100%" height={200}>
-                <LineChart data={bioChartData}>
-                  <CartesianGrid stroke="rgba(255,255,255,0.04)" />
-                  <XAxis dataKey="date" tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} />
-                  <YAxis tick={{ fill:'#555', fontSize:9 }} axisLine={false} tickLine={false} width={28} />
-                  <Tooltip contentStyle={{ background:'#0d0d10', border:`1px solid ${R}25`, borderRadius:6, fontFamily:"'Space Mono',monospace", fontSize:11 }} />
-                  <Line type="monotone" dataKey="gordura" stroke="#ff6b6b" strokeWidth={2} dot={{ r:3, fill:'#ff6b6b' }} name="Gordura %" />
-                  <Line type="monotone" dataKey="musculo" stroke={R2} strokeWidth={2} dot={{ r:3, fill:R2 }} name="Músculo %" />
-                </LineChart>
-              </ResponsiveContainer>
-              <div style={{ display:'flex', gap:16, justifyContent:'center', marginTop:8 }}>
-                <LegendDot color="#ff6b6b" label="Gordura %" /><LegendDot color={R2} label="Músculo %" />
-              </div>
-            </NeonCard>
-          )}
+            {!bioLoaded ? (
+              <div style={{ padding:40, textAlign:'center', color:'#444' }}>Carregando...</div>
+            ) : bioLog.length === 0 ? (
+              <NeonCard color={R} style={{ padding:32, textAlign:'center' }}>
+                <div style={{ fontSize:32, marginBottom:8 }}>🧬</div>
+                <div style={{ color:'#444', fontSize:13 }}>Nenhuma medição ainda. Preencha o formulário acima.</div>
+              </NeonCard>
+            ) : (
+              <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
+                {bioLog.map((e, i) => {
+                  const alerts = getBioAlerts(e)
+                  return (
+                    <NeonCard key={e.id||i} color={S} style={{ padding:'16px 18px' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
+                        <div style={{ color:'#d0d0d0', fontSize:14, fontWeight:700 }}>{e.date}</div>
+                        {i === 0 && <span style={{ background:'rgba(220,38,38,0.15)', color:R, fontSize:8, letterSpacing:2, padding:'3px 8px', borderRadius:3 }}>MAIS RECENTE</span>}
+                      </div>
 
-          {/* Histórico com alertas */}
-          {!bioLoaded ? (
-            <div style={{ padding:40, textAlign:'center', color:'#444' }}>Carregando...</div>
-          ) : bioLog.length === 0 ? (
-            <NeonCard color={R} style={{ padding:32, textAlign:'center' }}>
-              <div style={{ fontSize:32, marginBottom:8 }}>🧬</div>
-              <div style={{ color:'#444', fontSize:13 }}>Nenhuma medição ainda. Preencha o formulário acima.</div>
-            </NeonCard>
-          ) : (
-            <div style={{ display:'flex', flexDirection:'column', gap:10 }}>
-              {bioLog.map((e, i) => {
-                const alerts = getBioAlerts(e)
-                return (
-                  <NeonCard key={e.id||i} color={S} style={{ padding:'16px 18px' }}>
-                    <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center', marginBottom:12 }}>
-                      <div style={{ color:'#d0d0d0', fontSize:14, fontWeight:700 }}>{e.date}</div>
-                      {i === 0 && <span style={{ background:'rgba(220,38,38,0.15)', color:R, fontSize:8, letterSpacing:2, padding:'3px 8px', borderRadius:3 }}>MAIS RECENTE</span>}
-                    </div>
-
-                    {/* Métricas */}
-                    <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8, marginBottom: alerts.length ? 12 : 0 }}>
-                      {[
-                        { l:'Gordura Corporal', v: e.body_fat,     unit:'%',    c: e.body_fat ? bioFatColor(e.body_fat, user?.sex)   : S },
-                        { l:'Massa Muscular',   v: e.muscle_mass,  unit:'%',    c: e.muscle_mass ? bioMuscleColor(e.muscle_mass, user?.sex) : S },
-                        { l:'Água Corporal',    v: e.water_pct,    unit:'%',    c: S },
-                        { l:'Gordura Visceral', v: e.visceral_fat, unit:'nível',c: e.visceral_fat ? bioVisceralColor(e.visceral_fat) : S },
-                        { l:'Massa Óssea',      v: e.bone_mass,    unit:'kg',   c: S },
-                        { l:'TMB Balança',      v: e.bmr,          unit:'kcal', c: S },
-                        { l:'Idade Metabólica', v: e.metabolic_age,unit:'anos', c: e.metabolic_age && user?.age ? (e.metabolic_age <= user.age ? '#22c55e' : e.metabolic_age <= user.age+5 ? '#eab308' : R2) : S },
-                      ].filter(s => s.v).map(s => (
-                        <div key={s.l} style={{ padding:'8px 10px', background:`${s.c}0a`, border:`1px solid ${s.c}20`, borderRadius:6 }}>
-                          <div style={{ color:'#444', fontSize:9, letterSpacing:1, marginBottom:3 }}>{s.l.toUpperCase()}</div>
-                          <div style={{ color:s.c, fontSize:15, fontWeight:700 }}>{s.v}{s.unit}</div>
-                        </div>
-                      ))}
-                    </div>
-
-                    {/* Alertas */}
-                    {alerts.length > 0 && (
-                      <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
-                        {alerts.map((a, ai) => (
-                          <div key={ai} style={{ padding:'8px 12px', borderRadius:6, background:`${a.color}0d`, border:`1px solid ${a.color}25`, display:'flex', gap:8, alignItems:'flex-start' }}>
-                            <span style={{ fontSize:14, flexShrink:0 }}>{a.icon}</span>
-                            <div>
-                              <div style={{ color:a.color, fontSize:10, fontWeight:700, letterSpacing:1 }}>{a.label}</div>
-                              <div style={{ color:'#666', fontSize:11, marginTop:2, lineHeight:1.5 }}>{a.msg}</div>
-                            </div>
+                      <div style={{ display:'grid', gridTemplateColumns:'repeat(2,1fr)', gap:8, marginBottom: alerts.length ? 12 : 0 }}>
+                        {[
+                          { l:'Gordura Corporal', v: e.body_fat,      unit:'%',    c: e.body_fat      ? bioFatColor(e.body_fat, user?.sex)                                                                          : S },
+                          { l:'Massa Muscular',   v: e.muscle_mass,   unit:'%',    c: e.muscle_mass   ? bioMuscleColor(e.muscle_mass, user?.sex)                                                                    : S },
+                          { l:'Água Corporal',    v: e.water_pct,     unit:'%',    c: S },
+                          { l:'Gordura Visceral', v: e.visceral_fat,  unit:'nível',c: e.visceral_fat  ? bioVisceralColor(e.visceral_fat)                                                                             : S },
+                          { l:'Massa Óssea',      v: e.bone_mass,     unit:'kg',   c: S },
+                          { l:'TMB Balança',      v: e.bmr,           unit:'kcal', c: S },
+                          { l:'Idade Metabólica', v: e.metabolic_age, unit:'anos', c: e.metabolic_age && user?.age ? (e.metabolic_age <= user.age ? '#22c55e' : e.metabolic_age <= user.age+5 ? '#eab308' : R2) : S },
+                        ].filter(s => s.v).map(s => (
+                          <div key={s.l} style={{ padding:'8px 10px', background:`${s.c}0a`, border:`1px solid ${s.c}20`, borderRadius:6 }}>
+                            <div style={{ color:'#444', fontSize:9, letterSpacing:1, marginBottom:3 }}>{s.l.toUpperCase()}</div>
+                            <div style={{ color:s.c, fontSize:15, fontWeight:700 }}>{s.v}{s.unit}</div>
                           </div>
                         ))}
                       </div>
-                    )}
 
-                    {e.note && <div style={{ color:'#555', fontSize:11, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>📝 {e.note}</div>}
-                  </NeonCard>
-                )
-              })}
-            </div>
-          )}
-        </>
+                      {alerts.length > 0 && (
+                        <div style={{ display:'flex', flexDirection:'column', gap:6 }}>
+                          {alerts.map((a, ai) => (
+                            <div key={ai} style={{ padding:'8px 12px', borderRadius:6, background:`${a.color}0d`, border:`1px solid ${a.color}25`, display:'flex', gap:8, alignItems:'flex-start' }}>
+                              <span style={{ fontSize:14, flexShrink:0 }}>{a.icon}</span>
+                              <div>
+                                <div style={{ color:a.color, fontSize:10, fontWeight:700, letterSpacing:1 }}>{a.label}</div>
+                                <div style={{ color:'#666', fontSize:11, marginTop:2, lineHeight:1.5 }}>{a.msg}</div>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+
+                      {e.note && <div style={{ color:'#555', fontSize:11, marginTop:10, paddingTop:10, borderTop:'1px solid rgba(255,255,255,0.05)' }}>📝 {e.note}</div>}
+                    </NeonCard>
+                  )
+                })}
+              </div>
+            )}
+          </>
+        </ProGate>
       )}
     </div>
   )
 }
+
+// ─── Componentes ─────────────────────────────────────────────────────────────
 
 function LegendDot({ color, label }) {
   return (
@@ -480,6 +485,8 @@ function LegendDot({ color, label }) {
     </div>
   )
 }
+
+// ─── Helpers ─────────────────────────────────────────────────────────────────
 
 function calcStreak(entries) {
   const trainDays = new Set(entries.filter(e => e.type==='workout'||e.type==='cardio').map(e=>e.date))
@@ -493,16 +500,15 @@ function calcStreak(entries) {
   return streak
 }
 
-// ── Bio alert helpers ─────────────────────────────────────────────────────────
 function bioFatColor(fat, sex) {
   fat = +fat
   if (sex === 'female') {
-    if (fat < 14) return '#94a3b8'      // abaixo do ideal
-    if (fat <= 24) return '#22c55e'     // ótimo
-    if (fat <= 31) return '#eab308'     // aceitável
-    return '#ef4444'                    // alto
+    if (fat < 14)  return '#94a3b8'
+    if (fat <= 24) return '#22c55e'
+    if (fat <= 31) return '#eab308'
+    return '#ef4444'
   } else {
-    if (fat < 6) return '#94a3b8'
+    if (fat < 6)   return '#94a3b8'
     if (fat <= 17) return '#22c55e'
     if (fat <= 24) return '#eab308'
     return '#ef4444'
@@ -531,36 +537,35 @@ function bioVisceralColor(v) {
 
 function getBioAlerts(e) {
   const alerts = []
-  const R2 = '#ef4444'
   const Y  = '#eab308'
   const G  = '#22c55e'
 
   if (e.body_fat) {
     const f = +e.body_fat
-    if (f > 30) alerts.push({ icon:'🔴', color:R2, label:'GORDURA ALTA', msg:`${f}% de gordura corporal está acima do recomendado. Considere déficit calórico e aumentar cardio.` })
-    else if (f > 24) alerts.push({ icon:'🟡', color:Y, label:'GORDURA MODERADA', msg:`${f}% está na faixa aceitável, mas pode melhorar com treino consistente.` })
-    else if (f < 6) alerts.push({ icon:'⚠️', color:Y, label:'GORDURA MUITO BAIXA', msg:`${f}% pode indicar desnutrição ou excesso de treino. Avalie com um profissional.` })
-    else alerts.push({ icon:'✅', color:G, label:'GORDURA CORPORAL OK', msg:`${f}% está dentro da faixa saudável. Continue assim!` })
+    if (f > 30)      alerts.push({ icon:'🔴', color:R2, label:'GORDURA ALTA',          msg:`${f}% de gordura corporal está acima do recomendado. Considere déficit calórico e aumentar cardio.` })
+    else if (f > 24) alerts.push({ icon:'🟡', color:Y,  label:'GORDURA MODERADA',       msg:`${f}% está na faixa aceitável, mas pode melhorar com treino consistente.` })
+    else if (f < 6)  alerts.push({ icon:'⚠️', color:Y,  label:'GORDURA MUITO BAIXA',    msg:`${f}% pode indicar desnutrição ou excesso de treino. Avalie com um profissional.` })
+    else             alerts.push({ icon:'✅', color:G,  label:'GORDURA CORPORAL OK',    msg:`${f}% está dentro da faixa saudável. Continue assim!` })
   }
 
   if (e.visceral_fat) {
     const v = +e.visceral_fat
-    if (v >= 15) alerts.push({ icon:'🔴', color:R2, label:'GORDURA VISCERAL MUITO ALTA', msg:`Nível ${v} é considerado alto risco. Associado a doenças cardiovasculares e diabetes.` })
-    else if (v >= 10) alerts.push({ icon:'🟡', color:Y, label:'GORDURA VISCERAL ELEVADA', msg:`Nível ${v}. Monitore de perto e priorize exercícios aeróbicos.` })
-    else alerts.push({ icon:'✅', color:G, label:'GORDURA VISCERAL OK', msg:`Nível ${v} dentro da faixa normal (abaixo de 10).` })
+    if (v >= 15)      alerts.push({ icon:'🔴', color:R2, label:'GORDURA VISCERAL MUITO ALTA', msg:`Nível ${v} é considerado alto risco. Associado a doenças cardiovasculares e diabetes.` })
+    else if (v >= 10) alerts.push({ icon:'🟡', color:Y,  label:'GORDURA VISCERAL ELEVADA',    msg:`Nível ${v}. Monitore de perto e priorize exercícios aeróbicos.` })
+    else              alerts.push({ icon:'✅', color:G,  label:'GORDURA VISCERAL OK',          msg:`Nível ${v} dentro da faixa normal (abaixo de 10).` })
   }
 
   if (e.muscle_mass) {
     const m = +e.muscle_mass
     if (m < 30) alerts.push({ icon:'🟡', color:Y, label:'MASSA MUSCULAR BAIXA', msg:`${m}% indica baixa massa muscular. Priorize treino de força e consumo adequado de proteína.` })
-    else alerts.push({ icon:'✅', color:G, label:'MASSA MUSCULAR BOA', msg:`${m}% está em boa faixa. Mantenha o treino de força.` })
+    else        alerts.push({ icon:'✅', color:G,  label:'MASSA MUSCULAR BOA',   msg:`${m}% está em boa faixa. Mantenha o treino de força.` })
   }
 
   if (e.metabolic_age && e.user_age) {
     const diff = e.metabolic_age - e.user_age
-    if (diff > 5) alerts.push({ icon:'🔴', color:R2, label:'IDADE METABÓLICA ACIMA DA REAL', msg:`Seu metabolismo está ${diff} anos mais velho. Exercícios e dieta podem reverter isso.` })
-    else if (diff > 0) alerts.push({ icon:'🟡', color:Y, label:'IDADE METABÓLICA LEVEMENTE ACIMA', msg:`Diferença de ${diff} anos. Com treino consistente você melhora esse número.` })
-    else alerts.push({ icon:'✅', color:G, label:'IDADE METABÓLICA BOA', msg:`Seu metabolismo está jovem! Continue com o estilo de vida ativo.` })
+    if (diff > 5)      alerts.push({ icon:'🔴', color:R2, label:'IDADE METABÓLICA ACIMA DA REAL',    msg:`Seu metabolismo está ${diff} anos mais velho. Exercícios e dieta podem reverter isso.` })
+    else if (diff > 0) alerts.push({ icon:'🟡', color:Y,  label:'IDADE METABÓLICA LEVEMENTE ACIMA', msg:`Diferença de ${diff} anos. Com treino consistente você melhora esse número.` })
+    else               alerts.push({ icon:'✅', color:G,  label:'IDADE METABÓLICA BOA',              msg:`Seu metabolismo está jovem! Continue com o estilo de vida ativo.` })
   }
 
   return alerts
