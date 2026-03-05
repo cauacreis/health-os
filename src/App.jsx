@@ -11,6 +11,7 @@ import Profile from './pages/Profile'
 import { Water, BMI, CardioSteps } from './pages/OtherPages'
 import MoreMenu from './components/MoreMenu'
 import { GlossaryPage } from './components/UI'
+import Subscription from "./pages/Subscription";
 
 export default function App() {
   const [session, setSession]   = useState(undefined)
@@ -64,6 +65,7 @@ export default function App() {
       case 'activity': case 'cardio': case 'steps': return <CardioSteps user={profile} userId={userId} onUpdate={setProfile} />
       case 'profile':    return <Profile       user={profile} userId={userId} onUpdate={setProfile} />
       case 'glossary':   return <GlossaryPage />
+      case 'subscription': return <Subscription />
       case 'more':       return <MoreMenu      setTab={setTab} user={profile} onLogout={handleLogout} />
       default: return null
     }

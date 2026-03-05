@@ -7,6 +7,7 @@ const NAV = [
   { id:'calories',  label:'Calorias & Refeições', icon:'◉' },
   { id:'water',     label:'Hidratação', icon:'◌' },
   { id:'bmi',       label:'IMC',        icon:'◎' },
+  { id:'subscription', label:'Plano Pro', icon:'⚡' },
   { id:'activity',  label:'Atividade (Cardio & Passos)', icon:'♡' },
   { id:'profile',   label:'Perfil',     icon:'◯' },
   { id:'glossary',  label:'Glossário',  icon:'?' },
