@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react'
-import { onAuthChange, getProfile, signOut } from './lib/db'
+import { onAuthChange, getProfile, getSubscription, signOut } from './lib/db'
 import Auth from './pages/Auth'
 import Onboarding from './components/Onboarding'
 import Sidebar from './components/Sidebar'
@@ -11,7 +11,7 @@ import Profile from './pages/Profile'
 import { Water, BMI, CardioSteps } from './pages/OtherPages'
 import MoreMenu from './components/MoreMenu'
 import { GlossaryPage } from './components/UI'
-import Subscription from "./pages/Subscription";
+import Subscription from "./pages/Subscription"
 
 export default function App() {
   const [session, setSession]   = useState(undefined)
@@ -24,7 +24,12 @@ export default function App() {
       setSession(sess)
       if (sess?.user) {
         setLoadingProfile(true)
-        try { setProfile(await getProfile(sess.user.id)) }
+        try {
+          const prof = await getProfile(sess.user.id)
+          const sub  = await getSubscription(sess.user.id)
+          const isPro = sub?.plan === 'pro' && sub?.status === 'active'
+          setProfile({ ...prof, isPro })
+        }
         catch(e) { console.error(e) }
         finally { setLoadingProfile(false) }
       } else { setProfile(null) }
@@ -36,7 +41,7 @@ export default function App() {
 
   if (session === undefined || loadingProfile) {
     return (
-      <div style={{ minHeight:'100vh', minHeight:'100dvh', background:'#080808', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Space Mono',monospace" }}>
+      <div style={{ minHeight:'100dvh', background:'#080808', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Space Mono',monospace" }}>
         <div style={{ textAlign:'center' }}>
           <div style={{ color:'#dc2626', fontSize:13, letterSpacing:4, marginBottom:20 }}>HEALTH OS</div>
           <div style={{ display:'flex', gap:6, justifyContent:'center' }}>
@@ -56,25 +61,25 @@ export default function App() {
 
   function renderTab() {
     switch(tab) {
-      case 'dashboard':  return <Dashboard    user={profile} userId={userId} />
-      case 'workout':    return <WorkoutProgram user={profile} userId={userId} />
-      case 'calendar':   return <CalendarPage  user={profile} userId={userId} />
-      case 'calories':   return <Calories      user={profile} userId={userId} onUpdate={setProfile} />
-      case 'water':      return <Water  user={profile} userId={userId} />
-      case 'bmi':        return <BMI           user={profile} />
+      case 'dashboard':    return <Dashboard      user={profile} userId={userId} />
+      case 'workout':      return <WorkoutProgram user={profile} userId={userId} />
+      case 'calendar':     return <CalendarPage   user={profile} userId={userId} />
+      case 'calories':     return <Calories       user={profile} userId={userId} onUpdate={setProfile} />
+      case 'water':        return <Water          user={profile} userId={userId} />
+      case 'bmi':          return <BMI            user={profile} />
       case 'activity': case 'cardio': case 'steps': return <CardioSteps user={profile} userId={userId} onUpdate={setProfile} />
-      case 'profile':    return <Profile       user={profile} userId={userId} onUpdate={setProfile} />
-      case 'glossary':   return <GlossaryPage />
+      case 'profile':      return <Profile        user={profile} userId={userId} onUpdate={setProfile} />
+      case 'glossary':     return <GlossaryPage />
       case 'subscription': return <Subscription />
-      case 'more':       return <MoreMenu      setTab={setTab} user={profile} onLogout={handleLogout} />
+      case 'more':         return <MoreMenu       setTab={setTab} user={profile} onLogout={handleLogout} />
       default: return null
     }
   }
 
   return (
-    <div style={{ display:'flex', minHeight:'100vh', minHeight:'100dvh' }}>
+    <div style={{ display:'flex', minHeight:'100dvh' }}>
       <Sidebar tab={tab} setTab={setTab} user={profile} onLogout={handleLogout} />
-      <main style={{ flex:1, overflow:'auto', maxHeight:'100vh', maxHeight:'100dvh', background:'#080808', position:'relative', padding:'clamp(14px,3vw,32px)', paddingBottom:'max(clamp(14px,3vw,32px), calc(72px + env(safe-area-inset-bottom)))' }}>
+      <main style={{ flex:1, overflow:'auto', maxHeight:'100dvh', background:'#080808', position:'relative', padding:'clamp(14px,3vw,32px)', paddingBottom:'max(clamp(14px,3vw,32px), calc(72px + env(safe-area-inset-bottom)))' }}>
         <div style={{ position:'fixed', inset:0, opacity:0.015, pointerEvents:'none', zIndex:0, backgroundImage:'linear-gradient(#dc2626 1px,transparent 1px),linear-gradient(90deg,#dc2626 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
         <div style={{ position:'relative', zIndex:1 }}>{renderTab()}</div>
       </main>
@@ -84,11 +89,11 @@ export default function App() {
 }
 
 const BOTTOM = [
-  { id:'dashboard', label:'Home',   icon:'◈' },
-  { id:'workout',   label:'Treino', icon:'⬡' },
-  { id:'calories',  label:'Comida', icon:'◉' },
+  { id:'dashboard', label:'Home',      icon:'◈' },
+  { id:'workout',   label:'Treino',    icon:'⬡' },
+  { id:'calories',  label:'Comida',    icon:'◉' },
   { id:'activity',  label:'Atividade', icon:'♡' },
-  { id:'more',      label:'Mais',   icon:'≡' },
+  { id:'more',      label:'Mais',      icon:'≡' },
 ]
 
 function MobileNav({ tab, setTab }) {

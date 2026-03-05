@@ -421,3 +421,12 @@ export async function getTodayWater(userId) {
   if (error) { console.error('getTodayWater:', error); return 0 }
   return data?.ml || 0
 }
+// ── Subscription ──────────────────────────────────────────────
+export async function getSubscription(userId) {
+  const { data } = await supabase
+    .from('subscriptions')
+    .select('plan, status')
+    .eq('user_id', userId)
+    .single()
+  return data
+}
