@@ -3,8 +3,10 @@
 //   <Route path="/subscription" element={<Subscription />} />
 
 import { useState, useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { supabase } from "../lib/supabase";
+function useSearchParams() {
+  const params = new URLSearchParams(window.location.search);
+  return [params];
+}import { supabase } from "../lib/supabase";
 
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
