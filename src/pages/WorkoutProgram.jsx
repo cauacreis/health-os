@@ -5,6 +5,7 @@ import { NeonCard, SectionTitle, Tag, Modal } from '../components/UI'
 import { saveWorkoutLog, addCalendarEntry, getExerciseHistory, getCustomExercises, saveCustomExercise, deleteCustomExercise, getCustomWorkoutSheet, saveCustomWorkoutSheet, today } from '../lib/db'
 import { LineChart, Line, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from 'recharts'
 import { FUN_FACTS } from '../data/funfacts'
+import AIWorkoutBanner from '../components/AIWorkoutBanner'
 
 const R  = '#dc2626'
 const R2 = '#ef4444'
@@ -615,6 +616,8 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
       {/* ── TAB: TREINO ──────────────────────────────────────────────── */}
       {tab === 'treino' && (
         <>
+          <AIWorkoutBanner userId={userId} />
+
           {/* Seletor de dias — NÃO limpa logData/completed ao trocar (dados persistem por chave dayId-idx) */}
           <div style={{ display:'flex', gap:6, marginBottom:18, flexWrap:'wrap' }}>
             {(activeProgram?.days || []).map((d,i) => {
