@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from 'react'
 import { NeonCard } from '../components/UI'
-import { getSleepLog, getBioLog, getCalendar, today } from '../lib/db'
+import { getSleepLog, getBioLog, getCalendar, addCalendarEntry, today } from '../lib/db'
 
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY
 const R  = '#dc2626'
@@ -17,12 +17,22 @@ const SUGGESTIONS_FREE = [
 ]
 
 const SUGGESTIONS_PRO = [
+  'Monta um treino de hipertrofia pra hoje baseado em ciência',
   'Como tá minha evolução recente?',
-  'Monta um treino de 30min pra hoje',
   'O que minha bioimpedância indica?',
   'Faz um checkin da minha semana',
   'Monta um cardápio com minha meta calórica',
 ]
+
+function parseWorkout(content) {
+  const match = content.match(/\[TREINO_JSON\]([\s\S]*?)\[\/TREINO_JSON\]/)
+  if (!match) return null
+  try { return JSON.parse(match[1].trim()) } catch { return null }
+}
+
+function stripWorkoutJson(content) {
+  return content.replace(/\[TREINO_JSON\][\s\S]*?\[\/TREINO_JSON\]/g, '').trim()
+}
 
 function getTodayUsage() {
   return parseInt(localStorage.getItem(`chat_${today()}`) || '0', 10)
@@ -127,7 +137,7 @@ export default function Chat({ user, userId }) {
         },
         body: JSON.stringify({
           model:      'llama-3.1-8b-instant',
-          max_tokens: 500,
+          max_tokens: 800,
           messages: [
             { role: 'system', content: systemPrompt },
             ...trimmed,
@@ -186,31 +196,31 @@ export default function Chat({ user, userId }) {
       {/* Mensagens */}
       <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 8 }}>
 
-        {messages.map((m, i) => (
-          <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
-            <div style={{
-              maxWidth: '85%',
-              padding: '10px 14px',
-              borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
-              background: m.role === 'user'
-                ? 'rgba(220,38,38,0.15)'
-                : 'rgba(255,255,255,0.03)',
-              border: `1px solid ${m.role === 'user' ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.06)'}`,
-              color: m.role === 'user' ? '#f0f0f0' : '#d0d0d0',
-              fontSize: 13,
-              lineHeight: 1.7,
-              whiteSpace: 'pre-wrap',
-              wordBreak: 'break-word',
-            }}>
-              {m.role === 'assistant' && (
-                <div style={{ color: R, fontSize: 9, letterSpacing: 2, marginBottom: 5, fontWeight: 700 }}>
-                  ◈ HEALTH AI
-                </div>
+        {messages.map((m, i) => {
+          const workout = m.role === 'assistant' ? parseWorkout(m.content) : null
+          const displayContent = workout ? stripWorkoutJson(m.content) : m.content
+          return (
+            <div key={i} style={{ display: 'flex', justifyContent: m.role === 'user' ? 'flex-end' : 'flex-start', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
+              <div style={{
+                maxWidth: '85%',
+                padding: '10px 14px',
+                borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px',
+                background: m.role === 'user' ? 'rgba(220,38,38,0.15)' : 'rgba(255,255,255,0.03)',
+                border: `1px solid ${m.role === 'user' ? 'rgba(220,38,38,0.3)' : 'rgba(255,255,255,0.06)'}`,
+                color: m.role === 'user' ? '#f0f0f0' : '#d0d0d0',
+                fontSize: 13, lineHeight: 1.7, whiteSpace: 'pre-wrap', wordBreak: 'break-word',
+              }}>
+                {m.role === 'assistant' && (
+                  <div style={{ color: R, fontSize: 9, letterSpacing: 2, marginBottom: 5, fontWeight: 700 }}>◈ HEALTH AI</div>
+                )}
+                {displayContent}
+              </div>
+              {workout && (
+                <WorkoutSaveCard workout={workout} userId={userId} />
               )}
-              {m.content}
             </div>
-          </div>
-        ))}
+          )
+        })}
 
         {/* Loading */}
         {loading && (
@@ -284,14 +294,92 @@ export default function Chat({ user, userId }) {
   )
 }
 
+// ── WorkoutSaveCard ───────────────────────────────────────────
+function WorkoutSaveCard({ workout, userId }) {
+  const [saved, setSaved] = useState(false)
+  const [saving, setSaving] = useState(false)
+
+  async function handleSave() {
+    setSaving(true)
+    try {
+      const note = workout.exercicios
+        ? workout.exercicios.map(e => `${e.nome} ${e.series}x${e.reps}`).join(' · ')
+        : workout.nome
+      await addCalendarEntry(userId, {
+        date: today(),
+        type: 'workout',
+        label: 'Treino',
+        note: `${workout.nome || 'Treino IA'}: ${note}`.slice(0, 200),
+      })
+      setSaved(true)
+    } catch(e) { console.error(e) }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ maxWidth: '85%', marginTop: 8, padding: '14px 16px', borderRadius: 10, background: 'rgba(220,38,38,0.06)', border: '1px solid rgba(220,38,38,0.2)' }}>
+      <div style={{ color: R, fontSize: 9, letterSpacing: 2, fontWeight: 700, marginBottom: 10 }}>💪 TREINO GERADO PELA IA</div>
+      <div style={{ color: '#d0d0d0', fontSize: 13, fontWeight: 700, marginBottom: 8 }}>{workout.nome}</div>
+      {workout.exercicios?.map((ex, i) => (
+        <div key={i} style={{ display: 'flex', justifyContent: 'space-between', padding: '6px 0', borderBottom: '1px solid rgba(255,255,255,0.04)', fontSize: 12 }}>
+          <span style={{ color: '#aaa' }}>{ex.nome}</span>
+          <span style={{ color: R2, fontWeight: 700 }}>{ex.series}x{ex.reps} · {ex.descanso}</span>
+        </div>
+      ))}
+      {workout.observacoes && (
+        <div style={{ color: '#555', fontSize: 11, marginTop: 8 }}>📝 {workout.observacoes}</div>
+      )}
+      <button
+        onClick={handleSave}
+        disabled={saving || saved}
+        style={{ marginTop: 12, width: '100%', padding: '10px 0', borderRadius: 6, border: `1px solid ${saved ? '#22c55e' : R}`, background: saved ? 'rgba(34,197,94,0.1)' : 'rgba(220,38,38,0.12)', color: saved ? '#22c55e' : R2, fontFamily: "'Space Mono',monospace", fontSize: 11, letterSpacing: 2, cursor: saved ? 'default' : 'pointer', transition: 'all 0.3s' }}>
+        {saving ? 'SALVANDO...' : saved ? '✓ SALVO NA AGENDA!' : '📅 SALVAR NA AGENDA'}
+      </button>
+    </div>
+  )
+}
+
 // ── System prompts ────────────────────────────────────────────
 
+const HYPERTROPHY_SCIENCE = `
+FUNDAMENTOS CIENTÍFICOS DE HIPERTROFIA (use em TODOS os treinos gerados):
+
+1. SOBRECARGA PROGRESSIVA: O músculo só cresce com estímulo maior que o habitual. Oriente sempre a progredir por carga, repetições ou qualidade de execução.
+
+2. PROXIMIDADE DA FALHA (RIR): Séries efetivas ficam a 1-3 repetições da falha (RIR 1-3). Falha total apenas na última série, para não prejudicar o volume total.
+
+3. VOLUME SEMANAL: 10-20 séries semanais por grupo muscular é o sweet spot. Divida em 2x/semana por músculo (Push/Pull/Legs ou Upper/Lower) para maximizar síntese proteica.
+
+4. AMPLITUDE DE MOVIMENTO (ROM): Sempre amplitude completa. A hipertrofia mediada por alongamento (posição de maior stretch) é potentíssima — enfatize o alongamento no movimento.
+
+5. SELEÇÃO DE EXERCÍCIOS: Prefira máquinas e cabos para maior estabilidade e isolamento. Exercícios compostos livres para base de força. Combine os dois.
+
+6. DESCANSO ENTRE SÉRIES: 90 segundos a 3 minutos entre séries (não 30-45s como o mito da "queimação"). Exercícios compostos pesados: até 3-4 min.
+
+FORMATO OBRIGATÓRIO AO GERAR TREINO:
+Após a explicação textual, inclua SEMPRE um bloco JSON no seguinte formato EXATO:
+[TREINO_JSON]
+{
+  "nome": "Nome do treino (ex: Push A - Empurrar)",
+  "duracao": "45-60 min",
+  "foco": "Peito, Ombro, Tríceps",
+  "exercicios": [
+    { "nome": "Supino Reto", "series": 4, "reps": "8-12", "rir": "RIR 2", "descanso": "2-3 min", "dica": "Desça até o alongamento total do peitoral" },
+    { "nome": "Crucifixo no Cabo", "series": 3, "reps": "12-15", "rir": "RIR 1", "descanso": "90s", "dica": "Enfatize a posição de maior abertura" }
+  ],
+  "observacoes": "Foco em amplitude total. Progrida em carga ou reps a cada semana."
+}
+[/TREINO_JSON]
+`
+
 function buildFreePrompt() {
-  return `Você é o Health Assistant do Health OS, um app de saúde e fitness brasileiro.
+  return `Você é o Health Assistant do Health OS, um app brasileiro de saúde e fitness.
 Responda SEMPRE em português brasileiro, de forma direta e prática.
 Foque em dúvidas gerais sobre treino, nutrição, saúde e bem-estar.
 Seja conciso — máximo 3 parágrafos por resposta.
 Não invente dados científicos. Se não souber, diga claramente.
+Quando gerar treinos, aplique os princípios científicos de hipertrofia:
+${HYPERTROPHY_SCIENCE}
 Quando relevante, mencione que o plano PRO oferece análise personalizada dos dados do usuário.`
 }
 
@@ -316,9 +404,13 @@ ${p.lastBio      ? `- Última bioimpedância: gordura ${p.lastBio.gordura ?? '?'
 ${p.weeklyStats  ? `- Esta semana: ${p.weeklyStats}` : ''}
 ${p.recentWorkouts ? `- Treinos recentes: ${p.recentWorkouts}` : ''}
 
-INSTRUÇÕES:
+CIÊNCIA DE HIPERTROFIA:
+${HYPERTROPHY_SCIENCE}
+
+INSTRUÇÕES GERAIS:
 - Use os dados acima para respostas específicas e personalizadas, nunca genéricas.
-- Máximo 4 parágrafos por resposta.
+- Máximo 4 parágrafos + bloco JSON quando gerar treino.
 - Trate o usuário pelo nome quando fizer sentido.
-- Não invente dados. Se algo não estiver nos dados, diga que não tem a informação.`
+- Não invente dados. Se algo não estiver nos dados, diga que não tem a informação.
+- Ao gerar treino, SEMPRE inclua o bloco [TREINO_JSON]...[/TREINO_JSON] no final.`
 }
