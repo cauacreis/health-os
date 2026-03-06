@@ -37,8 +37,13 @@ export default function App() {
     return () => subscription.unsubscribe()
   }, [])
 
-  function handleLogout() { setSession(null); setProfile(null); setTab('dashboard') }
+useEffect(() => {
+  const handler = e => setTab(e.detail)
+  window.addEventListener('goto-tab', handler)
+  return () => window.removeEventListener('goto-tab', handler)
+}, [])
 
+function handleLogout() { setSession(null); setProfile(null); setTab('dashboard') }
   if (session === undefined || loadingProfile) {
     return (
       <div style={{ minHeight:'100dvh', background:'#080808', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Space Mono',monospace" }}>

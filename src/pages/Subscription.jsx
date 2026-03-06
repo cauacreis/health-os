@@ -6,14 +6,13 @@ import { supabase } from "../lib/supabase";
 const SUPABASE_URL  = import.meta.env.VITE_SUPABASE_URL;
 const SUPABASE_ANON = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-// O que o usuário vai PERDER ao cancelar — usado no modal de cancelamento
 const LOSSES = [
-  { icon: "📊", title: "Gráficos avançados",         desc: "Seu histórico completo de evolução desaparece da tela." },
-  { icon: "🧬", title: "Bioimpedância",               desc: "Todos os registros de gordura, músculo e hidratação bloqueados." },
+  { icon: "📊", title: "Gráficos avançados",          desc: "Seu histórico completo de evolução desaparece da tela." },
+  { icon: "🧬", title: "Bioimpedância",                desc: "Todos os registros de gordura, músculo e hidratação bloqueados." },
   { icon: "❤️", title: "Zonas de frequência cardíaca", desc: "Treinos de cardio sem análise de zona Z1–Z5." },
   { icon: "🏋️", title: "Todos os programas de treino", desc: "Volta apenas para o plano básico de treino." },
-  { icon: "🍽️", title: "Log alimentar completo",      desc: "Sem controle detalhado de refeições e macros." },
-  { icon: "📅", title: "Calendário de treinos",        desc: "Sem visão histórica dos treinos realizados." },
+  { icon: "🍽️", title: "Log alimentar completo",       desc: "Sem controle detalhado de refeições e macros." },
+  { icon: "📅", title: "Calendário de treinos",         desc: "Sem visão histórica dos treinos realizados." },
 ];
 
 const PLANS = {
@@ -26,7 +25,6 @@ const PLANS = {
   },
 };
 
-// ── Hook para ler query params em SPA ────────────────────────
 function useQueryParams() {
   return new URLSearchParams(window.location.search);
 }
@@ -45,7 +43,7 @@ export default function Subscription() {
   const [validatingCoupon, setValidatingCoupon] = useState(false);
   const [toast, setToast]       = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
-  const [cancelStep, setCancelStep] = useState(1); // 1 = losses, 2 = confirm
+  const [cancelStep, setCancelStep] = useState(1);
 
   useEffect(() => { fetchSubscription(); }, []);
 
@@ -184,7 +182,6 @@ export default function Subscription() {
               </p>
             )}
 
-            {/* Botões de gerenciamento */}
             <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
               <button
                 onClick={() => { setShowCancelModal(true); setCancelStep(1); }}
@@ -271,6 +268,9 @@ export default function Subscription() {
           </div>
         </div>
 
+        {/* ── Apoie o projeto ───────────────────────────────── */}
+        <DonationBanner />
+
         {/* ── FAQ ──────────────────────────────────────────── */}
         <div style={S.faq}>
           <h2 style={S.faqTitle}>PERGUNTAS FREQUENTES</h2>
@@ -281,6 +281,83 @@ export default function Subscription() {
           ].map(([q, a]) => <FaqItem key={q} question={q} answer={a} />)}
         </div>
       </div>
+    </div>
+  );
+}
+
+// ── Donation Banner ───────────────────────────────────────────
+function DonationBanner() {
+  const [hover, setHover] = useState(false);
+  return (
+    <div style={{
+      border: "1px solid #1e1e1e",
+      borderLeft: "3px solid #dc2626",
+      background: "rgba(220,38,38,0.03)",
+      borderRadius: 6,
+      padding: "24px 28px",
+      marginBottom: 48,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "space-between",
+      gap: 24,
+      flexWrap: "wrap",
+    }}>
+      <div style={{ flex: 1, minWidth: 200 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
+          <span style={{ fontSize: 20 }}>❤️</span>
+          <span style={{
+            fontFamily: "'Space Mono', monospace",
+            fontSize: 11,
+            fontWeight: 700,
+            letterSpacing: 3,
+            color: "#dc2626",
+          }}>APOIE O PROJETO</span>
+        </div>
+        <p style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: 11,
+          color: "#888",
+          lineHeight: 1.8,
+          margin: 0,
+        }}>
+          O Health OS é desenvolvido por um dev solo brasileiro. Qualquer apoio ajuda a manter o app no ar e acelera novas funcionalidades.
+        </p>
+        <p style={{
+          fontFamily: "'Space Mono', monospace",
+          fontSize: 10,
+          color: "#555",
+          margin: "8px 0 0",
+        }}>
+          🎁 Apoiou? Manda o print no Instagram que eu ativo o PRO pra você.
+        </p>
+      </div>
+      <a
+        href="https://apoia.se/healthos"
+        target="_blank"
+        rel="noopener noreferrer"
+        onMouseEnter={() => setHover(true)}
+        onMouseLeave={() => setHover(false)}
+        style={{
+          display: "inline-flex",
+          alignItems: "center",
+          gap: 8,
+          background: hover ? "rgba(220,38,38,0.12)" : "transparent",
+          border: "1px solid #dc2626",
+          color: "#dc2626",
+          fontFamily: "'Space Mono', monospace",
+          fontSize: 11,
+          fontWeight: 700,
+          letterSpacing: 2,
+          padding: "12px 22px",
+          borderRadius: 2,
+          textDecoration: "none",
+          whiteSpace: "nowrap",
+          transition: "background 0.15s",
+          flexShrink: 0,
+        }}
+      >
+        ♥ APOIAR NO APOIA.SE
+      </a>
     </div>
   );
 }
@@ -320,7 +397,6 @@ function CancelModal({ step, setStep, periodEnd, onClose, onConfirm, portalLoadi
     <div style={M.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={M.modal}>
 
-        {/* Passo 1 — O que você vai perder */}
         {step === 1 && (
           <>
             <div style={M.header}>
@@ -354,7 +430,6 @@ function CancelModal({ step, setStep, periodEnd, onClose, onConfirm, portalLoadi
           </>
         )}
 
-        {/* Passo 2 — Confirmação final */}
         {step === 2 && (
           <>
             <div style={M.header}>
