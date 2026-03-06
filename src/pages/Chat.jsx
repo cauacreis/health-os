@@ -135,9 +135,14 @@ export default function Chat({ user, userId }) {
         }),
       })
 
-      const data  = await res.json()
-      const reply = data?.choices?.[0]?.message?.content ?? 'Não consegui gerar uma resposta. Tente novamente.'
-      setMessages(m => [...m, { role: 'assistant', content: reply }])
+      const data = await res.json()
+      console.log('Groq response:', JSON.stringify(data))
+      if (data?.error) {
+        setMessages(m => [...m, { role: 'assistant', content: '❌ Erro: ' + (data.error?.message || JSON.stringify(data.error)) }])
+      } else {
+        const reply = data?.choices?.[0]?.message?.content ?? 'Sem resposta.'
+        setMessages(m => [...m, { role: 'assistant', content: reply }])
+      }
     } catch (e) {
       console.error(e)
       setMessages(m => [...m, { role: 'assistant', content: '❌ Erro de conexão. Verifique sua internet e tente novamente.' }])
