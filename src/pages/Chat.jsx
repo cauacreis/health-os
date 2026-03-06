@@ -354,9 +354,20 @@ function WorkoutSaveCard({ workout, userId }) {
 
   async function handleSave() {
     setSaving(true); setError('')
-    try { await saveWorkoutToLog(userId, workout); setSaved(true) }
-    catch(e) { console.error(e); setError('Erro ao salvar. Tente novamente.') }
+
+    // 1. Salva no localStorage (principal — AIWorkoutBanner usa só isso)
+    const enriched = { ...workout, id: `ai_${Date.now()}`, date: today() }
+    const existing = (() => { try { return JSON.parse(localStorage.getItem('healthos_ai_workouts') || '[]') } catch { return [] } })()
+    localStorage.setItem('healthos_ai_workouts', JSON.stringify([enriched, ...existing].slice(0, 10)))
+
+    // 2. Dispara evento para o banner aparecer em tempo real
+    window.dispatchEvent(new CustomEvent('ai-workout-ready', { detail: enriched }))
+
+    setSaved(true)
     setSaving(false)
+
+    // 3. Tenta salvar no Supabase em segundo plano (não bloqueia)
+    saveWorkoutToLog(userId, workout).catch(e => console.warn('Supabase workout log:', e))
   }
 
   return (
