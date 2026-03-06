@@ -2,6 +2,7 @@ import { signOut } from '../lib/db'
 
 const NAV = [
   { id: 'dashboard', label: 'Dashboard', icon: '◈' },
+    { id: 'chat',         label: 'Assistente IA',          icon: '◎' }, 
   { id: 'workout', label: 'Treinos', icon: '⬡' },
   { id: 'calendar', label: 'Calendário', icon: '◫' },
   { id: 'calories', label: 'Calorias & Refeições', icon: '◉' },
