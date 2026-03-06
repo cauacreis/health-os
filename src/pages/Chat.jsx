@@ -149,7 +149,16 @@ export default function Chat({ user, userId }) {
       const thisWeek = calendar.filter(e => (now - new Date(e.date)) / 86400000 <= 7)
       const weeklyStats    = `${thisWeek.filter(e=>e.type==='workout').length} treinos, ${thisWeek.filter(e=>e.type==='cardio').length} cardios, ${thisWeek.filter(e=>e.type==='sleep').length} noites`
       const recentWorkouts = calendar.filter(e=>e.type==='workout'||e.type==='cardio').slice(0,5).map(e=>`${e.date}: ${e.type}${e.note?` (${e.note})`:''}`).join(' | ') || null
-      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts })
+
+      // Músculos já treinados essa semana (via treinos IA no localStorage)
+      const aiWorkouts = (() => { try { return JSON.parse(localStorage.getItem('healthos_ai_workouts') || '[]') } catch { return [] } })()
+      const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
+      const weekMuscles = aiWorkouts
+        .filter(w => w.date >= sevenDaysAgo)
+        .map(w => `${w.date}: ${w.nome} (${w.foco || w.exercicios?.map(e=>e.nome).join(', ')})`)
+        .join(' | ') || null
+
+      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, weekMuscles })
     } catch(e) { console.error(e) }
     setCtxLoaded(true)
   }
@@ -463,6 +472,16 @@ ${p.avgSleep      ?`- Média sono (7d): ${p.avgSleep}h`:''}
 ${p.lastBio       ?`- Bioimpedância: gordura ${p.lastBio.gordura??'?'}%, músculo ${p.lastBio.musculo??'?'}%, visceral ${p.lastBio.visceral??'?'}, água ${p.lastBio.agua??'?'}%`:''}
 ${p.weeklyStats   ?`- Esta semana: ${p.weeklyStats}`:''}
 ${p.recentWorkouts?`- Treinos recentes: ${p.recentWorkouts}`:''}
+${p.weekMuscles   ?`- Treinos IA desta semana: ${p.weekMuscles}`:''}
+
+ANÁLISE DE VOLUME SEMANAL:
+${p.weekMuscles
+  ? `O usuário JÁ treinou esses grupos musculares essa semana (acima). Ao sugerir treino:
+   - NÃO repita os mesmos músculos principais do mesmo dia já treinado
+   - Se o músculo foi parcialmente treinado (ex: peito superior), sugira a parte complementar (ex: peito inferior/médio)
+   - Ajuste o volume da sessão de hoje levando em conta o que já foi feito na semana
+   - Mencione o que já foi treinado e explique por que está complementando`
+  : 'Nenhum treino IA registrado essa semana ainda — pode montar o treino normalmente.'}
 
 ${HYPERTROPHY_SCIENCE}
 
