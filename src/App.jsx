@@ -12,6 +12,7 @@ import { Water, BMI, CardioSteps } from './pages/OtherPages'
 import MoreMenu from './components/MoreMenu'
 import { GlossaryPage } from './components/UI'
 import Subscription from "./pages/Subscription"
+import Chat from './pages/Chat'
 
 export default function App() {
   const [session, setSession]   = useState(undefined)
@@ -66,6 +67,7 @@ function handleLogout() { setSession(null); setProfile(null); setTab('dashboard'
 
   function renderTab() {
     switch(tab) {
+      case 'chat': return <Chat user={profile} userId={userId} />
       case 'dashboard':    return <Dashboard      user={profile} userId={userId} />
       case 'workout':      return <WorkoutProgram user={profile} userId={userId} />
       case 'calendar':     return <CalendarPage   user={profile} userId={userId} />
