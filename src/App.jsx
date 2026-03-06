@@ -96,6 +96,7 @@ function handleLogout() { setSession(null); setProfile(null); setTab('dashboard'
 }
 
 const BOTTOM = [
+  { id:'chat', label:'IA', icon:'◎' },
   { id:'dashboard', label:'Home',      icon:'◈' },
   { id:'workout',   label:'Treino',    icon:'⬡' },
   { id:'calories',  label:'Comida',    icon:'◉' },

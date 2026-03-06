@@ -10,14 +10,14 @@ const S  = '#94a3b8'
 const FREE_LIMIT = 5
 
 const SUGGESTIONS_FREE = [
+  '💪 Quero montar um treino de hoje',
   'Quanto tempo descansar entre séries?',
   'O que é déficit calórico?',
   'Quantas proteínas devo comer por dia?',
-  'Como melhorar minha qualidade de sono?',
 ]
 
 const SUGGESTIONS_PRO = [
-  'Monta um treino de hipertrofia pra hoje baseado em ciência',
+  '💪 Quero montar um treino de hoje',
   'Como tá minha evolução recente?',
   'O que minha bioimpedância indica?',
   'Faz um checkin da minha semana',
@@ -342,32 +342,52 @@ function WorkoutSaveCard({ workout, userId }) {
 // ── System prompts ────────────────────────────────────────────
 
 const HYPERTROPHY_SCIENCE = `
-FUNDAMENTOS CIENTÍFICOS DE HIPERTROFIA (use em TODOS os treinos gerados):
+FUNDAMENTOS CIENTÍFICOS DE HIPERTROFIA (aplique em TODOS os treinos gerados):
 
-1. SOBRECARGA PROGRESSIVA: O músculo só cresce com estímulo maior que o habitual. Oriente sempre a progredir por carga, repetições ou qualidade de execução.
+1. SOBRECARGA PROGRESSIVA: O músculo só cresce com estímulo maior. Oriente sempre a progredir por carga, repetições ou qualidade de execução semana a semana.
 
-2. PROXIMIDADE DA FALHA (RIR): Séries efetivas ficam a 1-3 repetições da falha (RIR 1-3). Falha total apenas na última série, para não prejudicar o volume total.
+2. PROXIMIDADE DA FALHA (RIR): Séries efetivas ficam a 1-3 repetições da falha (RIR 1-3). Falha total apenas na última série de cada exercício — mais que isso gera fadiga excessiva e prejudica o volume total.
 
-3. VOLUME SEMANAL: 10-20 séries semanais por grupo muscular é o sweet spot. Divida em 2x/semana por músculo (Push/Pull/Legs ou Upper/Lower) para maximizar síntese proteica.
+3. VOLUME SEMANAL INTELIGENTE: 10-20 séries semanais por grupo muscular é o sweet spot. SE o usuário vai treinar o músculo 2x na semana, distribua o volume (ex: 5-6 séries por sessão). SE vai treinar 1x, concentre mais volume nessa sessão (8-12 séries).
 
-4. AMPLITUDE DE MOVIMENTO (ROM): Sempre amplitude completa. A hipertrofia mediada por alongamento (posição de maior stretch) é potentíssima — enfatize o alongamento no movimento.
+4. AMPLITUDE DE MOVIMENTO (ROM): Sempre amplitude completa. A hipertrofia mediada por alongamento é potentíssima — o ponto de maior stretch é o mais importante do movimento (ex: fundo do crucifixo, parte baixa do scott).
 
-5. SELEÇÃO DE EXERCÍCIOS: Prefira máquinas e cabos para maior estabilidade e isolamento. Exercícios compostos livres para base de força. Combine os dois.
+5. SELEÇÃO DE EXERCÍCIOS: Combine um exercício composto livre (base de força) + máquinas/cabos (isolamento com estabilidade). Máquinas permitem mais força no músculo-alvo sem falha dos estabilizadores.
 
-6. DESCANSO ENTRE SÉRIES: 90 segundos a 3 minutos entre séries (não 30-45s como o mito da "queimação"). Exercícios compostos pesados: até 3-4 min.
+6. DESCANSO ENTRE SÉRIES: 90s a 3 minutos (não 30-45s — a queimação é metabólito, não hipertrofia). Compostos pesados: 3-4 min. Isoladores: 90s-2 min.
+
+PROTOCOLO OBRIGATÓRIO ANTES DE GERAR QUALQUER TREINO:
+Quando o usuário pedir um treino, você DEVE fazer as 3 perguntas abaixo ANTES de montar — nunca pule esse passo:
+
+PERGUNTA 1 — ESTILO DE DIVISÃO:
+"Qual divisão de treino você usa ou prefere?"
+Opções: A) Push/Pull/Legs (PPL) | B) Upper/Lower | C) Full Body | D) ABC (por músculo) | E) Me sugira uma divisão
+
+PERGUNTA 2 — MÚSCULO DO DIA:
+"Quais músculos você quer focar hoje?"
+Exemplos: Peito + Tríceps | Costas + Bíceps | Pernas (Quad foco) | Ombros | Full Body | etc.
+
+PERGUNTA 3 — FREQUÊNCIA SEMANAL:
+"Você vai treinar esses músculos mais alguma vez nessa semana?"
+Isso define o volume da sessão: se vai repetir, usa menos séries hoje; se é a única sessão da semana, usa mais.
+
+SÓ APÓS RECEBER AS 3 RESPOSTAS, monte o treino.
 
 FORMATO OBRIGATÓRIO AO GERAR TREINO:
-Após a explicação textual, inclua SEMPRE um bloco JSON no seguinte formato EXATO:
+Após a explicação textual, inclua SEMPRE um bloco JSON no formato EXATO abaixo:
 [TREINO_JSON]
 {
-  "nome": "Nome do treino (ex: Push A - Empurrar)",
-  "duracao": "45-60 min",
+  "nome": "Nome do treino (ex: Push A — Peito, Ombro, Tríceps)",
+  "duracao": "50-70 min",
   "foco": "Peito, Ombro, Tríceps",
   "exercicios": [
-    { "nome": "Supino Reto", "series": 4, "reps": "8-12", "rir": "RIR 2", "descanso": "2-3 min", "dica": "Desça até o alongamento total do peitoral" },
-    { "nome": "Crucifixo no Cabo", "series": 3, "reps": "12-15", "rir": "RIR 1", "descanso": "90s", "dica": "Enfatize a posição de maior abertura" }
+    { "nome": "Supino Reto com Barra", "series": 4, "reps": "6-10", "rir": "RIR 2", "descanso": "2-3 min", "dica": "Desça até o alongamento total do peitoral, cotovelos a 45°" },
+    { "nome": "Crucifixo no Cabo (baixo para cima)", "series": 3, "reps": "12-15", "rir": "RIR 1", "descanso": "90s", "dica": "Enfatize a abertura máxima — esse é o ponto de crescimento" },
+    { "nome": "Desenvolvimento com Halteres", "series": 4, "reps": "8-12", "rir": "RIR 2", "descanso": "2 min", "dica": "Desça abaixo da linha dos ombros para alongar o deltóide" },
+    { "nome": "Elevação Lateral no Cabo", "series": 4, "reps": "15-20", "rir": "RIR 1", "descanso": "60-90s", "dica": "Cabo oferece tensão constante — superior ao halter" },
+    { "nome": "Tríceps Corda no Cabo", "series": 3, "reps": "12-15", "rir": "RIR 1-2", "descanso": "90s", "dica": "Abra as pontas no final para alongar a cabeça longa" }
   ],
-  "observacoes": "Foco em amplitude total. Progrida em carga ou reps a cada semana."
+  "observacoes": "Volume calculado para 2x/semana. Progrida em carga ou reps toda semana — essa é a regra número 1."
 }
 [/TREINO_JSON]
 `
