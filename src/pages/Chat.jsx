@@ -180,7 +180,7 @@ export default function Chat({ user, userId }) {
     setLoading(true)
 
     try {
-      const systemPrompt = isPro && profile ? buildProPrompt(profile) : buildFreePrompt()
+      const systemPrompt = isPro && profile ? buildProPrompt(profile, msg) : buildFreePrompt()
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
@@ -412,78 +412,95 @@ function WorkoutSaveCard({ workout, userId }) {
   )
 }
 
-const HYPERTROPHY_SCIENCE = `
-FUNDAMENTOS CIENTÍFICOS (aplique em TODOS os treinos):
-1. SOBRECARGA PROGRESSIVA: progrida em carga, reps ou execução toda semana.
-2. PROXIMIDADE DA FALHA (RIR 1-3): pare a 1-3 reps da falha. Falha total só na última série.
-3. VOLUME: 10-20 séries/semana por grupo. 2x/semana = 5-6 séries/sessão. 1x = 8-12 séries/sessão.
-4. ROM COMPLETO: ponto de maior alongamento = maior estímulo anabólico.
-5. EXERCÍCIOS: composto livre (base) + máquinas/cabos (isolamento estável).
-6. DESCANSO: compostos 2-4 min | isoladores 90s-2 min. Esqueça os 30-45s.
-
-PROTOCOLO OBRIGATÓRIO — antes de montar qualquer treino, envie ESTAS 3 PERGUNTAS em uma única mensagem:
-
-"Para montar o melhor treino pra você, preciso de 3 informações:
-
-1️⃣ **Divisão de treino** — qual você usa ou prefere?
-   A) Push/Pull/Legs (PPL)  B) Upper/Lower  C) Full Body  D) ABC (por músculo)  E) Me sugira
-
-2️⃣ **Músculo(s) de hoje** — em qual grupo quer focar?
-   Ex: Peito + Tríceps | Costas + Bíceps | Pernas (quad) | Ombros | Full Body
-
-3️⃣ **Frequência** — vai treinar esses músculos mais alguma vez essa semana?
-   Isso define quantas séries coloco na sessão de hoje."
-
-Após receber as 3 respostas, monte o treino e inclua OBRIGATORIAMENTE ao final:
-[TREINO_JSON]
-{
-  "nome": "Push A — Peito, Ombro, Tríceps",
-  "duracao": "55-70 min",
-  "foco": "Peito, Ombro anterior, Tríceps",
-  "exercicios": [
-    { "nome": "Supino Reto com Barra", "series": 4, "reps": "6-10", "rir": "RIR 2", "descanso": "2-3 min", "dica": "Desça até alongamento total, cotovelos a 45°" },
-    { "nome": "Crucifixo no Cabo", "series": 3, "reps": "12-15", "rir": "RIR 1", "descanso": "90s", "dica": "Abertura máxima = maior ponto de crescimento" }
-  ],
-  "observacoes": "Volume para 2x/semana. Progrida toda semana — regra #1."
+// ── Context router: inject only what's relevant ──────────────────────────────
+function routeContext(message, p) {
+  const m = (message||'').toLowerCase()
+  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|bra.o|perna|panturrilha|b.ceps|tr.ceps/.test(m)
+  const isD = /dieta|caloria|prote.na|carboidrato|refei..o|comer|card.pio|nutri|emagrec/.test(m)
+  const isC = /checkin|check.in|evolu..o|progresso|semana|bioimpedância|sono|an.lise/.test(m)
+  const base = `- Nome: ${p.name||'—'} | Objetivo: ${p.goal||'—'}`
+  const bmr  = p.sex==='male' ? 88.36+13.4*(p.weight||70)+4.8*(p.height||170)-5.7*(p.age||30) : 447.6+9.2*(p.weight||70)+3.1*(p.height||170)-4.3*(p.age||30)
+  const tdee = Math.round(bmr*(p.activity||1.55))
+  if (isW) return [base,
+    `- Peso: ${p.weight||'—'}kg | Altura: ${p.height||'—'}cm`,
+    p.weeklyStats    ? `- Esta semana: ${p.weeklyStats}` : '',
+    p.recentWorkouts ? `- Treinos recentes: ${p.recentWorkouts}` : '',
+    p.weekMuscles    ? `- Treinos IA esta semana: ${p.weekMuscles}` : '',
+  ].filter(Boolean).join('\n')
+  if (isD) return [base,
+    `- Peso: ${p.weight||'—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
+    p.lastBio ? `- Bioimpedância: gordura ${p.lastBio.gordura||'?'}%, músculo ${p.lastBio.musculo||'?'}%` : '',
+  ].filter(Boolean).join('\n')
+  if (isC) return [base,
+    `- Peso: ${p.weight||'—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
+    p.avgSleep       ? `- Sono médio (7d): ${p.avgSleep}h` : '',
+    p.lastBio        ? `- Bioimpedância: gordura ${p.lastBio.gordura||'?'}%, músculo ${p.lastBio.musculo||'?'}%, visceral ${p.lastBio.visceral||'?'}, água ${p.lastBio.agua||'?'}%` : '',
+    p.weeklyStats    ? `- Esta semana: ${p.weeklyStats}` : '',
+    p.weekMuscles    ? `- Treinos IA esta semana: ${p.weekMuscles}` : '',
+  ].filter(Boolean).join('\n')
+  return base
 }
-[/TREINO_JSON]
-`
+
+const SCIENCE_BASE = `FUNDAMENTOS CIENTÍFICOS DE HIPERTROFIA:
+1. SOBRECARGA PROGRESSIVA — progrida em carga, reps ou execução toda semana.
+2. PROXIMIDADE DA FALHA (RIR 1-3) — pare a 1-3 reps da falha. Falha total só na última série.
+3. VOLUME — 10-20 séries/semana por grupo. 2x/semana = 5-6 séries/sessão. 1x = 8-12/sessão.
+4. ROM COMPLETO — ponto de maior alongamento = maior estímulo anabólico.
+5. EXERCÍCIOS — composto livre (base) + máquinas/cabos (isolamento estável).
+6. DESCANSO — compostos 2-4 min | isoladores 90s-2 min.`
+
+const JSON_RULE = `REGRA DO JSON:
+- Gere [TREINO_JSON] SOMENTE quando o treino estiver 100% definido.
+- Durante perguntas ou sugestão de divisão: responda APENAS em texto, sem JSON.
+- O bloco deve ser completo e válido do início ao fim:
+[TREINO_JSON]
+{"nome":"Push A — Peito, Ombro, Tríceps","duracao":"55-70 min","foco":"Peito, Ombro, Tríceps","exercicios":[{"nome":"Supino Reto com Barra","series":4,"reps":"6-10","rir":"RIR 2","descanso":"2-3 min","dica":"Desça até alongamento total, cotovelos a 45°"},{"nome":"Crucifixo no Cabo","series":3,"reps":"12-15","rir":"RIR 1","descanso":"90s","dica":"Abertura máxima = maior ponto de crescimento"}],"observacoes":"Volume para 2x/semana. Progrida toda semana."}
+[/TREINO_JSON]`
 
 function buildFreePrompt() {
   return `Você é o Health Assistant do Health OS, app brasileiro de saúde e fitness.
-Responda SEMPRE em português brasileiro. Direto e prático. Máximo 3 parágrafos.
-${HYPERTROPHY_SCIENCE}
-Quando relevante, mencione que o PRO tem análise personalizada dos dados do usuário.`
+Responda SEMPRE em português brasileiro. Direto e prático.
+Respostas conversacionais: máximo 3 parágrafos. Ao gerar treino: sem limite de tamanho, gere completo.
+
+${SCIENCE_BASE}
+
+PROTOCOLO PARA TREINOS — faça estas 3 perguntas em uma única mensagem antes de montar:
+"Para montar o melhor treino pra você, preciso de 3 informações:
+1️⃣ Divisão: A) Push/Pull/Legs  B) Upper/Lower  C) Full Body  D) ABC  E) Me sugira uma
+2️⃣ Músculo(s) de hoje: Ex: Peito+Tríceps | Costas+Bíceps | Pernas | Ombros
+3️⃣ Frequência: vai treinar esses músculos mais alguma vez essa semana?"
+
+Se o usuário escolher "E) Me sugira": sugira a divisão em texto, confirme com ele e SÓ ENTÃO monte com JSON.
+Só gere o treino após ter as 3 respostas confirmadas.
+
+${JSON_RULE}
+
+Quando relevante, mencione que o PRO oferece análise personalizada baseada nos dados reais do usuário.`
 }
 
-function buildProPrompt(p) {
-  const sexLabel  = p.sex==='male'?'masculino':p.sex==='female'?'feminino':'—'
-  const goalLabel = p.goal==='lose'?'perder peso':p.goal==='gain'?'ganhar massa':p.goal==='maintain'?'manter peso':p.goal??'—'
-  const bmr  = p.sex==='male' ? 88.36+13.4*(p.weight||70)+4.8*(p.height||170)-5.7*(p.age||30) : 447.6+9.2*(p.weight||70)+3.1*(p.height||170)-4.3*(p.age||30)
-  const tdee = Math.round(bmr*(p.activity||1.55))
-  return `Você é o Health Assistant PRO do Health OS, personal trainer e nutricionista virtual de ${p.name??'seu usuário'}.
+function buildProPrompt(p, lastMessage) {
+  const ctx = routeContext(lastMessage || '', p)
+  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|perna/.test((lastMessage||'').toLowerCase())
+
+  return `Você é o Health Assistant PRO do Health OS — personal trainer e nutricionista virtual de ${p.name||'seu atleta'}.
 Responda SEMPRE em português brasileiro. Direto, prático e personalizado.
+Respostas conversacionais: conciso. Ao gerar treino: sem limite, gere completo.
 
-DADOS DO USUÁRIO:
-- Nome: ${p.name??'—'} | Idade: ${p.age??'—'}a | Sexo: ${sexLabel}
-- Peso: ${p.weight??'—'}kg | Altura: ${p.height??'—'}cm | Objetivo: ${goalLabel}
-- TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal
-${p.avgSleep      ?`- Média sono (7d): ${p.avgSleep}h`:''}
-${p.lastBio       ?`- Bioimpedância: gordura ${p.lastBio.gordura??'?'}%, músculo ${p.lastBio.musculo??'?'}%, visceral ${p.lastBio.visceral??'?'}, água ${p.lastBio.agua??'?'}%`:''}
-${p.weeklyStats   ?`- Esta semana: ${p.weeklyStats}`:''}
-${p.recentWorkouts?`- Treinos recentes: ${p.recentWorkouts}`:''}
-${p.weekMuscles   ?`- Treinos IA desta semana: ${p.weekMuscles}`:''}
+CONTEXTO RELEVANTE PARA ESTA RESPOSTA:
+${ctx}
 
-ANÁLISE DE VOLUME SEMANAL:
-${p.weekMuscles
-  ? `O usuário JÁ treinou esses grupos musculares essa semana (acima). Ao sugerir treino:
-   - NÃO repita os mesmos músculos principais do mesmo dia já treinado
-   - Se o músculo foi parcialmente treinado (ex: peito superior), sugira a parte complementar (ex: peito inferior/médio)
-   - Ajuste o volume da sessão de hoje levando em conta o que já foi feito na semana
-   - Mencione o que já foi treinado e explique por que está complementando`
-  : 'Nenhum treino IA registrado essa semana ainda — pode montar o treino normalmente.'}
+${SCIENCE_BASE}
 
-${HYPERTROPHY_SCIENCE}
+${isW ? `MODO TREINO PRO:
+Você tem acesso ao histórico acima. NÃO faça as 3 perguntas básicas — o usuário espera que você já saiba.
+Fluxo:
+1. Analise os treinos recentes e identifique quais grupos musculares já foram trabalhados e há quantos dias.
+2. Sugira proativamente o treino de hoje com base no descanso ideal de cada grupo muscular.
+3. Justifique a escolha em 1-2 frases ("Seus últimos treinos foram X, então hoje o foco ideal é Y porque Z descansou N dias").
+4. Se precisar de uma preferência específica (ex: equipamento disponível), faça MÁXIMO 1 pergunta direta.
+5. Com informação suficiente, monte o treino completo com JSON.` : ''}
 
-Use os dados para respostas personalizadas. Máximo 4 parágrafos + JSON ao gerar treino. Não invente dados ausentes.`
+${JSON_RULE}
+
+Não invente dados ausentes. Use apenas o contexto injetado acima.`
 }
