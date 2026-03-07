@@ -197,7 +197,54 @@ export default function Chat({ user, userId }) {
         ? null
         : `ANÁLISE DE RECUPERAÇÃO MUSCULAR (calculada pelo sistema):\n${recoveryLines.join('\n')}\n\nGRUPOS PRONTOS: ${readyGroups.join(', ') || 'nenhum'}\nGRUPOS EM RECUPERAÇÃO: ${recoverGroups.join(', ') || 'nenhum'}\nAÇÃO RECOMENDADA: priorize os grupos PRONTOS no treino de hoje.`
 
-      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport })
+      // ── Sobrecarga Progressiva: buscar último desempenho real dos grupos PRONTOS ──
+      let progressiveOverloadReport = null
+      try {
+        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
+        const { data: logs } = await supabase
+          .from('workout_logs')
+          .select('date, day_name, exercises')
+          .eq('user_id', userId)
+          .gte('date', thirtyDaysAgo)
+          .order('date', { ascending: false })
+          .limit(30)
+
+        if (logs?.length) {
+          // Mapa: exerciseName -> { date, sets, reps, weight } (mais recente)
+          const exerciseHistory = {}
+          logs.forEach(log => {
+            ;(log.exercises || []).forEach(ex => {
+              if (!ex.name) return
+              const key = ex.name.toLowerCase().trim()
+              if (!exerciseHistory[key]) {
+                exerciseHistory[key] = { name: ex.name, date: log.date, sets: ex.sets, reps: ex.reps, weight: ex.weight }
+              }
+            })
+          })
+
+          const relevantLines = []
+          Object.values(exerciseHistory).forEach(ex => {
+            if (!ex.weight) return
+            const exLower = ex.name.toLowerCase()
+            const belongsToReady = readyGroups.some(g => MUSCLE_GROUPS[g]?.some(k => exLower.includes(k)))
+            if (!belongsToReady) return
+            const w = parseFloat(ex.weight)
+            const suggestion = !isNaN(w) && w > 0
+              ? `tente ${(w + 2.5).toFixed(1)}kg OU ${ex.reps}+2 reps com ${w}kg`
+              : 'registre o peso para habilitar sobrecarga progressiva'
+            relevantLines.push(`${ex.name}: último (${ex.date}) -> ${ex.sets}x${ex.reps} com ${ex.weight}kg | SUGESTÃO: ${suggestion}`)
+          })
+
+          if (relevantLines.length > 0) {
+            progressiveOverloadReport =
+              `HISTÓRICO DE CARGA — GRUPOS PRONTOS (calculado pelo sistema):\n` +
+              relevantLines.slice(0, 8).join('\n') +
+              `\n\nINSTRUÇÃO OBRIGATÓRIA: Use esses dados para indicar a carga exata. NÃO diga "escolha um peso adequado" — dê o número preciso baseado no histórico.`
+          }
+        }
+      } catch(e) { console.warn('progressiveOverload:', e) }
+
+      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport })
     } catch(e) { console.error(e) }
     setCtxLoaded(true)
   }
@@ -464,7 +511,8 @@ function routeContext(message, p) {
     `- Peso: ${p.weight||'—'}kg | Altura: ${p.height||'—'}cm`,
     p.weeklyStats          ? `- Esta semana: ${p.weeklyStats}` : '',
     p.recentWorkouts       ? `- Treinos recentes: ${p.recentWorkouts}` : '',
-    p.muscleRecoveryReport ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
+    p.muscleRecoveryReport     ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
+    p.progressiveOverloadReport ? `\n[SOBRECARGA PROGRESSIVA]\n${p.progressiveOverloadReport}` : '',
   ].filter(Boolean).join('\n')
   if (isD) return [base,
     `- Peso: ${p.weight||'—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
@@ -531,14 +579,15 @@ ${ctx}
 ${SCIENCE_BASE}
 
 ${isW ? `MODO TREINO PRO:
-Os dados de recuperação muscular foram PRÉ-CALCULADOS pelo sistema (não os calcule você mesmo).
-NÃO faça as 3 perguntas básicas — o usuário PRO espera que você já saiba.
+Os dados abaixo foram PRÉ-CALCULADOS pelo sistema — não recalcule, use diretamente.
+NÃO faça as 3 perguntas básicas — o usuário PRO espera que você já saiba o que ele deve treinar.
 Fluxo obrigatório:
-1. Leia o bloco [DADOS DO SISTEMA] no contexto acima — ele já diz exatamente quais músculos estão PRONTOS e quais estão RECUPERANDO.
-2. Escolha imediatamente o foco do treino de hoje priorizando os grupos com status PRONTO.
-3. Justifique em 1-2 frases com os dados reais: ex: "Seu peito foi treinado há 30h e ainda está recuperando. Costas e bíceps estão prontos — vamos fazer um Pull hoje."
-4. Se não houver [DADOS DO SISTEMA] (usuário nunca gerou treino pela IA), faça APENAS esta pergunta: "Qual grupo muscular você quer focar hoje?"
-5. Monte o treino completo com JSON.` : ''}
+1. Leia [DADOS DO SISTEMA]: quais músculos estão PRONTOS vs RECUPERANDO.
+2. Escolha o foco do treino de hoje pelos grupos PRONTOS. Justifique em 1 frase com os dados reais.
+3. Leia [SOBRECARGA PROGRESSIVA]: se houver histórico de carga para os exercícios de hoje, use os números exatos. Para cada exercício com histórico, indique explicitamente: "Da última vez você fez X séries de Y reps com Zkg — hoje tente Wkg ou Y+2 reps."
+4. Se não houver [DADOS DO SISTEMA]: pergunte apenas "Qual grupo muscular você quer focar hoje?"
+5. Se não houver [SOBRECARGA PROGRESSIVA]: sugira cargas baseadas no peso corporal (${p.weight||'—'}kg) e nível intermediário.
+6. Monte o treino completo com JSON, incluindo a carga sugerida em cada exercício dentro do campo "dica".` : ''}
 
 ${JSON_RULE}
 
