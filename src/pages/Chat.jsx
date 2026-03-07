@@ -150,15 +150,54 @@ export default function Chat({ user, userId }) {
       const weeklyStats    = `${thisWeek.filter(e=>e.type==='workout').length} treinos, ${thisWeek.filter(e=>e.type==='cardio').length} cardios, ${thisWeek.filter(e=>e.type==='sleep').length} noites`
       const recentWorkouts = calendar.filter(e=>e.type==='workout'||e.type==='cardio').slice(0,5).map(e=>`${e.date}: ${e.type}${e.note?` (${e.note})`:''}`).join(' | ') || null
 
-      // Músculos já treinados essa semana (via treinos IA no localStorage)
+      // ── Inversão de controle: analisar recuperação muscular em código ─────────
       const aiWorkouts = (() => { try { return JSON.parse(localStorage.getItem('healthos_ai_workouts') || '[]') } catch { return [] } })()
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
-      const weekMuscles = aiWorkouts
-        .filter(w => w.date >= sevenDaysAgo)
-        .map(w => `${w.date}: ${w.nome} (${w.foco || w.exercicios?.map(e=>e.nome).join(', ')})`)
-        .join(' | ') || null
+      const recentAI = aiWorkouts.filter(w => w.date >= sevenDaysAgo)
 
-      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, weekMuscles })
+      // Mapa de músculo → horas desde o último treino
+      const MUSCLE_GROUPS = {
+        peito:     ['peito', 'peitoral', 'chest', 'push', 'supino', 'crucifixo'],
+        costas:    ['costas', 'back', 'pull', 'remada', 'barra', 'serrátil'],
+        pernas:    ['perna', 'leg', 'quadríceps', 'quad', 'femoral', 'agachamento', 'leg press', 'cadeira'],
+        ombros:    ['ombro', 'shoulder', 'deltóide', 'elevação', 'desenvolvimento'],
+        biceps:    ['bíceps', 'bicep', 'rosca'],
+        triceps:   ['tríceps', 'tricep', 'pulley', 'extensão'],
+        gluteos:   ['glúteo', 'glute', 'hip thrust'],
+        panturrilha: ['panturrilha', 'calf', 'gêmeo'],
+      }
+
+      const muscleLastTrained = {} // { musculo: hoursAgo }
+      recentAI.forEach(w => {
+        const focoStr = (w.foco || w.nome || '').toLowerCase()
+        const hoursAgo = (Date.now() - new Date(w.date + 'T12:00:00').getTime()) / 3600000
+        Object.entries(MUSCLE_GROUPS).forEach(([group, keywords]) => {
+          if (keywords.some(k => focoStr.includes(k))) {
+            if (!muscleLastTrained[group] || hoursAgo < muscleLastTrained[group]) {
+              muscleLastTrained[group] = Math.round(hoursAgo)
+            }
+          }
+        })
+      })
+
+      // Classifica recuperação: <48h = crítico, 48-72h = parcial, >72h = pronto
+      const ALL_GROUPS = Object.keys(MUSCLE_GROUPS)
+      const recoveryLines = ALL_GROUPS.map(g => {
+        const h = muscleLastTrained[g]
+        if (!h) return `${g}: não treinado esta semana (PRONTO)`
+        if (h < 48)  return `${g}: treinado há ${h}h (RECUPERANDO — não treinar)`
+        if (h < 72)  return `${g}: treinado há ${h}h (RECUPERAÇÃO PARCIAL — ok se necessário)`
+        return `${g}: treinado há ${h}h (PRONTO para novo estímulo)`
+      })
+
+      const readyGroups  = ALL_GROUPS.filter(g => !muscleLastTrained[g] || muscleLastTrained[g] >= 72)
+      const recoverGroups = ALL_GROUPS.filter(g => muscleLastTrained[g] && muscleLastTrained[g] < 48)
+
+      const muscleRecoveryReport = recentAI.length === 0
+        ? null
+        : `ANÁLISE DE RECUPERAÇÃO MUSCULAR (calculada pelo sistema):\n${recoveryLines.join('\n')}\n\nGRUPOS PRONTOS: ${readyGroups.join(', ') || 'nenhum'}\nGRUPOS EM RECUPERAÇÃO: ${recoverGroups.join(', ') || 'nenhum'}\nAÇÃO RECOMENDADA: priorize os grupos PRONTOS no treino de hoje.`
+
+      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport })
     } catch(e) { console.error(e) }
     setCtxLoaded(true)
   }
@@ -423,9 +462,9 @@ function routeContext(message, p) {
   const tdee = Math.round(bmr*(p.activity||1.55))
   if (isW) return [base,
     `- Peso: ${p.weight||'—'}kg | Altura: ${p.height||'—'}cm`,
-    p.weeklyStats    ? `- Esta semana: ${p.weeklyStats}` : '',
-    p.recentWorkouts ? `- Treinos recentes: ${p.recentWorkouts}` : '',
-    p.weekMuscles    ? `- Treinos IA esta semana: ${p.weekMuscles}` : '',
+    p.weeklyStats          ? `- Esta semana: ${p.weeklyStats}` : '',
+    p.recentWorkouts       ? `- Treinos recentes: ${p.recentWorkouts}` : '',
+    p.muscleRecoveryReport ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
   ].filter(Boolean).join('\n')
   if (isD) return [base,
     `- Peso: ${p.weight||'—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
@@ -436,7 +475,7 @@ function routeContext(message, p) {
     p.avgSleep       ? `- Sono médio (7d): ${p.avgSleep}h` : '',
     p.lastBio        ? `- Bioimpedância: gordura ${p.lastBio.gordura||'?'}%, músculo ${p.lastBio.musculo||'?'}%, visceral ${p.lastBio.visceral||'?'}, água ${p.lastBio.agua||'?'}%` : '',
     p.weeklyStats    ? `- Esta semana: ${p.weeklyStats}` : '',
-    p.weekMuscles    ? `- Treinos IA esta semana: ${p.weekMuscles}` : '',
+    p.muscleRecoveryReport ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
   ].filter(Boolean).join('\n')
   return base
 }
@@ -492,13 +531,14 @@ ${ctx}
 ${SCIENCE_BASE}
 
 ${isW ? `MODO TREINO PRO:
-Você tem acesso ao histórico acima. NÃO faça as 3 perguntas básicas — o usuário espera que você já saiba.
-Fluxo:
-1. Analise os treinos recentes e identifique quais grupos musculares já foram trabalhados e há quantos dias.
-2. Sugira proativamente o treino de hoje com base no descanso ideal de cada grupo muscular.
-3. Justifique a escolha em 1-2 frases ("Seus últimos treinos foram X, então hoje o foco ideal é Y porque Z descansou N dias").
-4. Se precisar de uma preferência específica (ex: equipamento disponível), faça MÁXIMO 1 pergunta direta.
-5. Com informação suficiente, monte o treino completo com JSON.` : ''}
+Os dados de recuperação muscular foram PRÉ-CALCULADOS pelo sistema (não os calcule você mesmo).
+NÃO faça as 3 perguntas básicas — o usuário PRO espera que você já saiba.
+Fluxo obrigatório:
+1. Leia o bloco [DADOS DO SISTEMA] no contexto acima — ele já diz exatamente quais músculos estão PRONTOS e quais estão RECUPERANDO.
+2. Escolha imediatamente o foco do treino de hoje priorizando os grupos com status PRONTO.
+3. Justifique em 1-2 frases com os dados reais: ex: "Seu peito foi treinado há 30h e ainda está recuperando. Costas e bíceps estão prontos — vamos fazer um Pull hoje."
+4. Se não houver [DADOS DO SISTEMA] (usuário nunca gerou treino pela IA), faça APENAS esta pergunta: "Qual grupo muscular você quer focar hoje?"
+5. Monte o treino completo com JSON.` : ''}
 
 ${JSON_RULE}
 
