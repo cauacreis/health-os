@@ -198,53 +198,102 @@ export default function Chat({ user, userId }) {
         : `ANÁLISE DE RECUPERAÇÃO MUSCULAR (calculada pelo sistema):\n${recoveryLines.join('\n')}\n\nGRUPOS PRONTOS: ${readyGroups.join(', ') || 'nenhum'}\nGRUPOS EM RECUPERAÇÃO: ${recoverGroups.join(', ') || 'nenhum'}\nAÇÃO RECOMENDADA: priorize os grupos PRONTOS no treino de hoje.`
 
       // ── Sobrecarga Progressiva: buscar último desempenho real dos grupos PRONTOS ──
+      // ── Sobrecarga progressiva + detecção de platô + auto-regulação por fadiga ─
       let progressiveOverloadReport = null
+      let plateauReport             = null
+      let autoRegulationReport      = null
       try {
-        const thirtyDaysAgo = new Date(Date.now() - 30 * 86400000).toISOString().split('T')[0]
+        const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0]
         const { data: logs } = await supabase
           .from('workout_logs')
-          .select('date, day_name, exercises')
+          .select('date, exercises')
           .eq('user_id', userId)
-          .gte('date', thirtyDaysAgo)
+          .gte('date', sixtyDaysAgo)
           .order('date', { ascending: false })
-          .limit(30)
+          .limit(60)
 
         if (logs?.length) {
-          // Mapa: exerciseName -> { date, sets, reps, weight } (mais recente)
-          const exerciseHistory = {}
+          // Mapa: exerciseKey -> [ { date, sets, reps, weight }, ... ] (todas as ocorrências, desc)
+          const exerciseAllHistory = {}
           logs.forEach(log => {
             ;(log.exercises || []).forEach(ex => {
-              if (!ex.name) return
+              if (!ex.name || !ex.weight) return
               const key = ex.name.toLowerCase().trim()
-              if (!exerciseHistory[key]) {
-                exerciseHistory[key] = { name: ex.name, date: log.date, sets: ex.sets, reps: ex.reps, weight: ex.weight }
-              }
+              if (!exerciseAllHistory[key]) exerciseAllHistory[key] = []
+              exerciseAllHistory[key].push({ name: ex.name, date: log.date, sets: Number(ex.sets)||0, reps: String(ex.reps||''), weight: parseFloat(ex.weight)||0 })
             })
           })
 
-          const relevantLines = []
-          Object.values(exerciseHistory).forEach(ex => {
-            if (!ex.weight) return
+          const progressLines = []
+          const plateauLines  = []
+
+          Object.values(exerciseAllHistory).forEach(history => {
+            const ex      = history[0] // mais recente
             const exLower = ex.name.toLowerCase()
             const belongsToReady = readyGroups.some(g => MUSCLE_GROUPS[g]?.some(k => exLower.includes(k)))
-            if (!belongsToReady) return
-            const w = parseFloat(ex.weight)
-            const suggestion = !isNaN(w) && w > 0
-              ? `tente ${(w + 2.5).toFixed(1)}kg OU ${ex.reps}+2 reps com ${w}kg`
-              : 'registre o peso para habilitar sobrecarga progressiva'
-            relevantLines.push(`${ex.name}: último (${ex.date}) -> ${ex.sets}x${ex.reps} com ${ex.weight}kg | SUGESTÃO: ${suggestion}`)
+            if (!belongsToReady || !ex.weight) return
+
+            // ── Detecção de platô: 3+ sessões com mesma carga e mesmas reps ──
+            if (history.length >= 3) {
+              const last3     = history.slice(0, 3)
+              const sameWeight = last3.every(h => h.weight === last3[0].weight)
+              const sameReps   = last3.every(h => h.reps   === last3[0].reps)
+              if (sameWeight && sameReps) {
+                const PLATEAU_TECHNIQUES = [
+                  'Rest-Pause na última série (pausa 15s, mais 3-5 reps)',
+                  'Drop Set: após falha, reduza 20% da carga e continue',
+                  'Série Descendente: 4 cargas diferentes no mesmo exercício',
+                  'Troque temporariamente por um exercício similar com ângulo diferente',
+                  'Aumente o TUT (tempo sob tensão): 3s excêntrico, 1s isométrico',
+                ]
+                const technique = PLATEAU_TECHNIQUES[Math.floor(Math.random() * PLATEAU_TECHNIQUES.length)]
+                plateauLines.push(
+                  `[ALERTA DE PLATÔ] ${ex.name}: estagnado em ${ex.weight}kg x ${ex.reps} por ${last3.length} sessões (${last3[last3.length-1].date} a ${last3[0].date}). ` +
+                  `NÃO sugira aumento de carga. AÇÃO: ${technique}.`
+                )
+                return // não entra em progressLines
+              }
+            }
+
+            // ── Progressão normal ──
+            const suggestion = ex.weight > 0
+              ? `tente ${(ex.weight + 2.5).toFixed(1)}kg OU ${ex.reps}+2 reps com ${ex.weight}kg`
+              : 'registre o peso para ativar sobrecarga progressiva'
+            progressLines.push(
+              `${ex.name}: último (${ex.date}) -> ${ex.sets}x${ex.reps} com ${ex.weight}kg | SUGESTÃO: ${suggestion}`
+            )
           })
 
-          if (relevantLines.length > 0) {
+          if (progressLines.length > 0) {
             progressiveOverloadReport =
               `HISTÓRICO DE CARGA — GRUPOS PRONTOS (calculado pelo sistema):\n` +
-              relevantLines.slice(0, 8).join('\n') +
-              `\n\nINSTRUÇÃO OBRIGATÓRIA: Use esses dados para indicar a carga exata. NÃO diga "escolha um peso adequado" — dê o número preciso baseado no histórico.`
+              progressLines.slice(0, 8).join('\n') +
+              `\n\nINSTRUÇÃO: Cite a carga exata em cada exercício. NÃO diga "escolha um peso" — dê o número.`
+          }
+          if (plateauLines.length > 0) {
+            plateauReport = plateauLines.join('\n')
           }
         }
-      } catch(e) { console.warn('progressiveOverload:', e) }
 
-      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport })
+        // ── Auto-regulação por fadiga (sono + bioimpedância) ──
+        const sleepAvg = avgSleep ? parseFloat(avgSleep) : null
+        const isSleepAlert  = sleepAvg !== null && sleepAvg < 6.5
+        const isViscAlert   = lastBio?.visceral && Number(lastBio.visceral) >= 10
+
+        if (isSleepAlert || isViscAlert) {
+          const reasons = []
+          if (isSleepAlert) reasons.push(`sono médio de ${sleepAvg}h (abaixo de 6.5h — SNC comprometido)`)
+          if (isViscAlert)  reasons.push(`gordura visceral elevada (${lastBio.visceral}) — indicador de estresse sistêmico`)
+          autoRegulationReport =
+            `[AUTO-REGULAÇÃO] Sinais de fadiga detectados: ${reasons.join('; ')}. ` +
+            `AÇÃO OBRIGATÓRIA: (1) NÃO aumente cargas hoje. ` +
+            `(2) Mantenha os pesos do último treino. ` +
+            `(3) Exija RIR 3 em todos os exercícios (3 reps de reserva) para poupar o SNC. ` +
+            `(4) Mencione brevemente ao usuário que o corpo está em modo de recuperação e que manter a carga hoje é a decisão inteligente.`
+        }
+      } catch(e) { console.warn('progressiveOverload/plateau:', e) }
+
+      setProfile({ name:user?.name, age:user?.age, sex:user?.sex, weight:user?.weight, height:user?.height, goal:user?.goal, activity:user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport })
     } catch(e) { console.error(e) }
     setCtxLoaded(true)
   }
@@ -513,6 +562,8 @@ function routeContext(message, p) {
     p.recentWorkouts       ? `- Treinos recentes: ${p.recentWorkouts}` : '',
     p.muscleRecoveryReport     ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
     p.progressiveOverloadReport ? `\n[SOBRECARGA PROGRESSIVA]\n${p.progressiveOverloadReport}` : '',
+    p.plateauReport             ? `\n${p.plateauReport}` : '',
+    p.autoRegulationReport      ? `\n${p.autoRegulationReport}` : '',
   ].filter(Boolean).join('\n')
   if (isD) return [base,
     `- Peso: ${p.weight||'—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
@@ -584,10 +635,12 @@ NÃO faça as 3 perguntas básicas — o usuário PRO espera que você já saiba
 Fluxo obrigatório:
 1. Leia [DADOS DO SISTEMA]: quais músculos estão PRONTOS vs RECUPERANDO.
 2. Escolha o foco do treino de hoje pelos grupos PRONTOS. Justifique em 1 frase com os dados reais.
-3. Leia [SOBRECARGA PROGRESSIVA]: se houver histórico de carga para os exercícios de hoje, use os números exatos. Para cada exercício com histórico, indique explicitamente: "Da última vez você fez X séries de Y reps com Zkg — hoje tente Wkg ou Y+2 reps."
-4. Se não houver [DADOS DO SISTEMA]: pergunte apenas "Qual grupo muscular você quer focar hoje?"
-5. Se não houver [SOBRECARGA PROGRESSIVA]: sugira cargas baseadas no peso corporal (${p.weight||'—'}kg) e nível intermediário.
-6. Monte o treino completo com JSON, incluindo a carga sugerida em cada exercício dentro do campo "dica".` : ''}
+3. Leia [SOBRECARGA PROGRESSIVA]: para cada exercício com histórico, diga: "Da última vez você fez Xx de Yreps com Zkg — hoje tente Wkg." Dê o número exato.
+4. Leia [ALERTA DE PLATÔ]: se um exercício estiver nessa lista, NÃO sugira aumento. Aplique a técnica avançada indicada e explique ao usuário o porquê em 1 frase.
+5. Leia [AUTO-REGULAÇÃO]: se presente, congele todas as cargas no nível anterior, force RIR 3 em todos os exercícios e explique brevemente que hoje é dia de treino inteligente, não de bater recorde.
+6. Se não houver [DADOS DO SISTEMA]: pergunte apenas "Qual grupo muscular você quer focar hoje?"
+7. Se não houver [SOBRECARGA PROGRESSIVA]: sugira cargas baseadas no peso corporal (${p.weight||'—'}kg) e perfil intermediário.
+8. Monte o treino completo com JSON. No campo "dica" de cada exercício, inclua a carga sugerida com base nos dados acima.` : ''}
 
 ${JSON_RULE}
 
