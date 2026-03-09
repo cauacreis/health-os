@@ -40,6 +40,14 @@ function parseWorkout(content) {
 function stripWorkoutJson(content) {
   return content.replace(/\[TREINO_JSON\][\s\S]*?\[\/TREINO_JSON\]/g, '').trim()
 }
+function parseDiet(content) {
+  const match = content.match(/\[DIETA_JSON\]([\s\S]*?)\[\/DIETA_JSON\]/)
+  if (!match) return null
+  try { return JSON.parse(match[1].trim()) } catch { return null }
+}
+function stripDietJson(content) {
+  return content.replace(/\[DIETA_JSON\][\s\S]*?\[\/DIETA_JSON\]/g, '').trim()
+}
 
 async function saveWorkoutToLog(userId, workout) {
   const exercises = (workout.exercicios || []).map(ex => ({
@@ -66,14 +74,109 @@ async function saveWorkoutToLog(userId, workout) {
   if (error) throw error
 }
 
+// ── DietSaveCard ─────────────────────────────────────────────────────────────
+function DietSaveCard({ diet, userId }) {
+  const [saving, setSaving] = useState(false)
+  const [saved,  setSaved]  = useState(false)
+  const [error,  setError]  = useState(null)
+  const G = '#22c55e'
+
+  async function handleSave() {
+    setSaving(true)
+    setError(null)
+    try {
+      const { supabase } = await import('../lib/supabase')
+      const { today }    = await import('../lib/db')
+
+      // Salva cada refeição como um meal_plan separado
+      const refeicoes = diet.refeicoes || []
+      for (const ref of refeicoes) {
+        const plan = {
+          name:        ref.nome,
+          meal_type:   ref.tipo || ref.nome,
+          time:        ref.horario || '',
+          description: ref.descricao || (ref.alimentos || []).join(', '),
+          calories:    String(ref.calorias || ''),
+          protein:     String(ref.proteina || ''),
+          carbs:       String(ref.carboidrato || ''),
+          fat:         String(ref.gordura || ''),
+          frequency:   'Todos os dias',
+          active:      true,
+          source:      'ia',
+        }
+        const { error } = await supabase.from('meal_plans').insert({ ...plan, user_id: userId, id: `ia_${Date.now()}_${Math.random().toString(36).slice(2,6)}` })
+        if (error) throw error
+      }
+
+      // Dispara evento para Calories.jsx recarregar os planos
+      window.dispatchEvent(new CustomEvent('diet-plan-saved'))
+      setSaved(true)
+    } catch(e) {
+      setError('Erro ao salvar. Tente novamente.')
+      console.error(e)
+    }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ maxWidth:'88%', marginTop:8, background:'rgba(34,197,94,0.03)', border:'1px solid rgba(34,197,94,0.12)', borderRadius:10, padding:'14px 16px', alignSelf:'flex-start' }}>
+      <div style={{ color:G, fontSize:9, letterSpacing:2, marginBottom:10, fontWeight:700 }}>🥗 PLANO ALIMENTAR GERADO</div>
+
+      {/* Resumo macro */}
+      {(diet.calorias_totais || diet.proteina_total) && (
+        <div style={{ display:'flex', gap:16, marginBottom:12, flexWrap:'wrap' }}>
+          {diet.calorias_totais && <div style={{ textAlign:'center' }}><div style={{ color:'#22c55e', fontSize:16, fontWeight:700 }}>{diet.calorias_totais}</div><div style={{ color:'#444', fontSize:9, letterSpacing:1 }}>KCAL</div></div>}
+          {diet.proteina_total  && <div style={{ textAlign:'center' }}><div style={{ color:'#60a5fa', fontSize:16, fontWeight:700 }}>{diet.proteina_total}g</div><div style={{ color:'#444', fontSize:9, letterSpacing:1 }}>PROTEÍNA</div></div>}
+          {diet.carboidrato_total && <div style={{ textAlign:'center' }}><div style={{ color:'#f59e0b', fontSize:16, fontWeight:700 }}>{diet.carboidrato_total}g</div><div style={{ color:'#444', fontSize:9, letterSpacing:1 }}>CARBS</div></div>}
+          {diet.gordura_total   && <div style={{ textAlign:'center' }}><div style={{ color:'#fb923c', fontSize:16, fontWeight:700 }}>{diet.gordura_total}g</div><div style={{ color:'#444', fontSize:9, letterSpacing:1 }}>GORDURA</div></div>}
+        </div>
+      )}
+
+      {/* Refeições */}
+      {(diet.refeicoes || []).map((ref, i) => (
+        <div key={i} style={{ marginBottom:10, paddingBottom:10, borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+          <div style={{ display:'flex', justifyContent:'space-between', alignItems:'flex-start' }}>
+            <div>
+              <div style={{ color:'#d0d0d0', fontSize:12, fontWeight:700 }}>{ref.nome}</div>
+              {ref.horario && <div style={{ color:'#22c55e', fontSize:10 }}>{ref.horario}</div>}
+            </div>
+            {ref.calorias && <div style={{ color:'#22c55e', fontSize:11, fontWeight:700 }}>{ref.calorias} kcal</div>}
+          </div>
+          {ref.descricao && <div style={{ color:'#555', fontSize:11, marginTop:3 }}>{ref.descricao}</div>}
+          {ref.alimentos && ref.alimentos.length > 0 && (
+            <div style={{ color:'#444', fontSize:10, marginTop:4 }}>{ref.alimentos.join(' · ')}</div>
+          )}
+          {(ref.proteina || ref.carboidrato || ref.gordura) && (
+            <div style={{ display:'flex', gap:10, marginTop:4 }}>
+              {ref.proteina    && <span style={{ color:'#60a5fa', fontSize:10 }}>P: {ref.proteina}g</span>}
+              {ref.carboidrato && <span style={{ color:'#f59e0b', fontSize:10 }}>C: {ref.carboidrato}g</span>}
+              {ref.gordura     && <span style={{ color:'#fb923c', fontSize:10 }}>G: {ref.gordura}g</span>}
+            </div>
+          )}
+        </div>
+      ))}
+
+      {diet.observacoes && <div style={{ color:'#444', fontSize:11, marginBottom:10, fontStyle:'italic' }}>📝 {diet.observacoes}</div>}
+      {error && <div style={{ color:'#ef4444', fontSize:11, marginBottom:8 }}>{error}</div>}
+
+      <button onClick={handleSave} disabled={saving || saved}
+        style={{ width:'100%', padding:'11px 0', borderRadius:6, border:`1px solid ${saved?G:'rgba(34,197,94,0.3)'}`, background:saved?'rgba(34,197,94,0.07)':'rgba(34,197,94,0.05)', color:saved?G:'#22c55e', fontFamily:"'Space Mono',monospace", fontSize:10, letterSpacing:2, cursor:saved?'default':'pointer', transition:'all 0.3s' }}>
+        {saving ? 'SALVANDO...' : saved ? '✓ SALVO EM CALORIAS!' : '💾 SALVAR NA ABA CALORIAS'}
+      </button>
+    </div>
+  )
+}
+
 const SUGGESTIONS_FREE = [
   '💪 Quero montar um treino de hoje',
+  '🥗 Quero uma dieta para meu objetivo',
   'Quanto tempo descansar entre séries?',
   'O que é déficit calórico?',
   'Quantas proteínas devo comer por dia?',
 ]
 const SUGGESTIONS_PRO = [
   '💪 Quero montar um treino de hoje',
+  '🥗 Monta uma dieta personalizada pra mim',
   'Como tá minha evolução recente?',
   'O que minha bioimpedância indica?',
   'Faz um checkin da minha semana',
@@ -420,7 +523,8 @@ export default function Chat({ user, userId }) {
         <div style={{ flex:1, overflowY:'auto', display:'flex', flexDirection:'column', gap:12, paddingBottom:8 }}>
           {messages.map((m, i) => {
             const workout        = m.role==='assistant' ? parseWorkout(m.content) : null
-            const displayContent = workout ? stripWorkoutJson(m.content) : m.content
+            const diet           = m.role==='assistant' ? parseDiet(m.content) : null
+            const displayContent = workout ? stripWorkoutJson(m.content) : diet ? stripDietJson(m.content) : m.content
             return (
               <div key={i} style={{ display:'flex', flexDirection:'column', alignItems:m.role==='user'?'flex-end':'flex-start' }}>
                 <div style={{ maxWidth:'88%', padding:'10px 14px', borderRadius:m.role==='user'?'12px 12px 2px 12px':'12px 12px 12px 2px', background:m.role==='user'?'rgba(220,38,38,0.1)':'rgba(255,255,255,0.02)', border:`1px solid ${m.role==='user'?'rgba(220,38,38,0.2)':'rgba(255,255,255,0.04)'}`, color:m.role==='user'?'#f0f0f0':'#d0d0d0', fontSize:13, lineHeight:1.75, whiteSpace:'pre-wrap', wordBreak:'break-word' }}>
@@ -428,6 +532,7 @@ export default function Chat({ user, userId }) {
                   {displayContent}
                 </div>
                 {workout && <WorkoutSaveCard workout={workout} userId={userId} />}
+                {diet    && <DietSaveCard diet={diet} userId={userId} />}
               </div>
             )
           })}
@@ -587,13 +692,34 @@ const SCIENCE_BASE = `FUNDAMENTOS CIENTÍFICOS DE HIPERTROFIA:
 5. EXERCÍCIOS — composto livre (base) + máquinas/cabos (isolamento estável).
 6. DESCANSO — compostos 2-4 min | isoladores 90s-2 min.`
 
-const JSON_RULE = `REGRA DO JSON:
+const JSON_RULE = `REGRA DO JSON — TREINOS:
 - Gere [TREINO_JSON] SOMENTE quando o treino estiver 100% definido.
 - Durante perguntas ou sugestão de divisão: responda APENAS em texto, sem JSON.
-- O bloco deve ser completo e válido do início ao fim:
+- O bloco deve ser completo e válido:
 [TREINO_JSON]
 {"nome":"Push A — Peito, Ombro, Tríceps","duracao":"55-70 min","foco":"Peito, Ombro, Tríceps","exercicios":[{"nome":"Supino Reto com Barra","series":4,"reps":"6-10","rir":"RIR 2","descanso":"2-3 min","dica":"Desça até alongamento total, cotovelos a 45°"},{"nome":"Crucifixo no Cabo","series":3,"reps":"12-15","rir":"RIR 1","descanso":"90s","dica":"Abertura máxima = maior ponto de crescimento"}],"observacoes":"Volume para 2x/semana. Progrida toda semana."}
-[/TREINO_JSON]`
+[/TREINO_JSON]
+
+REGRA DO JSON — DIETAS:
+- Gere [DIETA_JSON] ao montar um plano alimentar completo.
+- Só gere quando tiver objetivo, calorias alvo e pelo menos 3 refeições definidas.
+- O bloco deve ser completo e válido:
+[DIETA_JSON]
+{"objetivo":"Ganho de massa","calorias_totais":2800,"proteina_total":180,"carboidrato_total":320,"gordura_total":80,"refeicoes":[{"nome":"Café da Manhã","tipo":"Café da manhã","horario":"07:00","calorias":600,"proteina":35,"carboidrato":75,"gordura":15,"alimentos":["Ovos mexidos (3 ovos)","Pão integral (2 fatias)","Banana","Whey com leite"],"descricao":"Refeição anabólica para iniciar o dia com energia"},{"nome":"Almoço","tipo":"Almoço","horario":"12:00","calorias":900,"proteina":60,"carboidrato":100,"gordura":25,"alimentos":["Frango grelhado 200g","Arroz integral 1 xícara","Feijão 1 concha","Salada verde","Azeite 1 fio"],"descricao":"Maior refeição do dia, rica em proteína e carboidrato complexo"},{"nome":"Lanche Pré-treino","tipo":"Lanche","horario":"16:00","calorias":400,"proteina":25,"carboidrato":55,"gordura":8,"alimentos":["Batata-doce 150g","Peito de frango 100g"],"descricao":"Carboidrato de absorção lenta para energia no treino"},{"nome":"Jantar","tipo":"Jantar","horario":"20:00","calorias":700,"proteina":50,"carboidrato":70,"gordura":20,"alimentos":["Salmão 180g","Arroz integral","Brócolis refogado","Azeite"],"descricao":"Proteína de alta qualidade e gordura boa para recuperação noturna"}],"observacoes":"Adapte as porções conforme seu apetite. Hidrate-se com 35ml/kg de peso ao dia."}
+[/DIETA_JSON]`
+
+const DIET_PROTOCOL = `PROTOCOLO PARA DIETAS (FREE):
+Quando o usuário pedir uma dieta, cardápio ou plano alimentar:
+1. Faça estas perguntas em UMA única mensagem (só se não souber):
+   "Para montar sua dieta, preciso de 3 informações:
+   1️⃣ Objetivo: A) Emagrecer  B) Ganhar massa  C) Manter peso
+   2️⃣ Peso atual: ___kg
+   3️⃣ Restrições: alguma alergia, intolerância ou alimento que não come?"
+2. Com as respostas: TDEE estimado = peso × 33. Ajuste: emagrecer -300 kcal | ganhar massa +300 kcal.
+3. Monte 4-6 refeições com alimentos brasileiros acessíveis e horários práticos.
+4. Macros: ganho (P:30%, C:50%, G:20%) | emagrecer (P:35%, C:40%, G:25%) | manter (P:25%, C:50%, G:25%).
+5. Só gere [DIETA_JSON] após ter objetivo + peso confirmados — nunca antes.
+6. Mencione que o PRO calcula TDEE exato com dados reais (bioimpedância, sono, nível de atividade).`
 
 function buildFreePrompt() {
   return `Você é o Health Assistant do Health OS, app brasileiro de saúde e fitness.
@@ -613,12 +739,16 @@ Só gere o treino após ter as 3 respostas confirmadas.
 
 ${JSON_RULE}
 
-Quando relevante, mencione que o PRO oferece análise personalizada baseada nos dados reais do usuário.`
+Quando relevante, mencione que o PRO oferece análise personalizada baseada nos dados reais do usuário.
+
+${DIET_PROTOCOL}`
 }
 
 function buildProPrompt(p, lastMessage) {
   const ctx = routeContext(lastMessage || '', p)
-  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|perna/.test((lastMessage||'').toLowerCase())
+  const m   = (lastMessage||'').toLowerCase()
+  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|perna/.test(m)
+  const isD = /dieta|cardapio|card.pio|plano alimentar|refeicao|refei..o|comer|caloria|nutri|emagrec|cut|bulk/.test(m)
 
   return `Você é o Health Assistant PRO do Health OS — personal trainer e nutricionista virtual de ${p.name||'seu atleta'}.
 Responda SEMPRE em português brasileiro. Direto, prático e personalizado.
@@ -643,6 +773,19 @@ Fluxo obrigatório:
 8. Monte o treino completo com JSON. No campo "dica" de cada exercício, inclua a carga sugerida com base nos dados acima.` : ''}
 
 ${JSON_RULE}
+
+${isD ? `MODO DIETA PRO ATIVO:` : `${DIET_PROTOCOL}`}
+${isD ? `Quando detectar pedido de dieta/cardápio/plano alimentar:
+1. NUNCA peça peso ou objetivo — eles estão no contexto. Use-os diretamente.
+2. Calcule o alvo calórico usando o TDEE do contexto:
+   - objetivo=perder peso: TDEE - 300 kcal
+   - objetivo=ganhar massa: TDEE + 300 kcal
+   - objetivo=manter: TDEE
+3. Se houver bioimpedância: cite o % de gordura e explique como a dieta vai impactar a composição corporal.
+4. Se sono médio < 6.5h: inclua carboidratos na janta (batata-doce, arroz) para reduzir cortisol e melhorar recuperação.
+5. Pergunte APENAS sobre restrições alimentares (alergia, intolerância) — máximo 1 pergunta direta.
+6. Monte 5-6 refeições com horários práticos e alimentos brasileiros acessíveis.
+7. Gere o [DIETA_JSON] completo na mesma resposta, sem esperar confirmação.` : ''}
 
 Não invente dados ausentes. Use apenas o contexto injetado acima.`
 }
