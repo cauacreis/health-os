@@ -94,7 +94,10 @@ function DietSaveCard({ diet, userId }) {
           name:        ref.nome        || 'Refeicao',
           meal_type:   ref.tipo        || ref.nome || 'Refeicao',
           time:        ref.horario     || '',
-          description: ref.descricao   || (ref.alimentos || []).join(', '),
+          description: [
+            ref.descricao || '',
+            (ref.alimentos || []).length > 0 ? (ref.alimentos).join(' · ') : '',
+          ].filter(Boolean).join(' — '),
           calories:    String(ref.calorias    || ''),
           protein:     String(ref.proteina    || ''),
           carbs:       String(ref.carboidrato || ''),
