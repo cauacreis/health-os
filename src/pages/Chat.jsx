@@ -86,34 +86,33 @@ function DietSaveCard({ diet, userId }) {
     setError(null)
     try {
       const { supabase } = await import('../lib/supabase')
-      const { today }    = await import('../lib/db')
 
-      // Salva cada refeição como um meal_plan separado
       const refeicoes = diet.refeicoes || []
       for (const ref of refeicoes) {
-        const plan = {
-          name:        ref.nome,
-          meal_type:   ref.tipo || ref.nome,
-          time:        ref.horario || '',
-          description: ref.descricao || (ref.alimentos || []).join(', '),
-          calories:    String(ref.calorias || ''),
-          protein:     String(ref.proteina || ''),
+        const { error } = await supabase.from('meal_plans').insert({
+          user_id:     userId,
+          name:        ref.nome        || 'Refeicao',
+          meal_type:   ref.tipo        || ref.nome || 'Refeicao',
+          time:        ref.horario     || '',
+          description: ref.descricao   || (ref.alimentos || []).join(', '),
+          calories:    String(ref.calorias    || ''),
+          protein:     String(ref.proteina    || ''),
           carbs:       String(ref.carboidrato || ''),
-          fat:         String(ref.gordura || ''),
+          fat:         String(ref.gordura     || ''),
           frequency:   'Todos os dias',
           active:      true,
-          source:      'ia',
+        })
+        if (error) {
+          console.error('meal_plan insert error:', JSON.stringify(error))
+          throw error
         }
-        const { error } = await supabase.from('meal_plans').insert({ ...plan, user_id: userId, id: `ia_${Date.now()}_${Math.random().toString(36).slice(2,6)}` })
-        if (error) throw error
       }
 
-      // Dispara evento para Calories.jsx recarregar os planos
       window.dispatchEvent(new CustomEvent('diet-plan-saved'))
       setSaved(true)
     } catch(e) {
-      setError('Erro ao salvar. Tente novamente.')
-      console.error(e)
+      setError('Erro: ' + (e?.message || JSON.stringify(e)))
+      console.error('DietSave catch:', e)
     }
     setSaving(false)
   }
