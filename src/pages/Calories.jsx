@@ -136,12 +136,6 @@ export default function Calories({ user, userId, onUpdate }) {
   }
 
   const totalKcal = foodLog.reduce((s,e) => s+e.calories, 0)
-  const byMeal = MEALS.map(m => ({
-    ...m,
-    entries: foodLog.filter(e=>e.meal===m.id),
-    total:   foodLog.filter(e=>e.meal===m.id).reduce((s,e)=>s+e.calories,0),
-  }))
-  const mealsWithFood = byMeal.filter(m=>m.entries.length>0).length
 
   const todayPlans = plans.filter(p => {
     if (!p.active) return false
@@ -151,11 +145,51 @@ export default function Calories({ user, userId, onUpdate }) {
   })
   const doneCount  = todayPlans.filter(p => checkedMap[p.id]).length
   const totalCount = todayPlans.length
+  const donePlans  = todayPlans.filter(p => checkedMap[p.id])
 
-  // Planos marcados somam ao consumido
-  const planKcalDone  = todayPlans.filter(p => checkedMap[p.id]).reduce((s,p) => s + (parseInt(p.calories)||0), 0)
+  // Planos marcados injetados nos cards de refeição pelo meal_type
+  const MEAL_TYPE_MAP = {
+    'café da manhã': 'breakfast', 'cafe da manha': 'breakfast',
+    'almoço': 'lunch', 'almoco': 'lunch',
+    'jantar': 'dinner',
+    'lanche': 'snack', 'lanche da manhã': 'snack', 'lanche pré-treino': 'snack',
+    'pós-treino': 'snack', 'ceia': 'snack',
+  }
+  const byMeal = MEALS.map(m => {
+    const manualEntries = foodLog.filter(e=>e.meal===m.id)
+    // planos marcados que correspondem a este slot de refeição
+    const planEntries = donePlans
+      .filter(p => {
+        const mt = (p.meal_type||'').toLowerCase().trim()
+        return MEAL_TYPE_MAP[mt] === m.id || mt === m.label?.toLowerCase()
+      })
+      .map(p => ({
+        id:       `plan_${p.id}`,
+        name:     p.name,
+        note:     p.description || '',
+        calories: parseInt(p.calories)||0,
+        protein:  parseInt(p.protein)||0,
+        carbs:    parseInt(p.carbs)||0,
+        fat:      parseInt(p.fat)||0,
+        fromPlan: true,
+      }))
+    const allEntries = [...manualEntries, ...planEntries]
+    return {
+      ...m,
+      entries: allEntries,
+      total:   allEntries.reduce((s,e)=>s+(e.calories||0), 0),
+    }
+  })
+  const mealsWithFood = byMeal.filter(m=>m.entries.length>0).length
+
+  // Macros totais do dia (food log + planos marcados)
+  const planKcalDone  = donePlans.reduce((s,p) => s + (parseInt(p.calories)||0), 0)
   const totalKcalReal = totalKcal + planKcalDone
-  const mealsCompleted = mealsWithFood + doneCount
+  const mealsCompleted = mealsWithFood
+
+  const totalProtein = foodLog.reduce((s,e)=>s+(e.protein||0),0)  + donePlans.reduce((s,p)=>s+(parseInt(p.protein)||0),0)
+  const totalCarbs   = foodLog.reduce((s,e)=>s+(e.carbs||0),0)    + donePlans.reduce((s,p)=>s+(parseInt(p.carbs)||0),0)
+  const totalFat     = foodLog.reduce((s,e)=>s+(e.fat||0),0)      + donePlans.reduce((s,p)=>s+(parseInt(p.fat)||0),0)
 
   const pct = tdee ? Math.min((totalKcalReal/tdee)*100, 110) : 0
   const pctColor = pct < 80 ? S : pct < 100 ? R : pct < 110 ? R2 : '#ff6b6b'
@@ -222,6 +256,33 @@ export default function Calories({ user, userId, onUpdate }) {
             </div>
             {pct > 100 && <div style={{ color:R2, fontSize:10, marginTop:6 }}>⚠ Meta calórica excedida em {totalKcalReal-tdee} kcal</div>}
           </NeonCard>
+
+          {/* Macros totais do dia */}
+          {(totalProtein > 0 || totalCarbs > 0 || totalFat > 0) && (
+            <NeonCard color="#555" style={{ padding:'14px 20px', marginBottom:18 }}>
+              <div style={{ color:'#444', fontSize:9, letterSpacing:2, marginBottom:10 }}>MACRONUTRIENTES DO DIA</div>
+              <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:10 }}>
+                {[
+                  { l:'PROTEÍNA', v:totalProtein, c:'#818cf8', unit:'g', pct: totalProtein*4, bar:'#818cf8' },
+                  { l:'CARBOIDRATOS', v:totalCarbs, c:'#f59e0b', unit:'g', pct: totalCarbs*4, bar:'#f59e0b' },
+                  { l:'GORDURA', v:totalFat, c:'#fb923c', unit:'g', pct: totalFat*9, bar:'#fb923c' },
+                ].map(m => {
+                  const kcalFromMacro = m.pct
+                  const pctOfTotal = totalKcalReal > 0 ? Math.round((kcalFromMacro/totalKcalReal)*100) : 0
+                  return (
+                    <div key={m.l} style={{ textAlign:'center' }}>
+                      <div style={{ color:m.c, fontSize:20, fontWeight:700 }}>{m.v}<span style={{ fontSize:11, color:'#555' }}>g</span></div>
+                      <div style={{ color:'#444', fontSize:8, letterSpacing:1.5, marginTop:3 }}>{m.l}</div>
+                      <div style={{ height:3, background:'rgba(255,255,255,0.05)', borderRadius:2, marginTop:6 }}>
+                        <div style={{ width:`${Math.min(pctOfTotal,100)}%`, height:'100%', background:m.bar, borderRadius:2, transition:'width 0.6s' }} />
+                      </div>
+                      <div style={{ color:'#333', fontSize:9, marginTop:3 }}>{pctOfTotal}% das kcal</div>
+                    </div>
+                  )
+                })}
+              </div>
+            </NeonCard>
+          )}
 
           {/* Checklist de planos do dia */}
           {totalCount > 0 && (
@@ -298,15 +359,26 @@ export default function Calories({ user, userId, onUpdate }) {
                 {m.entries.length === 0
                   ? <div style={{ color:'#333', fontSize:10 }}>Nenhum alimento registrado</div>
                   : m.entries.map(e => (
-                    <div key={e.id} style={{ display:'flex', justifyContent:'space-between', alignItems:'center', padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
-                      <div>
-                        <div style={{ color:'#aaa', fontSize:12 }}>{e.name}</div>
-                        {e.note && <div style={{ color:'#444', fontSize:10 }}>{e.note}</div>}
+                    <div key={e.id} style={{ padding:'6px 0', borderBottom:'1px solid rgba(255,255,255,0.04)' }}>
+                      <div style={{ display:'flex', justifyContent:'space-between', alignItems:'center' }}>
+                        <div style={{ flex:1, minWidth:0 }}>
+                          <div style={{ color: e.fromPlan ? '#aaa' : '#aaa', fontSize:12 }}>
+                            {e.fromPlan ? '✓ ' : ''}{e.name}
+                          </div>
+                          {e.note && <div style={{ color:'#444', fontSize:10, marginTop:2 }}>{e.note}</div>}
+                        </div>
+                        <div style={{ display:'flex', gap:8, alignItems:'center', flexShrink:0 }}>
+                          <span style={{ color:m.color, fontSize:12, fontWeight:700 }}>{e.calories} kcal</span>
+                          {!e.fromPlan && <button onClick={() => handleDeleteFood(e.id)} style={{ background:'none', border:'none', color:'#444', cursor:'pointer', fontSize:12 }}>✕</button>}
+                        </div>
                       </div>
-                      <div style={{ display:'flex', gap:8, alignItems:'center' }}>
-                        <span style={{ color:m.color, fontSize:12, fontWeight:700 }}>{e.calories} kcal</span>
-                        <button onClick={() => handleDeleteFood(e.id)} style={{ background:'none', border:'none', color:'#444', cursor:'pointer', fontSize:12 }}>✕</button>
-                      </div>
+                      {e.fromPlan && (e.protein > 0 || e.carbs > 0 || e.fat > 0) && (
+                        <div style={{ display:'flex', gap:8, marginTop:4 }}>
+                          {e.protein > 0 && <span style={{ color:'#818cf8', fontSize:10 }}>P: {e.protein}g</span>}
+                          {e.carbs   > 0 && <span style={{ color:'#f59e0b', fontSize:10 }}>C: {e.carbs}g</span>}
+                          {e.fat     > 0 && <span style={{ color:'#fb923c', fontSize:10 }}>G: {e.fat}g</span>}
+                        </div>
+                      )}
                     </div>
                   ))
                 }
