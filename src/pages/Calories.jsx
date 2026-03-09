@@ -70,6 +70,13 @@ export default function Calories({ user, userId, onUpdate }) {
     if (!plansLoaded && uid) getMealPlans(uid).then(d => { setPlans(d); setPlansLoaded(true) })
   }, [plansLoaded, uid])
 
+  // Recarrega planos quando IA salvar uma dieta
+  useEffect(() => {
+    function onDietSaved() { if (uid) getMealPlans(uid).then(d => setPlans(d)) }
+    window.addEventListener('diet-plan-saved', onDietSaved)
+    return () => window.removeEventListener('diet-plan-saved', onDietSaved)
+  }, [uid])
+
   useEffect(() => {
     if (!logLoaded && plansLoaded && uid) {
       getMealLog(uid, todayStr).then(logs => {
@@ -142,7 +149,12 @@ export default function Calories({ user, userId, onUpdate }) {
   const doneCount  = todayPlans.filter(p => checkedMap[p.id]).length
   const totalCount = todayPlans.length
 
-  const pct = tdee ? Math.min((totalKcal/tdee)*100, 110) : 0
+  // Planos marcados somam ao consumido
+  const planKcalDone  = todayPlans.filter(p => checkedMap[p.id]).reduce((s,p) => s + (parseInt(p.calories)||0), 0)
+  const totalKcalReal = totalKcal + planKcalDone
+  const mealsCompleted = mealsWithFood + doneCount
+
+  const pct = tdee ? Math.min((totalKcalReal/tdee)*100, 110) : 0
   const pctColor = pct < 80 ? S : pct < 100 ? R : pct < 110 ? R2 : '#ff6b6b'
 
   const f = k => e => setFormPlan(v => ({...v, [k]: e.target.value}))
@@ -184,10 +196,10 @@ export default function Calories({ user, userId, onUpdate }) {
           {/* Summary cards */}
           <div style={{ display:'grid', gridTemplateColumns:'repeat(4,1fr)', gap:12, marginBottom:18 }}>
             {[
-              { l:'CONSUMIDO',  v:totalKcal,       c:pctColor,                    suf:'kcal' },
+              { l:'CONSUMIDO',  v:totalKcalReal,   c:pctColor,                    suf:'kcal' },
               { l:'META (TDEE)',v:tdee,             c:R,                           suf:'kcal' },
-              { l:'SALDO',      v:tdee-totalKcal,  c:tdee-totalKcal>=0?S:'#ff6b6b', suf:'kcal' },
-              { l:'REFEIÇÕES',  v:mealsWithFood,   c:R2,                          suf:`/ ${MEALS.length}` },
+              { l:'SALDO',      v:tdee-totalKcalReal, c:tdee-totalKcalReal>=0?S:'#ff6b6b', suf:'kcal' },
+              { l:'REFEIÇÕES',  v:mealsCompleted,  c:R2,                          suf:`/ ${Math.max(MEALS.length, totalCount)}` },
             ].map(s => (
               <NeonCard key={s.l} color={s.c} style={{ padding:'16px', textAlign:'center' }}>
                 <div style={{ color:s.c, fontSize:22, fontWeight:700 }}>{s.v>0&&s.l==='SALDO'?'+':''}{s.v.toLocaleString('pt-BR')}<span style={{ fontSize:10, color:'#555' }}> {s.suf}</span></div>
@@ -205,7 +217,7 @@ export default function Calories({ user, userId, onUpdate }) {
             <div style={{ height:8, background:'#111', borderRadius:4, overflow:'hidden' }}>
               <div style={{ width:`${Math.min(pct,100)}%`, height:8, background:`linear-gradient(90deg,${pctColor}70,${pctColor})`, boxShadow:`0 0 10px ${pctColor}50`, transition:'width 0.8s ease', borderRadius:4 }} />
             </div>
-            {pct > 100 && <div style={{ color:R2, fontSize:10, marginTop:6 }}>⚠ Meta calórica excedida em {totalKcal-tdee} kcal</div>}
+            {pct > 100 && <div style={{ color:R2, fontSize:10, marginTop:6 }}>⚠ Meta calórica excedida em {totalKcalReal-tdee} kcal</div>}
           </NeonCard>
 
           {/* Checklist de planos do dia */}
