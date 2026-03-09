@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { RadarChart, Radar, PolarGrid, PolarAngleAxis, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, Tooltip } from 'recharts'
 import { NeonCard, SectionTitle, ProgressBar } from '../components/UI'
-import { getBioLog, getSleepLog, getFoodLog, getStepsLog, getTodaySteps, getTodayWater, today } from '../lib/db'
+import { getBioLog, getSleepLog, getFoodLog, getStepsLog, getTodaySteps, getTodayWater, getMealPlans, getMealLog, today } from '../lib/db'
 import { FUN_FACTS } from '../data/funfacts'
 
 const RADAR_KEYS = [
@@ -22,22 +22,42 @@ function useIsMobile() {
 }
 
 export default function Dashboard({ user, userId }) {
-  const [factIdx, setFactIdx] = useState(0)
-  const [bioLog, setBioLog] = useState([])
-  const [sleepLog, setSleepLog] = useState([])
-  const [foodLog, setFoodLog] = useState([])
-  const [stepsLog, setStepsLog] = useState([])
+  const [factIdx,    setFactIdx]    = useState(0)
+  const [bioLog,     setBioLog]     = useState([])
+  const [sleepLog,   setSleepLog]   = useState([])
+  const [foodLog,    setFoodLog]    = useState([])
+  const [stepsLog,   setStepsLog]   = useState([])
   const [todaySteps, setTodaySteps] = useState(null)
   const [todayWater, setTodayWater] = useState(null)
+  const [mealPlans,  setMealPlans]  = useState([])
+  const [mealLog,    setMealLog]    = useState([])
   const isMobile = useIsMobile()
+  const todayStr = today()
 
   useEffect(() => {
     getBioLog(userId, 1).then(setBioLog).catch(()=>{})
     getSleepLog(userId, 7).then(setSleepLog).catch(()=>{})
-    getFoodLog(userId, today()).then(setFoodLog).catch(()=>{})
+    getFoodLog(userId, todayStr).then(setFoodLog).catch(()=>{})
     getStepsLog(userId, 7).then(setStepsLog).catch(()=>{})
     getTodaySteps(userId).then(setTodaySteps).catch(()=> setTodaySteps(0))
     getTodayWater(userId).then(setTodayWater).catch(()=> setTodayWater(0))
+    getMealPlans(userId).then(setMealPlans).catch(()=>{})
+    getMealLog(userId, todayStr).then(setMealLog).catch(()=>{})
+  }, [userId])
+
+  // Atualiza quando usuário marca refeição em Calories
+  useEffect(() => {
+    function onDietUpdate() {
+      getMealPlans(userId).then(setMealPlans).catch(()=>{})
+      getMealLog(userId, todayStr).then(setMealLog).catch(()=>{})
+      getFoodLog(userId, todayStr).then(setFoodLog).catch(()=>{})
+    }
+    window.addEventListener('diet-plan-saved', onDietUpdate)
+    window.addEventListener('meal-log-updated', onDietUpdate)
+    return () => {
+      window.removeEventListener('diet-plan-saved', onDietUpdate)
+      window.removeEventListener('meal-log-updated', onDietUpdate)
+    }
   }, [userId])
 
   const fitnessProfile = user.fitness_profile || { strength:50, cardio:50, flex:50, resistance:50, balance:50, speed:50 }
@@ -51,32 +71,46 @@ export default function Dashboard({ user, userId }) {
       const d = new Date()
       d.setDate(d.getDate() - i)
       const dStr = d.toISOString().split('T')[0]
-      const dayName = DAY_ABBREV[d.getDay()]
-      out.push({ day: dayName, steps: byDate[dStr] ?? 0, date: dStr })
+      out.push({ day: DAY_ABBREV[d.getDay()], steps: byDate[dStr] ?? 0 })
     }
     return out
   })()
 
-  const bmr = user.sex==='male' ? 88.36+13.4*user.weight+4.8*user.height-5.7*user.age : 447.6+9.2*user.weight+3.1*user.height-4.3*user.age
+  const bmr  = user.sex==='male' ? 88.36+13.4*user.weight+4.8*user.height-5.7*user.age : 447.6+9.2*user.weight+3.1*user.height-4.3*user.age
   const tdee = Math.round(bmr*(user.activity||1.55))
-  const bmi = (user.weight/Math.pow(user.height/100,2)).toFixed(1)
+  const bmi  = (user.weight/Math.pow(user.height/100,2)).toFixed(1)
   const bmiColor = bmi<18.5?'#94a3b8':bmi<25?'#dc2626':bmi<30?'#ef4444':'#ff6b6b'
-  const waterGoal = Math.round(user.weight*35)
+  const waterGoal     = Math.round(user.weight*35)
   const waterConsumed = todayWater !== null ? todayWater : (user.water_today||0)*250
-  const steps = todaySteps !== null ? todaySteps : (user.steps_today||0)
-  const latestBio = bioLog[0]
-  const latestSleep = sleepLog[0]
-  const todayFoodKcal = foodLog.reduce((s,e)=>s+e.calories,0)
-  const mealsToday = new Set(foodLog.map(e=>e.meal).filter(Boolean)).size
+  const steps         = todaySteps !== null ? todaySteps : (user.steps_today||0)
+  const latestSleep   = sleepLog[0]
+
+  // ── Calorias e refeições: food log + planos marcados ─────────────────────
+  const todayPlans = mealPlans.filter(p => {
+    if (!p.active) return false
+    if (p.frequency === 'Segunda a sexta') { const d=new Date().getDay(); return d>=1&&d<=5 }
+    if (p.frequency === 'Fins de semana')  { const d=new Date().getDay(); return d===0||d===6 }
+    return true
+  })
+  const checkedIds    = new Set((mealLog || []).map(l => l.meal_id))
+  const planKcalDone  = todayPlans.filter(p => checkedIds.has(p.id)).reduce((s,p) => s+(parseInt(p.calories)||0), 0)
+  const planMealsDone = todayPlans.filter(p => checkedIds.has(p.id)).length
+
+  const foodKcal      = foodLog.reduce((s,e)=>s+e.calories,0)
+  const foodMeals     = new Set(foodLog.map(e=>e.meal).filter(Boolean)).size
+  const totalKcal     = foodKcal + planKcalDone
+  const totalMeals    = foodMeals + planMealsDone
+  const totalPlans    = Math.max(6, todayPlans.length)
+
   const fact = FUN_FACTS[factIdx % FUN_FACTS.length]
 
   const stats = [
-    { label:'IMC', value:bmi, c:bmiColor },
-    { label:'TDEE', value:`${tdee.toLocaleString('pt-BR')} kcal`, c:'#94a3b8' },
-    { label:'Água', value:`${waterConsumed}ml`, c:'#94a3b8' },
-    { label:'Passos', value:steps.toLocaleString('pt-BR'), c:'#94a3b8' },
-    { label:'Kcal hoje', value:todayFoodKcal||'—', c:'#ef4444' },
-    { label:'Sono', value:`${latestSleep?.hours||'—'}h`, c:'#64748b' },
+    { label:'IMC',      value:bmi,                            c:bmiColor   },
+    { label:'TDEE',     value:`${tdee.toLocaleString('pt-BR')} kcal`, c:'#94a3b8' },
+    { label:'Água',     value:`${waterConsumed}ml`,           c:'#94a3b8'  },
+    { label:'Passos',   value:steps.toLocaleString('pt-BR'),  c:'#94a3b8'  },
+    { label:'Kcal hoje',value:totalKcal||'—',                 c:'#ef4444'  },
+    { label:'Sono',     value:`${latestSleep?.hours||'—'}h`,  c:'#64748b'  },
   ]
 
   return (
@@ -97,7 +131,7 @@ export default function Dashboard({ user, userId }) {
         </div>
       </div>
 
-      {/* Stats grid — 3 cols mobile, 3 cols desktop */}
+      {/* Stats grid */}
       <div style={{ display:'grid', gridTemplateColumns:'repeat(3,1fr)', gap:8, marginBottom:16 }}>
         {stats.map(s=>(
           <NeonCard key={s.label} color={s.c} style={{ padding:'12px 10px', textAlign:'center' }}>
@@ -107,7 +141,7 @@ export default function Dashboard({ user, userId }) {
         ))}
       </div>
 
-      {/* Charts — stack on mobile */}
+      {/* Charts */}
       <div style={{ display:'grid', gridTemplateColumns: isMobile?'1fr':'1fr 1fr', gap:12, marginBottom:12 }}>
         <NeonCard color="#dc2626" style={{ padding:16 }}>
           <SectionTitle color="#dc2626">PERFIL DE FITNESS</SectionTitle>
@@ -138,14 +172,14 @@ export default function Dashboard({ user, userId }) {
         </NeonCard>
       </div>
 
-      {/* Progress bars */}
+      {/* Metas diárias */}
       <NeonCard color="#94a3b8" style={{ padding:16 }}>
         <SectionTitle color="#94a3b8">METAS DIÁRIAS</SectionTitle>
-        <ProgressBar value={waterConsumed} max={waterGoal} color="#94a3b8" label={`Água (${waterGoal}ml)`} />
-        <ProgressBar value={steps} max={10000} color="#94a3b8" label="Passos (10.000)" />
-        <ProgressBar value={mealsToday} max={6} color="#ef4444" label="Refeições (6)" />
-        <ProgressBar value={todayFoodKcal} max={tdee} color="#dc2626" label="Kcal consumidas" />
-        <ProgressBar value={latestSleep?.hours||0} max={8} color="#94a3b8" label="Sono (8h)" />
+        <ProgressBar value={waterConsumed} max={waterGoal}  color="#94a3b8" label={`Água (${waterGoal}ml)`} />
+        <ProgressBar value={steps}         max={10000}       color="#94a3b8" label="Passos (10.000)" />
+        <ProgressBar value={totalMeals}    max={totalPlans}  color="#ef4444" label={`Refeições (${totalPlans})`} />
+        <ProgressBar value={totalKcal}     max={tdee}        color="#dc2626" label="Kcal consumidas" />
+        <ProgressBar value={latestSleep?.hours||0} max={8}  color="#94a3b8" label="Sono (8h)" />
       </NeonCard>
     </div>
   )

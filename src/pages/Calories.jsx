@@ -89,7 +89,10 @@ export default function Calories({ user, userId, onUpdate }) {
     const next = !checkedMap[plan.id]
     setCheckedMap(m => ({ ...m, [plan.id]: next }))
     setSavingId(plan.id)
-    try { await toggleMealLog(uid, todayStr, plan.id, plan.name, next) }
+    try {
+      await toggleMealLog(uid, todayStr, plan.id, plan.name, next)
+      window.dispatchEvent(new CustomEvent('meal-log-updated'))
+    }
     catch(e) { console.error(e); setCheckedMap(m => ({ ...m, [plan.id]: !next })) }
     setSavingId(null)
   }
