@@ -3,6 +3,7 @@ import { NeonCard, SectionTitle, Modal } from '../components/UI'
 import ProGate from '../components/ProGate'
 import { getFoodLog, addFoodEntry, deleteFoodEntry, today } from '../lib/db'
 import { getMealPlans, saveMealPlan, deleteMealPlan, getMealLog, toggleMealLog } from '../lib/db'
+import { supabase } from '../lib/supabase'
 import { FUN_FACTS } from '../data/funfacts'
 
 const R   = '#dc2626'
@@ -112,9 +113,16 @@ export default function Calories({ user, userId, onUpdate }) {
 
   async function handleDeletePlan(id) {
     if (!confirm('Deletar esta refeição?')) return
-    await deleteMealPlan(uid, id)
-    setPlans(p => p.filter(x => x.id !== id))
-    setCheckedMap(m => { const n={...m}; delete n[id]; return n })
+    try {
+      // Deleta logs referenciados antes (foreign key constraint)
+      await supabase.from('meal_log').delete().eq('meal_id', id)
+      await deleteMealPlan(uid, id)
+      setPlans(p => p.filter(x => x.id !== id))
+      setCheckedMap(m => { const n={...m}; delete n[id]; return n })
+    } catch(e) {
+      console.error('Erro ao deletar refeição:', e)
+      alert('Erro ao deletar: ' + (e?.message || JSON.stringify(e)))
+    }
   }
 
   async function handleAddFood() {
