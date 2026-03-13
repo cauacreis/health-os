@@ -5,7 +5,7 @@
 -- ── Perfis de usuário (extensão do auth.users) ────────────────
 CREATE TABLE IF NOT EXISTS profiles (
   id            UUID REFERENCES auth.users(id) ON DELETE CASCADE PRIMARY KEY,
-  name          TEXT NOT NULL,
+  name          TEXT,
   age           INTEGER CHECK (age BETWEEN 10 AND 120),
   weight        NUMERIC(5,1) CHECK (weight BETWEEN 20 AND 400),
   height        INTEGER CHECK (height BETWEEN 50 AND 280),
@@ -101,6 +101,29 @@ CREATE TABLE IF NOT EXISTS cardio_log (
   created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
+-- ── Planos alimentares ────────────────────────────────────────
+CREATE TABLE IF NOT EXISTS meal_plans (
+  id          UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id     UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  name        TEXT NOT NULL,
+  description TEXT,
+  created_at  TIMESTAMPTZ DEFAULT NOW()
+);
+
+-- ── Itens de planos alimentares ───────────────────────────────
+CREATE TABLE IF NOT EXISTS meal_log (
+  id           UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+  user_id      UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
+  meal_plan_id UUID REFERENCES meal_plans(id) ON DELETE CASCADE NOT NULL,
+  food_name    TEXT NOT NULL,
+  calories     INTEGER CHECK (calories >= 0),
+  protein      NUMERIC(5,1),
+  carbs        NUMERIC(5,1),
+  fat          NUMERIC(5,1),
+  done         BOOLEAN DEFAULT false,
+  created_at   TIMESTAMPTZ DEFAULT NOW()
+);
+
 -- ════════════════════════════════════════════════════════════════
 -- ROW LEVEL SECURITY — cada usuário só vê/edita os próprios dados
 -- ════════════════════════════════════════════════════════════════
@@ -112,6 +135,8 @@ ALTER TABLE food_log         ENABLE ROW LEVEL SECURITY;
 ALTER TABLE sleep_log        ENABLE ROW LEVEL SECURITY;
 ALTER TABLE bio_log          ENABLE ROW LEVEL SECURITY;
 ALTER TABLE cardio_log       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE meal_plans       ENABLE ROW LEVEL SECURITY;
+ALTER TABLE meal_log         ENABLE ROW LEVEL SECURITY;
 
 -- profiles
 CREATE POLICY "own_profile_select" ON profiles FOR SELECT USING (auth.uid() = id);
@@ -131,23 +156,41 @@ CREATE POLICY "own_workout_insert" ON workout_logs FOR INSERT WITH CHECK (auth.u
 CREATE POLICY "own_workout_update" ON workout_logs FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "own_workout_delete" ON workout_logs FOR DELETE USING (auth.uid() = user_id);
 
--- food_log
+-- food_log (corrigido: adicionado UPDATE que estava faltando)
 CREATE POLICY "own_food_select" ON food_log FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "own_food_insert" ON food_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_food_update" ON food_log FOR UPDATE USING (auth.uid() = user_id);
 CREATE POLICY "own_food_delete" ON food_log FOR DELETE USING (auth.uid() = user_id);
 
--- sleep_log
+-- sleep_log (corrigido: adicionado DELETE que estava faltando)
 CREATE POLICY "own_sleep_select" ON sleep_log FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "own_sleep_insert" ON sleep_log FOR INSERT WITH CHECK (auth.uid() = user_id);
 CREATE POLICY "own_sleep_update" ON sleep_log FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "own_sleep_delete" ON sleep_log FOR DELETE USING (auth.uid() = user_id);
 
--- bio_log
+-- bio_log (corrigido: adicionados UPDATE e DELETE que estavam faltando)
 CREATE POLICY "own_bio_select" ON bio_log FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "own_bio_insert" ON bio_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_bio_update" ON bio_log FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "own_bio_delete" ON bio_log FOR DELETE USING (auth.uid() = user_id);
 
--- cardio_log
+-- cardio_log (corrigido: adicionados UPDATE e DELETE que estavam faltando)
 CREATE POLICY "own_cardio_select" ON cardio_log FOR SELECT USING (auth.uid() = user_id);
 CREATE POLICY "own_cardio_insert" ON cardio_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_cardio_update" ON cardio_log FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "own_cardio_delete" ON cardio_log FOR DELETE USING (auth.uid() = user_id);
+
+-- meal_plans
+CREATE POLICY "own_meal_plans_select" ON meal_plans FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "own_meal_plans_insert" ON meal_plans FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_meal_plans_update" ON meal_plans FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "own_meal_plans_delete" ON meal_plans FOR DELETE USING (auth.uid() = user_id);
+
+-- meal_log
+CREATE POLICY "own_meal_log_select" ON meal_log FOR SELECT USING (auth.uid() = user_id);
+CREATE POLICY "own_meal_log_insert" ON meal_log FOR INSERT WITH CHECK (auth.uid() = user_id);
+CREATE POLICY "own_meal_log_update" ON meal_log FOR UPDATE USING (auth.uid() = user_id);
+CREATE POLICY "own_meal_log_delete" ON meal_log FOR DELETE USING (auth.uid() = user_id);
 
 -- ════════════════════════════════════════════════════════════════
 -- TRIGGER: cria perfil automaticamente ao registrar
@@ -159,6 +202,8 @@ BEGIN
   VALUES (NEW.id, COALESCE(NEW.raw_user_meta_data->>'name', 'Usuário'))
   ON CONFLICT (id) DO NOTHING;
   RETURN NEW;
+EXCEPTION WHEN OTHERS THEN
+  RETURN NEW; -- nunca bloqueia o cadastro por falha no perfil
 END;
 $$ LANGUAGE plpgsql SECURITY DEFINER;
 
@@ -176,6 +221,9 @@ ON CONFLICT DO NOTHING;
 CREATE POLICY "Avatar upload" ON storage.objects
   FOR INSERT WITH CHECK (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
+CREATE POLICY "Avatar update" ON storage.objects
+  FOR UPDATE USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
+
 CREATE POLICY "Avatar read" ON storage.objects
   FOR SELECT USING (bucket_id = 'avatars');
 
@@ -183,28 +231,6 @@ CREATE POLICY "Avatar delete" ON storage.objects
   FOR DELETE USING (bucket_id = 'avatars' AND auth.uid()::text = (storage.foldername(name))[1]);
 
 -- ════════════════════════════════════════════════════════════════
--- MIGRATION: adicionar gym_type ao profiles 
+-- MIGRATIONS
 -- ════════════════════════════════════════════════════════════════
 ALTER TABLE profiles ADD COLUMN IF NOT EXISTS gym_type TEXT DEFAULT 'full';
-
--- ════════════════════════════════════════════════════════════════
--- MIGRATION: steps_log para histórico de passos diários
--- ════════════════════════════════════════════════════════════════
-CREATE TABLE IF NOT EXISTS steps_log (
-  id         UUID DEFAULT gen_random_uuid() PRIMARY KEY,
-  user_id    UUID REFERENCES auth.users(id) ON DELETE CASCADE NOT NULL,
-  date       DATE NOT NULL DEFAULT CURRENT_DATE,
-  steps      INTEGER NOT NULL DEFAULT 0 CHECK (steps >= 0),
-  created_at TIMESTAMPTZ DEFAULT NOW(),
-  UNIQUE(user_id, date)
-);
-
-ALTER TABLE steps_log ENABLE ROW LEVEL SECURITY;
-CREATE POLICY "own_steps_select" ON steps_log FOR SELECT USING (auth.uid() = user_id);
-CREATE POLICY "own_steps_insert" ON steps_log FOR INSERT WITH CHECK (auth.uid() = user_id);
-CREATE POLICY "own_steps_update" ON steps_log FOR UPDATE USING (auth.uid() = user_id);
-
--- ════════════════════════════════════════════════════════════════
--- MIGRATION: fitness_profile no perfil (Força, Cardio, Flex, etc)
--- ════════════════════════════════════════════════════════════════
-ALTER TABLE profiles ADD COLUMN IF NOT EXISTS fitness_profile JSONB DEFAULT '{"strength":50,"cardio":50,"flex":50,"resistance":50,"balance":50,"speed":50}'::jsonb;
