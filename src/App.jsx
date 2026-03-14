@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { onAuthChange, getProfile, getSubscription, signOut } from './lib/db'
 import Auth from './pages/Auth'
 import Onboarding from './components/Onboarding'
@@ -19,11 +19,20 @@ export default function App() {
   const [profile, setProfile]   = useState(null)
   const [tab, setTab]           = useState('dashboard')
   const [loadingProfile, setLoadingProfile] = useState(false)
+  const fetchingRef = useRef(false) // guard contra fetches duplicados
 
   useEffect(() => {
     const { data: { subscription } } = onAuthChange(async (sess) => {
       setSession(sess)
       if (sess?.user) {
+        // Se já está buscando ou já temos o perfil desse usuário, ignora
+        if (fetchingRef.current) return
+        setProfile(prev => {
+          if (prev?.id === sess.user.id) return prev // mesmo usuário, mantém
+          return null
+        })
+
+        fetchingRef.current = true
         setLoadingProfile(true)
         try {
           const prof = await getProfile(sess.user.id)
@@ -32,19 +41,26 @@ export default function App() {
           setProfile({ ...prof, isPro })
         }
         catch(e) { console.error(e) }
-        finally { setLoadingProfile(false) }
-      } else { setProfile(null) }
+        finally {
+          setLoadingProfile(false)
+          fetchingRef.current = false
+        }
+      } else {
+        setProfile(null)
+        fetchingRef.current = false
+      }
     })
     return () => subscription.unsubscribe()
   }, [])
 
-useEffect(() => {
-  const handler = e => setTab(e.detail)
-  window.addEventListener('goto-tab', handler)
-  return () => window.removeEventListener('goto-tab', handler)
-}, [])
+  useEffect(() => {
+    const handler = e => setTab(e.detail)
+    window.addEventListener('goto-tab', handler)
+    return () => window.removeEventListener('goto-tab', handler)
+  }, [])
 
-function handleLogout() { setSession(null); setProfile(null); setTab('dashboard') }
+  function handleLogout() { setSession(null); setProfile(null); setTab('dashboard') }
+
   if (session === undefined || loadingProfile) {
     return (
       <div style={{ minHeight:'100dvh', background:'#080808', display:'flex', alignItems:'center', justifyContent:'center', fontFamily:"'Space Mono',monospace" }}>
@@ -67,7 +83,7 @@ function handleLogout() { setSession(null); setProfile(null); setTab('dashboard'
 
   function renderTab() {
     switch(tab) {
-      case 'chat': return <Chat user={profile} userId={userId} />
+      case 'chat':         return <Chat           user={profile} userId={userId} />
       case 'dashboard':    return <Dashboard      user={profile} userId={userId} />
       case 'workout':      return <WorkoutProgram user={profile} userId={userId} />
       case 'calendar':     return <CalendarPage   user={profile} userId={userId} />
@@ -96,7 +112,7 @@ function handleLogout() { setSession(null); setProfile(null); setTab('dashboard'
 }
 
 const BOTTOM = [
-  { id:'chat', label:'IA', icon:'◎' },
+  { id:'chat',      label:'IA',        icon:'◎' },
   { id:'dashboard', label:'Home',      icon:'◈' },
   { id:'workout',   label:'Treino',    icon:'⬡' },
   { id:'calories',  label:'Comida',    icon:'◉' },
