@@ -58,6 +58,10 @@ export default function AIWorkoutBanner({ userId }) {
         })
       }
       setAdding(prev => ({ ...prev, [workout.id]: 'done' }))
+
+      // ✅ Notifica o WorkoutProgram para re-fetchar APÓS todos os saves completarem
+      window.dispatchEvent(new CustomEvent('workout-exercises-updated'))
+
     } catch(e) {
       console.error(e)
       setAdding(prev => ({ ...prev, [workout.id]: 'idle' }))
