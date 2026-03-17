@@ -500,6 +500,16 @@ export default function WorkoutProgram({ user, userId, onUpdateUser }) {
     }
   }, [userId, customLoaded])
 
+  // ── Re-fetch quando o chat adicionar exercícios ────────────────────────────
+  useEffect(() => {
+    function handleExternalUpdate() {
+      setCustomLoaded(false)         // força o useEffect acima rodar de novo
+      setCustomSheetLoaded(false)    // recarrega a ficha também (caso custom)
+    }
+    window.addEventListener('workout-exercises-updated', handleExternalUpdate)
+    return () => window.removeEventListener('workout-exercises-updated', handleExternalUpdate)
+  }, [])
+
   function toggleEx(key) {
     setCompleted(c => ({ ...c, [key]: !c[key] }))
   }

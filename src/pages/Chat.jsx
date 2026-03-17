@@ -617,7 +617,10 @@ function WorkoutSaveCard({ workout, userId }) {
     setSaved(true)
     setSaving(false)
 
-    // 3. Tenta salvar no Supabase em segundo plano (não bloqueia)
+    // 3. Notifica a aba de Treino para recarregar exercícios customizados
+    window.dispatchEvent(new CustomEvent('workout-exercises-updated'))
+
+    // 4. Tenta salvar no Supabase em segundo plano (não bloqueia)
     saveWorkoutToLog(userId, workout).catch(e => console.warn('Supabase workout log:', e))
   }
 
