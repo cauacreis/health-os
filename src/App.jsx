@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef } from 'react'
+import { Analytics } from '@vercel/analytics/react'
 import { onAuthChange, getProfile, getSubscription, signOut } from './lib/db'
 import Auth from './pages/Auth'
 import Onboarding from './components/Onboarding'
@@ -100,14 +101,17 @@ export default function App() {
   }
 
   return (
-    <div style={{ display:'flex', minHeight:'100dvh' }}>
-      <Sidebar tab={tab} setTab={setTab} user={profile} onLogout={handleLogout} />
-      <main style={{ flex:1, overflow:'auto', maxHeight:'100dvh', background:'#080808', position:'relative', padding:'clamp(14px,3vw,32px)', paddingBottom:'max(clamp(14px,3vw,32px), calc(72px + env(safe-area-inset-bottom)))' }}>
-        <div style={{ position:'fixed', inset:0, opacity:0.015, pointerEvents:'none', zIndex:0, backgroundImage:'linear-gradient(#dc2626 1px,transparent 1px),linear-gradient(90deg,#dc2626 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
-        <div style={{ position:'relative', zIndex:1 }}>{renderTab()}</div>
-      </main>
-      <MobileNav tab={tab} setTab={setTab} />
-    </div>
+    <>
+      <div style={{ display:'flex', minHeight:'100dvh' }}>
+        <Sidebar tab={tab} setTab={setTab} user={profile} onLogout={handleLogout} />
+        <main style={{ flex:1, overflow:'auto', maxHeight:'100dvh', background:'#080808', position:'relative', padding:'clamp(14px,3vw,32px)', paddingBottom:'max(clamp(14px,3vw,32px), calc(72px + env(safe-area-inset-bottom)))' }}>
+          <div style={{ position:'fixed', inset:0, opacity:0.015, pointerEvents:'none', zIndex:0, backgroundImage:'linear-gradient(#dc2626 1px,transparent 1px),linear-gradient(90deg,#dc2626 1px,transparent 1px)', backgroundSize:'60px 60px' }} />
+          <div style={{ position:'relative', zIndex:1 }}>{renderTab()}</div>
+        </main>
+        <MobileNav tab={tab} setTab={setTab} />
+      </div>
+      <Analytics />
+    </>
   )
 }
 
