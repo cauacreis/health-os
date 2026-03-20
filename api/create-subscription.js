@@ -15,7 +15,7 @@ export default async function handler(req, res) {
       auto_recurring: {
         frequency: 1,
         frequency_type: 'months',
-        transaction_amount: 19.90,
+        transaction_amount: 1.00,
         currency_id: 'BRL',
       },
       back_url: `${process.env.APP_URL}/?payment=success`,
