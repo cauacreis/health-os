@@ -10,15 +10,53 @@ const LOSSES = [
   { icon: "🏋️", title: "Todos os programas de treino", desc: "Volta apenas para o plano básico de treino." },
   { icon: "🍽️", title: "Log alimentar completo", desc: "Sem controle detalhado de refeições e macros." },
   { icon: "📅", title: "Calendário de treinos", desc: "Sem visão histórica dos treinos realizados." },
+  { icon: "🤖", title: "IA de Alta Performance", desc: "Você perde a análise de fadiga, sono e sobrecarga automática." },
 ];
 
 const PLANS = {
   free: {
-    features: ["Dashboard básico", "Registro de treinos", "Controle de água", "Glossário fitness"],
-    locked: ["Histórico de bioimpedância", "Gráficos avançados", "Cardio com zonas HR", "Todos os programas de treino", "Log alimentar completo", "Calendário de treinos"],
+    features: [
+      "Dashboard básico",
+      "Registro de treinos",
+      "Controle de água e refeições",
+      "Glossário fitness",
+      "🤖 IA: 5 mensagens por dia",
+      "🤖 IA: Montar treino do dia",
+      "🤖 IA: Montar plano alimentar",
+      "🤖 IA: Dúvidas sobre treino e nutrição",
+    ],
+    locked: [
+      "Histórico de bioimpedância",
+      "Gráficos avançados",
+      "Cardio com zonas HR",
+      "Todos os programas de treino",
+      "Log alimentar completo",
+      "Calendário de treinos",
+      "🤖 IA ilimitada com dados reais",
+      "🤖 IA: Sobrecarga progressiva automática",
+      "🤖 IA: Detecção de platô + técnicas avançadas",
+      "🤖 IA: Análise de recuperação muscular",
+      "🤖 IA: Auto-regulação por fadiga (sono + bio)",
+      "🤖 IA: Checkin semanal personalizado",
+    ],
   },
   pro: {
-    features: ["Tudo do plano Free", "Histórico de bioimpedância", "Gráficos avançados", "Cardio com zonas HR", "Todos os programas de treino", "Log alimentar completo", "Calendário de treinos", "Suporte prioritário"],
+    features: [
+      "Tudo do plano Free",
+      "Histórico de bioimpedância",
+      "Gráficos avançados",
+      "Cardio com zonas HR",
+      "Todos os programas de treino",
+      "Log alimentar completo",
+      "Calendário de treinos",
+      "Suporte prioritário",
+      "🤖 IA ilimitada com seus dados reais",
+      "🤖 IA: Sobrecarga progressiva baseada no seu histórico",
+      "🤖 IA: Detecção de platô + técnicas avançadas",
+      "🤖 IA: Análise de recuperação muscular real",
+      "🤖 IA: Auto-regulação por sono e bioimpedância",
+      "🤖 IA: Checkin e análise semanal completa",
+    ],
   },
 };
 
