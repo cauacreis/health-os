@@ -26,19 +26,23 @@ export default function Subscription() {
   const params = new URLSearchParams(window.location.search);
   const isSuccess = params.get("payment") === "success";
   const isFailure = params.get("payment") === "failure";
+  const isPending = params.get("payment") === "pending";
 
   const [profile, setProfile] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [cardLoading, setCardLoading] = useState(false);
+  const [pixLoading, setPixLoading] = useState(false);
   const [toast, setToast] = useState(null);
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelStep, setCancelStep] = useState(1);
+  const [paymentMethod, setPaymentMethod] = useState('card');
 
   useEffect(() => { fetchProfile(); }, []);
 
   useEffect(() => {
-    if (isSuccess) showToast("✅ Assinatura ativada! Bem-vindo ao Pro.", "success");
+    if (isSuccess) showToast("✅ Pagamento aprovado! Bem-vindo ao Pro.", "success");
     if (isFailure) showToast("Pagamento cancelado ou falhou. Tente novamente.", "error");
+    if (isPending) showToast("⏳ Pagamento pendente. Assim que confirmado, seu PRO será ativado.", "info");
   }, []);
 
   async function fetchProfile() {
@@ -47,7 +51,7 @@ export default function Subscription() {
     if (!session) { setLoading(false); return; }
     const { data } = await supabase
       .from("profiles")
-      .select("is_pro, pro_since, mp_subscription_id")
+      .select("is_pro, pro_since, pro_until, mp_subscription_id")
       .eq("id", session.user.id)
       .single();
     setProfile({ ...data, email: session.user.email, id: session.user.id });
@@ -56,39 +60,48 @@ export default function Subscription() {
 
   function showToast(msg, type = "info") {
     setToast({ msg, type });
-    setTimeout(() => setToast(null), 5000);
+    setTimeout(() => setToast(null), 6000);
   }
 
-  async function handleCheckout() {
-    setCheckoutLoading(true);
+  async function handleCardCheckout() {
+    setCardLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { showToast("Faça login primeiro.", "error"); setCheckoutLoading(false); return; }
+    if (!session) { showToast("Faça login primeiro.", "error"); setCardLoading(false); return; }
     try {
       const res = await fetch("/api/create-subscription", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId: session.user.id,
-          userEmail: session.user.email,
-        }),
+        body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
       });
       const data = await res.json();
-      if (data.init_point) {
-        window.location.href = data.init_point;
-      } else {
-        showToast(data.error || "Erro ao iniciar pagamento.", "error");
-      }
+      if (data.init_point) window.location.href = data.init_point;
+      else showToast(data.error || "Erro ao iniciar pagamento.", "error");
     } catch {
       showToast("Erro de conexão. Tente novamente.", "error");
     }
-    setCheckoutLoading(false);
+    setCardLoading(false);
+  }
+
+  async function handlePixCheckout() {
+    setPixLoading(true);
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) { showToast("Faça login primeiro.", "error"); setPixLoading(false); return; }
+    try {
+      const res = await fetch("/api/create-payment", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
+      });
+      const data = await res.json();
+      if (data.init_point) window.location.href = data.init_point;
+      else showToast(data.error || "Erro ao iniciar pagamento.", "error");
+    } catch {
+      showToast("Erro de conexão. Tente novamente.", "error");
+    }
+    setPixLoading(false);
   }
 
   async function handleCancelSubscription() {
-    if (!profile?.mp_subscription_id) {
-      showToast("Nenhuma assinatura encontrada.", "error");
-      return;
-    }
     showToast("Entre em contato pelo suporte para cancelar sua assinatura.", "info");
     setShowCancelModal(false);
   }
@@ -97,30 +110,33 @@ export default function Subscription() {
   const proSince = profile?.pro_since
     ? new Date(profile.pro_since).toLocaleDateString("pt-BR")
     : null;
+  const proUntil = profile?.pro_until
+    ? new Date(profile.pro_until).toLocaleDateString("pt-BR")
+    : null;
 
   return (
     <div style={S.page}>
 
-      {/* Toast */}
       {toast && (
-        <div style={{ ...S.toast, background: toast.type === "success" ? "#dc2626" : "#222" }}>
+        <div style={{
+          ...S.toast,
+          background: toast.type === "success" ? "#dc2626" : toast.type === "info" ? "#1e3a5f" : "#222"
+        }}>
           {toast.msg}
         </div>
       )}
 
-      {/* Modal de cancelamento */}
       {showCancelModal && (
         <CancelModal
           step={cancelStep}
           setStep={setCancelStep}
           onClose={() => { setShowCancelModal(false); setCancelStep(1); }}
-          onConfirm={() => handleCancelSubscription()}
+          onConfirm={handleCancelSubscription}
         />
       )}
 
       <div style={S.container}>
 
-        {/* ── Header ───────────────────────────────────────── */}
         <header style={S.header}>
           <div style={S.tag}>PLANOS</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
@@ -130,7 +146,6 @@ export default function Subscription() {
           <p style={S.subtitle}>Escolha seu plano e monitore sua saúde sem limites.</p>
         </header>
 
-        {/* ── Status card (PRO ativo) ───────────────────────── */}
         {!loading && isPro && (
           <div style={S.statusCard}>
             <div style={S.statusRow}>
@@ -138,22 +153,19 @@ export default function Subscription() {
                 <div style={S.statusDot} />
                 <span style={S.statusBadge}>✦ PRO ATIVO</span>
               </div>
-              {proSince && (
-                <span style={S.statusDate}>Ativo desde {proSince}</span>
-              )}
+              <div style={{ textAlign: "right" }}>
+                {proSince && <div style={S.statusDate}>Ativo desde {proSince}</div>}
+                {proUntil && <div style={{ ...S.statusDate, color: "#f97316" }}>Válido até {proUntil}</div>}
+              </div>
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 14, flexWrap: "wrap" }}>
-              <button
-                onClick={() => { setShowCancelModal(true); setCancelStep(1); }}
-                style={S.cancelTriggerBtn}
-              >
+            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+              <button onClick={() => { setShowCancelModal(true); setCancelStep(1); }} style={S.cancelTriggerBtn}>
                 Cancelar assinatura
               </button>
             </div>
           </div>
         )}
 
-        {/* ── Cards de plano ───────────────────────────────── */}
         <div style={S.plansGrid}>
 
           {/* FREE */}
@@ -194,10 +206,41 @@ export default function Subscription() {
 
             {!isPro && !loading && (
               <>
-                <button onClick={handleCheckout} disabled={checkoutLoading} style={S.checkoutBtn}>
-                  {checkoutLoading ? "Aguarde..." : "ASSINAR AGORA →"}
-                </button>
-                <p style={S.secureNote}>🔒 Pagamento seguro via Mercado Pago · Pix, cartão ou boleto</p>
+                {/* Seletor de método */}
+                <div style={S.methodSelector}>
+                  <button
+                    onClick={() => setPaymentMethod('card')}
+                    style={{ ...S.methodBtn, ...(paymentMethod === 'card' ? S.methodBtnActive : {}) }}
+                  >
+                    💳 Cartão mensal
+                  </button>
+                  <button
+                    onClick={() => setPaymentMethod('pix')}
+                    style={{ ...S.methodBtn, ...(paymentMethod === 'pix' ? S.methodBtnPixActive : {}) }}
+                  >
+                    ⚡ Pix — 1 mês
+                  </button>
+                </div>
+
+                {paymentMethod === 'card' && (
+                  <div style={S.methodDetail}>
+                    <div style={S.methodDetailText}>Renovação automática todo mês. Cancele quando quiser.</div>
+                    <button onClick={handleCardCheckout} disabled={cardLoading} style={S.checkoutBtn}>
+                      {cardLoading ? "Aguarde..." : "ASSINAR COM CARTÃO →"}
+                    </button>
+                    <p style={S.secureNote}>🔒 Processado pelo Mercado Pago · Renovação automática</p>
+                  </div>
+                )}
+
+                {paymentMethod === 'pix' && (
+                  <div style={S.methodDetail}>
+                    <div style={S.methodDetailText}>Pagamento único. Ativa 30 dias de PRO imediatamente após confirmação.</div>
+                    <button onClick={handlePixCheckout} disabled={pixLoading} style={{ ...S.checkoutBtn, background: "#059669" }}>
+                      {pixLoading ? "Aguarde..." : "PAGAR COM PIX →"}
+                    </button>
+                    <p style={S.secureNote}>⚡ Aprovação instantânea · Sem renovação automática</p>
+                  </div>
+                )}
               </>
             )}
 
@@ -209,16 +252,15 @@ export default function Subscription() {
           </div>
         </div>
 
-        {/* ── Apoie o projeto ───────────────────────────────── */}
         <DonationBanner />
 
-        {/* ── FAQ ──────────────────────────────────────────── */}
         <div style={S.faq}>
           <h2 style={S.faqTitle}>PERGUNTAS FREQUENTES</h2>
           {[
-            ["Posso cancelar a qualquer momento?", "Sim. Você pode cancelar a qualquer momento entrando em contato com o suporte."],
-            ["Quais formas de pagamento?", "Pix, cartão de crédito e boleto via Mercado Pago. Processamento 100% seguro."],
-            ["O pagamento é seguro?", "Sim. Todo o processamento é feito pelo Mercado Pago, sem armazenar dados do cartão."],
+            ["Posso cancelar a qualquer momento?", "Sim. Para cancelar a assinatura mensal, entre em contato com o suporte. O acesso continua até o fim do período pago."],
+            ["O Pix ativa o PRO automaticamente?", "Sim, assim que o pagamento for confirmado pelo Mercado Pago (geralmente instantâneo), seu PRO é ativado por 30 dias."],
+            ["Quais formas de pagamento aceitam no cartão?", "Cartão de crédito via Mercado Pago. Processamento 100% seguro."],
+            ["O pagamento é seguro?", "Sim. Todo o processamento é feito pelo Mercado Pago, sem armazenar dados do cartão no Health OS."],
           ].map(([q, a]) => <FaqItem key={q} question={q} answer={a} />)}
         </div>
 
@@ -227,22 +269,15 @@ export default function Subscription() {
   );
 }
 
-// ── Donation Banner ───────────────────────────────────────────
 function DonationBanner() {
   const [hover, setHover] = useState(false);
   return (
     <div style={{
-      border: "1px solid #1e1e1e",
-      borderLeft: "3px solid #dc2626",
-      background: "rgba(220,38,38,0.03)",
-      borderRadius: 6,
-      padding: "24px 28px",
-      marginBottom: 48,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: "space-between",
-      gap: 24,
-      flexWrap: "wrap",
+      border: "1px solid #1e1e1e", borderLeft: "3px solid #dc2626",
+      background: "rgba(220,38,38,0.03)", borderRadius: 6,
+      padding: "24px 28px", marginBottom: 48,
+      display: "flex", alignItems: "center", justifyContent: "space-between",
+      gap: 24, flexWrap: "wrap",
     }}>
       <div style={{ flex: 1, minWidth: 200 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 10, marginBottom: 8 }}>
@@ -279,7 +314,6 @@ function DonationBanner() {
   );
 }
 
-// ── Badge PRO ─────────────────────────────────────────────────
 function ProBadge() {
   return (
     <div style={{
@@ -295,12 +329,10 @@ function ProBadge() {
   );
 }
 
-// ── Modal de cancelamento ─────────────────────────────────────
 function CancelModal({ step, setStep, onClose, onConfirm }) {
   return (
     <div style={M.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={M.modal}>
-
         {step === 1 && (
           <>
             <div style={M.header}>
@@ -325,15 +357,12 @@ function CancelModal({ step, setStep, onClose, onConfirm }) {
             </div>
           </>
         )}
-
         {step === 2 && (
           <>
             <div style={M.header}>
               <div style={{ ...M.warningIcon, background: "rgba(220,38,38,0.05)", borderColor: "rgba(220,38,38,0.15)", color: "#888", fontSize: 22 }}>?</div>
               <h2 style={M.title}>Tem certeza?</h2>
-              <p style={M.subtitle}>
-                Para cancelar, entre em contato pelo suporte. Responderemos em até 24h.
-              </p>
+              <p style={M.subtitle}>Para cancelar, entre em contato pelo suporte. Responderemos em até 24h.</p>
             </div>
             <div style={M.confirmBox}>
               <div style={M.confirmRow}>
@@ -351,7 +380,6 @@ function CancelModal({ step, setStep, onClose, onConfirm }) {
             </div>
           </>
         )}
-
         <button onClick={onClose} style={M.closeBtn}>✕</button>
       </div>
     </div>
@@ -371,7 +399,6 @@ function FaqItem({ question, answer }) {
   );
 }
 
-// ── Estilos ───────────────────────────────────────────────────
 const S = {
   page: { minHeight: "100vh", background: "#0a0a0a", color: "#e5e5e5", fontFamily: "'Space Mono', monospace", padding: "40px 16px 80px" },
   container: { maxWidth: 800, margin: "0 auto" },
@@ -399,8 +426,14 @@ const S = {
   featureList: { listStyle: "none", padding: 0, margin: "0 0 24px" },
   featureItem: { fontSize: 12, lineHeight: 2, color: "#ccc", letterSpacing: 0.5 },
   currentBadge: { textAlign: "center", fontSize: 10, letterSpacing: 3, color: "#555", border: "1px solid #333", padding: "6px 0", marginTop: 8 },
-  checkoutBtn: { width: "100%", background: "#dc2626", border: "none", color: "#fff", fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 3, padding: "14px 0", cursor: "pointer", borderRadius: 2, marginBottom: 8 },
-  secureNote: { textAlign: "center", fontSize: 10, color: "#555", margin: "0", letterSpacing: 0.5 },
+  methodSelector: { display: "flex", gap: 8, marginBottom: 14 },
+  methodBtn: { flex: 1, padding: "10px 0", borderRadius: 4, border: "1px solid #333", background: "transparent", color: "#555", fontFamily: "'Space Mono', monospace", fontSize: 10, letterSpacing: 1, cursor: "pointer", transition: "all 0.15s" },
+  methodBtnActive: { borderColor: "#dc2626", color: "#dc2626", background: "rgba(220,38,38,0.08)" },
+  methodBtnPixActive: { borderColor: "#059669", color: "#059669", background: "rgba(5,150,105,0.08)" },
+  methodDetail: { display: "flex", flexDirection: "column", gap: 10 },
+  methodDetailText: { fontSize: 11, color: "#555", lineHeight: 1.6, letterSpacing: 0.3 },
+  checkoutBtn: { width: "100%", background: "#dc2626", border: "none", color: "#fff", fontFamily: "'Space Mono', monospace", fontSize: 12, fontWeight: 700, letterSpacing: 3, padding: "14px 0", cursor: "pointer", borderRadius: 2 },
+  secureNote: { textAlign: "center", fontSize: 10, color: "#555", margin: "0", letterSpacing: 0.3 },
   faq: { borderTop: "1px solid #222", paddingTop: 40 },
   faqTitle: { fontSize: 11, letterSpacing: 4, color: "#888", marginBottom: 24 },
   faqItem: { borderBottom: "1px solid #1a1a1a", paddingBottom: 4, marginBottom: 4 },
