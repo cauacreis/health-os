@@ -16,8 +16,20 @@ function loadSessions(userId) {
 function saveSessions(userId, sessions) {
   localStorage.setItem(storageKey(userId), JSON.stringify(sessions.slice(0, 30)))
 }
-function getTodayUsage() { return parseInt(localStorage.getItem(`chat_usage_${today()}`) || '0', 10) }
-function incrementUsage() { localStorage.setItem(`chat_usage_${today()}`, String(getTodayUsage() + 1)) }
+// ── Contador server-side (Supabase) — não manipulável pelo usuário ────────
+async function getTodayUsage(userId) {
+  try {
+    const { data } = await supabase.from('profiles').select('ai_usage_date, ai_usage_count').eq('id', userId).single()
+    if (!data || data.ai_usage_date !== today()) return 0
+    return data.ai_usage_count || 0
+  } catch { return 0 }
+}
+async function incrementUsageServer(userId) {
+  try {
+    const { data } = await supabase.rpc('increment_ai_usage', { uid: userId })
+    return typeof data === 'number' ? data : FREE_LIMIT
+  } catch { return FREE_LIMIT }
+}
 
 function groupByDate(sessions) {
   const groups = {}
@@ -198,7 +210,7 @@ export default function Chat({ user, userId }) {
 
   useEffect(() => {
     if (!userId) return
-    setUsage(getTodayUsage())
+    getTodayUsage(userId).then(setUsage)
     const saved = loadSessions(userId)
     setSessions(saved)
     openWelcome()
@@ -403,7 +415,7 @@ export default function Chat({ user, userId }) {
     setInput('')
 
     if (detectInjury(msg)) {
-      if (!isPro) { incrementUsage(); setUsage(getTodayUsage()) }
+      if (!isPro) { incrementUsageServer(userId).then(setUsage) }
       const injuryMsg = {
         role: 'assistant',
         content: '⚠️ Identifiquei uma menção a dor ou desconforto físico.\n\nNão vou sugerir exercícios nessa situação. Sua saúde é prioridade.\n\nPor favor, consulte um médico ou fisioterapeuta antes de continuar treinando.',
@@ -412,7 +424,7 @@ export default function Chat({ user, userId }) {
       return
     }
 
-    if (!isPro) { incrementUsage(); setUsage(getTodayUsage()) }
+    if (!isPro) { const newCount = await incrementUsageServer(userId); setUsage(newCount) }
 
     let sessionId = currentId
     const sessionTitle = msg.slice(0, 35) + (msg.length > 35 ? '...' : '')
