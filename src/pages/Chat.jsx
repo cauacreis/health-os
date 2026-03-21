@@ -32,7 +32,6 @@ function formatDateLabel(dateStr) {
   return d.toLocaleDateString('pt-BR', { day: 'numeric', month: 'short' })
 }
 
-// ── Detecta menção de dor ou lesão na mensagem do usuário ────────────────────
 function detectInjury(msg) {
   const m = msg.toLowerCase()
   return /\bdor\b|doendo|machuc|lesão|lesao|lesionei|torci|torceu|distensão|distensao|inflamou|inflamação|inflam|fratura|luxação|luxacao|joelho ruim|costas ruins|ombro ruim|hérnia|hernia|tendinite|tendinit|bursite|fascite/.test(m)
@@ -92,7 +91,6 @@ function DietSaveCard({ diet, userId }) {
     setError(null)
     try {
       const { supabase } = await import('../lib/supabase')
-
       const refeicoes = diet.refeicoes || []
       for (const ref of refeicoes) {
         const { error } = await supabase.from('meal_plans').insert({
@@ -111,12 +109,8 @@ function DietSaveCard({ diet, userId }) {
           frequency: 'Todos os dias',
           active: true,
         })
-        if (error) {
-          console.error('meal_plan insert error:', JSON.stringify(error))
-          throw error
-        }
+        if (error) { console.error('meal_plan insert error:', JSON.stringify(error)); throw error }
       }
-
       window.dispatchEvent(new CustomEvent('diet-plan-saved'))
       setSaved(true)
     } catch (e) {
@@ -129,7 +123,6 @@ function DietSaveCard({ diet, userId }) {
   return (
     <div style={{ maxWidth: '88%', marginTop: 8, background: 'rgba(34,197,94,0.03)', border: '1px solid rgba(34,197,94,0.12)', borderRadius: 10, padding: '14px 16px', alignSelf: 'flex-start' }}>
       <div style={{ color: G, fontSize: 9, letterSpacing: 2, marginBottom: 10, fontWeight: 700 }}>🥗 SUGESTÃO ALIMENTAR GERADA</div>
-
       {(diet.calorias_totais || diet.proteina_total) && (
         <div style={{ display: 'flex', gap: 16, marginBottom: 12, flexWrap: 'wrap' }}>
           {diet.calorias_totais && <div style={{ textAlign: 'center' }}><div style={{ color: '#22c55e', fontSize: 16, fontWeight: 700 }}>{diet.calorias_totais}</div><div style={{ color: '#444', fontSize: 9, letterSpacing: 1 }}>KCAL</div></div>}
@@ -138,7 +131,6 @@ function DietSaveCard({ diet, userId }) {
           {diet.gordura_total && <div style={{ textAlign: 'center' }}><div style={{ color: '#fb923c', fontSize: 16, fontWeight: 700 }}>{diet.gordura_total}g</div><div style={{ color: '#444', fontSize: 9, letterSpacing: 1 }}>GORDURA</div></div>}
         </div>
       )}
-
       {(diet.refeicoes || []).map((ref, i) => (
         <div key={i} style={{ marginBottom: 10, paddingBottom: 10, borderBottom: '1px solid rgba(255,255,255,0.04)' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
@@ -161,10 +153,8 @@ function DietSaveCard({ diet, userId }) {
           )}
         </div>
       ))}
-
       {diet.observacoes && <div style={{ color: '#444', fontSize: 11, marginBottom: 10, fontStyle: 'italic' }}>📝 {diet.observacoes}</div>}
       {error && <div style={{ color: '#ef4444', fontSize: 11, marginBottom: 8 }}>{error}</div>}
-
       <button onClick={handleSave} disabled={saving || saved}
         style={{ width: '100%', padding: '11px 0', borderRadius: 6, border: `1px solid ${saved ? G : 'rgba(34,197,94,0.3)'}`, background: saved ? 'rgba(34,197,94,0.07)' : 'rgba(34,197,94,0.05)', color: saved ? G : '#22c55e', fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: 2, cursor: saved ? 'default' : 'pointer', transition: 'all 0.3s' }}>
         {saving ? 'SALVANDO...' : saved ? '✓ SALVO EM CALORIAS!' : '💾 SALVAR NA ABA CALORIAS'}
@@ -189,7 +179,7 @@ const SUGGESTIONS_PRO = [
 ]
 
 export default function Chat({ user, userId }) {
-  const isPro = user?.is_pro || user?.isPro || false
+  const isPro = user?.isPro || false
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -306,6 +296,7 @@ export default function Chat({ user, userId }) {
       let progressiveOverloadReport = null
       let plateauReport = null
       let autoRegulationReport = null
+
       try {
         const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0]
         const { data: logs } = await supabase
@@ -371,9 +362,7 @@ export default function Chat({ user, userId }) {
               progressLines.slice(0, 8).join('\n') +
               `\n\nINSTRUÇÃO: Cite a carga exata em cada exercício. NÃO diga "escolha um peso" — dê o número.`
           }
-          if (plateauLines.length > 0) {
-            plateauReport = plateauLines.join('\n')
-          }
+          if (plateauLines.length > 0) plateauReport = plateauLines.join('\n')
         }
 
         const sleepAvg = avgSleep ? parseFloat(avgSleep) : null
@@ -388,12 +377,20 @@ export default function Chat({ user, userId }) {
             `[AUTO-REGULAÇÃO] Sinais de fadiga detectados: ${reasons.join('; ')}. ` +
             `AÇÃO OBRIGATÓRIA: (1) NÃO aumente cargas hoje. ` +
             `(2) Mantenha os pesos do último treino. ` +
-            `(3) Exija RIR 3 em todos os exercícios (3 reps de reserva) para poupar o SNC. ` +
-            `(4) Mencione brevemente ao usuário que o corpo está em modo de recuperação e que manter a carga hoje é a decisão inteligente.`
+            `(3) Exija RIR 3 em todos os exercícios para poupar o SNC. ` +
+            `(4) Mencione brevemente ao usuário que o corpo está em modo de recuperação.`
         }
       } catch (e) { console.warn('progressiveOverload/plateau:', e) }
 
-      setProfile({ name: user?.name, age: user?.age, sex: user?.sex, weight: user?.weight, height: user?.height, goal: user?.goal, activity: user?.activity, avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport })
+      // ── Passa goals e gym_types do user para o profile context ──────────────
+      setProfile({
+        name: user?.name, age: user?.age, sex: user?.sex,
+        weight: user?.weight, height: user?.height,
+        goal: user?.goal, activity: user?.activity,
+        goals: user?.goals, gym_types: user?.gym_types, gym_type: user?.gym_type,
+        avgSleep, lastBio, weeklyStats, recentWorkouts,
+        muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport,
+      })
     } catch (e) { console.error(e) }
     setCtxLoaded(true)
   }
@@ -405,15 +402,13 @@ export default function Chat({ user, userId }) {
     if (!msg || loading || limitHit) return
     setInput('')
 
-    // ── Detecção de dor/lesão — interrompe sugestões de exercício ────────────
     if (detectInjury(msg)) {
       if (!isPro) { incrementUsage(); setUsage(getTodayUsage()) }
       const injuryMsg = {
         role: 'assistant',
-        content: '⚠️ Identifiquei uma menção a dor ou desconforto físico.\n\nNão vou sugerir exercícios nessa situação. Sua saúde é prioridade.\n\nPor favor, consulte um médico ou fisioterapeuta antes de continuar treinando. Eles são os profissionais habilitados para avaliar sua condição e indicar o tratamento adequado.',
+        content: '⚠️ Identifiquei uma menção a dor ou desconforto físico.\n\nNão vou sugerir exercícios nessa situação. Sua saúde é prioridade.\n\nPor favor, consulte um médico ou fisioterapeuta antes de continuar treinando.',
       }
-      const newMsgs = [...messages, { role: 'user', content: msg }, injuryMsg]
-      setMessages(newMsgs)
+      setMessages(m => [...m, { role: 'user', content: msg }, injuryMsg])
       return
     }
 
@@ -597,16 +592,10 @@ export default function Chat({ user, userId }) {
               ➤
             </button>
           </div>
-          {/* ── Rodapé legal ── */}
           <div style={{ color: '#1a1a1a', fontSize: 9, letterSpacing: 0.5, marginTop: 6, textAlign: 'center', lineHeight: 1.6 }}>
-            {isPro
-              ? 'MENSAGENS ILIMITADAS · LLAMA 3.3 VIA GROQ'
-              : `${Math.max(remaining, 0)} DE ${FREE_LIMIT} MENSAGENS RESTANTES HOJE`
-            }
+            {isPro ? 'MENSAGENS ILIMITADAS · LLAMA 3.3 VIA GROQ' : `${Math.max(remaining, 0)} DE ${FREE_LIMIT} MENSAGENS RESTANTES HOJE`}
             <br />
-            <span style={{ color: '#141414' }}>
-              Sugestões de caráter informativo · Não substituem profissional CREF/CRN
-            </span>
+            <span style={{ color: '#141414' }}>Sugestões de caráter informativo · Não substituem profissional CREF/CRN</span>
           </div>
         </div>
       </div>
@@ -621,18 +610,12 @@ function WorkoutSaveCard({ workout, userId }) {
 
   async function handleSave() {
     setSaving(true); setError('')
-
     const enriched = { ...workout, id: `ai_${Date.now()}`, date: today() }
     const existing = (() => { try { return JSON.parse(localStorage.getItem('healthos_ai_workouts') || '[]') } catch { return [] } })()
     localStorage.setItem('healthos_ai_workouts', JSON.stringify([enriched, ...existing].slice(0, 10)))
-
     window.dispatchEvent(new CustomEvent('ai-workout-ready', { detail: enriched }))
-
-    setSaved(true)
-    setSaving(false)
-
+    setSaved(true); setSaving(false)
     window.dispatchEvent(new CustomEvent('workout-exercises-updated'))
-
     saveWorkoutToLog(userId, workout).catch(e => console.warn('Supabase workout log:', e))
   }
 
@@ -669,162 +652,329 @@ function WorkoutSaveCard({ workout, userId }) {
   )
 }
 
+// ═════════════════════════════════════════════════════════════════════════════
+// SYSTEM PROMPT ENGINE
+// ═════════════════════════════════════════════════════════════════════════════
+
+// ── Helpers para ler arrays de goals/gymTypes ─────────────────────────────────
+function parseGoals(user) {
+  try {
+    if (Array.isArray(user?.goals)) return user.goals
+    if (typeof user?.goals === 'string' && user.goals.startsWith('[')) return JSON.parse(user.goals)
+    return [user?.goal].filter(Boolean)
+  } catch { return [user?.goal].filter(Boolean) }
+}
+
+function parseGymTypes(user) {
+  try {
+    if (Array.isArray(user?.gym_types)) return user.gym_types
+    if (typeof user?.gym_types === 'string' && user.gym_types.startsWith('[')) return JSON.parse(user.gym_types)
+    return [user?.gym_type].filter(Boolean)
+  } catch { return [user?.gym_type].filter(Boolean) }
+}
+
+// ── Mapeamentos legíveis ──────────────────────────────────────────────────────
+const GOAL_LABELS = {
+  muscleGain: 'Hipertrofia (ganho muscular)',
+  weightLoss: 'Perda de Peso',
+  endurance: 'Resistência / Cardio',
+  maintenance: 'Manutenção',
+  recomposition: 'Recomposição Corporal',
+  calisthenics: 'Calistenia',
+  crossfit: 'CrossFit / Performance',
+  flexibility: 'Mobilidade / Flexibilidade',
+}
+
+const GYM_LABELS = {
+  full: 'Academia Completa (barras, máquinas, cabos, halteres)',
+  basic: 'Academia Básica (halteres, barra, banco)',
+  home: 'Em Casa (peso corporal, halteres leves, elásticos)',
+  outdoor: 'Ao Ar Livre / Calistenia (barras de rua, peso corporal)',
+  crossfit: 'Box CrossFit / Funcional (kettlebell, barbell, box, corda)',
+}
+
+const GYM_EQUIPMENT = {
+  full: 'TODOS os equipamentos: barras, máquinas, cabos, halteres, polia, leg press, cadeira extensora, mesa flexora, peck deck.',
+  basic: 'Halteres, barra, banco, paralelas. SEM máquinas específicas.',
+  home: 'APENAS peso corporal, halteres leves (se houver) e elásticos. PROIBIDO: barras pesadas, máquinas, leg press.',
+  outdoor: 'Peso corporal e barras fixas de parque. PROIBIDO: qualquer máquina ou equipamento de academia.',
+  crossfit: 'Kettlebell, barbell, box jump, corda, argolas, pull-up bar. Movimentos olímpicos liberados.',
+}
+
+const ACTIVITY_DAYS = {
+  '1.2': '2 dias/semana',
+  '1.375': '3 dias/semana',
+  '1.55': '4–5 dias/semana',
+  '1.725': '6 dias/semana',
+  '1.9': 'treino diário',
+}
+
+const GOAL_PROTOCOL = {
+  muscleGain: 'RIR 1–3 | 10–20 séries/semana/grupo | descanso 2–4 min | progressão de carga semanal',
+  weightLoss: 'Déficit calórico | cardio Z2–Z3 | treino de força para preservar músculo | descanso 90s',
+  endurance: 'Base aeróbica Z2 | progressão de volume semanal | Z4–Z5 esporádico | descanso 60–90s',
+  maintenance: 'Volume moderado | equilíbrio cardio + força | RIR 2–4 | descanso 90s–2 min',
+  recomposition: 'Calorias de manutenção | proteína elevada 2.2g/kg | força prioritário | cardio moderado',
+  calisthenics: 'Progressões de peso corporal | skills (planche, muscle-up) | volume alto | RIR 2–3',
+  crossfit: 'WODs de alta intensidade | movimentos olímpicos | metcon | força + cardio misturados',
+  flexibility: 'Mobilidade articular | alongamento ativo | liberação miofascial | postura e respiração',
+}
+
+// ── Bloco de perfil injetado no prompt ───────────────────────────────────────
+function buildProfileBlock(p) {
+  const goals = parseGoals(p)
+  const gymTypes = parseGymTypes(p)
+  const bmr = p.sex === 'male'
+    ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30)
+    : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
+  const tdee = Math.round(bmr * (p.activity || 1.55))
+  const actKey = String(p.activity || '1.55')
+  const maxDays = ACTIVITY_DAYS[actKey] || '4–5 dias/semana'
+
+  const goalsText = goals.length
+    ? goals.map(id => `  • ${GOAL_LABELS[id] || id}\n    Protocolo: ${GOAL_PROTOCOL[id] || '—'}`).join('\n')
+    : '  • Não informado'
+
+  const gymText = gymTypes.length
+    ? gymTypes.map(id => `  • ${GYM_LABELS[id] || id}\n    Equipamentos: ${GYM_EQUIPMENT[id] || '—'}`).join('\n')
+    : '  • Não informado'
+
+  return `
+══════════════════════════════════════════
+  PERFIL DO ATLETA — LEIA ANTES DE TUDO
+══════════════════════════════════════════
+Nome:       ${p.name || '—'}
+Idade:      ${p.age || '—'} anos  |  Sexo: ${p.sex === 'male' ? 'Masculino' : 'Feminino'}
+Peso:       ${p.weight || '—'} kg  |  Altura: ${p.height || '—'} cm
+TMB:        ~${Math.round(bmr)} kcal/dia
+TDEE:       ~${tdee} kcal/dia
+Frequência: ${maxDays}
+
+OBJETIVOS${goals.length > 1 ? ' (MÚLTIPLOS — equilibre TODOS nas sugestões)' : ''}:
+${goalsText}
+
+LOCAIS DE TREINO DISPONÍVEIS${gymTypes.length > 1 ? ' (pode usar qualquer um)' : ''}:
+${gymText}
+══════════════════════════════════════════`
+}
+
+// ── Regras absolutas ─────────────────────────────────────────────────────────
+const ABSOLUTE_RULES = `
+══════════════════════════════════════════
+  REGRAS ABSOLUTAS — NUNCA VIOLAR
+══════════════════════════════════════════
+1. FREQUÊNCIA: Nunca sugira mais dias de treino do que a frequência declarada no perfil.
+   2 dias → Full Body 2x | 3 dias → Full Body ou ABC | 4–5 dias → Upper/Lower ou PPL | 6–7 dias → Arnold ou PPL avançado
+
+2. EQUIPAMENTOS: Use APENAS os disponíveis nos locais declarados.
+   • Em Casa = ZERO máquinas. Peso corporal, elástico, halter leve.
+   • Ao Ar Livre = ZERO máquinas. Barras de parque e peso corporal.
+   • Academia Básica = sem leg press, cadeira extensora, mesa flexora ou cabos.
+   • Academia Completa = tudo liberado.
+   • CrossFit = kettlebell, barbell, box, movimentos olímpicos.
+
+3. MÚLTIPLOS OBJETIVOS: Quando o atleta tem mais de um objetivo, equilibre todos.
+   Ex: Hipertrofia + Resistência → 4 dias força (RIR 2) + 2 dias cardio Z2. Não ignore nenhum objetivo.
+
+4. MÚLTIPLOS LOCAIS: Se o atleta tem acesso a vários locais, você pode combinar.
+   Ex: Academia Completa + Em Casa → treino pesado na academia, recuperação ativa em casa.
+
+5. ADAPTAÇÃO DE DIVISÃO POR FREQUÊNCIA:
+   • 2 dias → Full Body cada sessão
+   • 3 dias → Full Body ou ABC
+   • 4 dias → Upper/Lower ou Push/Pull/Legs/Rest
+   • 5–6 dias → PPL, Arnold Split ou divisão avançada
+   ❌ NÃO monte PPL 6x para quem treina 3 dias.
+
+6. DISCLAIMER: Todo planejamento deve terminar com:
+   "⚠️ Planejamento sugerido de caráter informativo — consulte um profissional CREF antes de iniciar."
+══════════════════════════════════════════`
+
+const LEGAL_DISCLAIMER = `
+DIRETRIZES LEGAIS OBRIGATÓRIAS:
+1. Você é Assistente de Organização e Educação em Fitness — NÃO é personal trainer habilitado.
+2. LINGUAGEM: Nunca use "você deve fazer", "faça este exercício", "eu prescrevo". Use sempre "exemplo de planejamento", "uma sugestão seria", "muitos praticantes utilizam".
+3. DOR OU LESÃO mencionada → PARE e responda APENAS: "Consulte um médico ou fisioterapeuta antes de continuar treinando."
+4. Todo planejamento deve terminar com o disclaimer legal.`
+
+const SCIENCE_BASE = `
+FUNDAMENTOS CIENTÍFICOS:
+• Sobrecarga progressiva — progrida em carga, reps ou execução toda semana
+• Proximidade da falha — RIR 1–3 (pare 1–3 reps antes da falha). Falha total só na última série
+• Volume efetivo — 10–20 séries/semana por grupo muscular
+• ROM completo — maior alongamento = maior estímulo anabólico
+• Descanso — compostos: 2–4 min | isoladores: 90s–2 min
+• Cardio base — Z2 (60–70% FC máx) é a zona de maior queima de gordura
+• Proteína — 1.8–2.5g/kg/dia para preservação e ganho muscular`
+
+const JSON_RULE = `
+REGRA JSON — PLANEJAMENTO DE TREINO:
+Gere [TREINO_JSON] SOMENTE quando o planejamento estiver 100% definido. Durante perguntas: só texto.
+[TREINO_JSON]
+{"nome":"Push A — Peito, Ombro, Tríceps","duracao":"55-70 min","foco":"Peito, Ombro, Tríceps","exercicios":[{"nome":"Supino Reto com Barra","series":4,"reps":"6-10","rir":"RIR 2","descanso":"2-3 min","dica":"Desça até alongamento total, cotovelos a 45°"},{"nome":"Crucifixo no Cabo","series":3,"reps":"12-15","rir":"RIR 1","descanso":"90s","dica":"Abertura máxima = maior ponto de crescimento"}],"observacoes":"⚠️ Planejamento sugerido — consulte um profissional CREF antes de iniciar."}
+[/TREINO_JSON]
+
+REGRA JSON — SUGESTÃO ALIMENTAR:
+Gere [DIETA_JSON] só após ter objetivo + peso confirmados.
+[DIETA_JSON]
+{"objetivo":"Ganho de massa","calorias_totais":2800,"proteina_total":180,"carboidrato_total":320,"gordura_total":80,"refeicoes":[{"nome":"Café da Manhã","tipo":"Café da manhã","horario":"07:00","calorias":600,"proteina":35,"carboidrato":75,"gordura":15,"alimentos":["Ovos mexidos (3 ovos)","Pão integral (2 fatias)","Banana"],"descricao":"Refeição anabólica para iniciar o dia"}],"observacoes":"⚠️ Sugestão informativa — consulte um nutricionista antes de adotar qualquer dieta."}
+[/DIETA_JSON]`
+
 // ── Context router ────────────────────────────────────────────────────────────
 function routeContext(message, p) {
   const m = (message || '').toLowerCase()
-  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|bra.o|perna|panturrilha|b.ceps|tr.ceps/.test(m)
-  const isD = /dieta|caloria|prote.na|carboidrato|refei..o|comer|card.pio|nutri|emagrec/.test(m)
-  const isC = /checkin|check.in|evolu..o|progresso|semana|bioimpedância|sono|an.lise/.test(m)
-  const base = `- Nome: ${p.name || '—'} | Objetivo: ${p.goal || '—'}`
-  const bmr = p.sex === 'male' ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30) : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
+  const goals = parseGoals(p)
+  const gymTypes = parseGymTypes(p)
+  const bmr = p.sex === 'male'
+    ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30)
+    : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
   const tdee = Math.round(bmr * (p.activity || 1.55))
-  if (isW) return [base,
-    `- Peso: ${p.weight || '—'}kg | Altura: ${p.height || '—'}cm`,
-    p.weeklyStats ? `- Esta semana: ${p.weeklyStats}` : '',
-    p.recentWorkouts ? `- Treinos recentes: ${p.recentWorkouts}` : '',
-    p.muscleRecoveryReport ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
+
+  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|bra.o|perna|panturrilha|b.ceps|tr.ceps|calistenia|crossfit|wod/.test(m)
+  const isD = /dieta|caloria|prote.na|carboidrato|refei..o|comer|card.pio|nutri|emagrec|cut|bulk/.test(m)
+  const isC = /checkin|check.in|evolu..o|progresso|semana|bioimpedância|sono|an.lise/.test(m)
+
+  const baseBlock = buildProfileBlock(p)
+
+  if (isW) return [
+    baseBlock,
+    p.weeklyStats ? `ESTA SEMANA: ${p.weeklyStats}` : '',
+    p.recentWorkouts ? `TREINOS RECENTES: ${p.recentWorkouts}` : '',
+    p.muscleRecoveryReport ? `\n[RECUPERAÇÃO MUSCULAR]\n${p.muscleRecoveryReport}` : '',
     p.progressiveOverloadReport ? `\n[SOBRECARGA PROGRESSIVA]\n${p.progressiveOverloadReport}` : '',
     p.plateauReport ? `\n${p.plateauReport}` : '',
     p.autoRegulationReport ? `\n${p.autoRegulationReport}` : '',
   ].filter(Boolean).join('\n')
-  if (isD) return [base,
-    `- Peso: ${p.weight || '—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
-    p.lastBio ? `- Bioimpedância: gordura ${p.lastBio.gordura || '?'}%, músculo ${p.lastBio.musculo || '?'}%` : '',
+
+  if (isD) return [
+    baseBlock,
+    `TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
+    p.lastBio ? `Bioimpedância: gordura ${p.lastBio.gordura || '?'}%, músculo ${p.lastBio.musculo || '?'}%` : '',
   ].filter(Boolean).join('\n')
-  if (isC) return [base,
-    `- Peso: ${p.weight || '—'}kg | TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
-    p.avgSleep ? `- Sono médio (7d): ${p.avgSleep}h` : '',
-    p.lastBio ? `- Bioimpedância: gordura ${p.lastBio.gordura || '?'}%, músculo ${p.lastBio.musculo || '?'}%, visceral ${p.lastBio.visceral || '?'}, água ${p.lastBio.agua || '?'}%` : '',
-    p.weeklyStats ? `- Esta semana: ${p.weeklyStats}` : '',
-    p.muscleRecoveryReport ? `\n[DADOS DO SISTEMA]\n${p.muscleRecoveryReport}` : '',
+
+  if (isC) return [
+    baseBlock,
+    `TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
+    p.avgSleep ? `Sono médio (7d): ${p.avgSleep}h` : '',
+    p.lastBio ? `Bioimpedância: gordura ${p.lastBio.gordura || '?'}%, músculo ${p.lastBio.musculo || '?'}%, visceral ${p.lastBio.visceral || '?'}, água ${p.lastBio.agua || '?'}%` : '',
+    p.weeklyStats ? `Esta semana: ${p.weeklyStats}` : '',
+    p.muscleRecoveryReport ? `\n[RECUPERAÇÃO]\n${p.muscleRecoveryReport}` : '',
   ].filter(Boolean).join('\n')
-  return base
+
+  return baseBlock
 }
 
-// ── Legal disclaimer injetado em todos os prompts ─────────────────────────────
-const LEGAL_DISCLAIMER = `
-DIRETRIZES LEGAIS OBRIGATÓRIAS — SIGA SEMPRE SEM EXCEÇÃO:
-
-1. IDENTIDADE: Você é um Assistente de Organização e Educação em Fitness. NÃO é personal trainer, nutricionista nem profissional de saúde habilitado.
-
-2. LINGUAGEM PROIBIDA: Nunca use "você deve fazer", "seu treino é", "eu prescrevo", "eu recomendo que você faça", "faça este exercício". Use sempre: "uma divisão comum na literatura é", "muitos praticantes utilizam", "um exemplo de planejamento seria", "com base em dados gerais, uma sugestão seria".
-
-3. DISCLAIMER OBRIGATÓRIO: Todo planejamento de treino ou sugestão alimentar DEVE terminar com esta frase exata:
-"⚠️ Este é um planejamento sugerido com base em dados gerais. Consulte um profissional de Educação Física (CREF) e/ou nutricionista antes de iniciar qualquer rotina."
-
-4. DOR OU LESÃO: Se o usuário mencionar dor, lesão, desconforto físico ou sintomas médicos, PARE imediatamente qualquer sugestão de exercício e responda APENAS: "Não vou sugerir exercícios em caso de dor ou desconforto. Por favor, consulte um médico ou fisioterapeuta antes de continuar treinando."
-
-5. TERMINOLOGIA: Refira-se a treinos como "Planejamento Sugerido" ou "Exemplo de Divisão". Refira-se a dietas como "Sugestão Alimentar" ou "Exemplo de Cardápio".
-`
-
-const SCIENCE_BASE = `FUNDAMENTOS CIENTÍFICOS DE HIPERTROFIA:
-1. SOBRECARGA PROGRESSIVA — progrida em carga, reps ou execução toda semana.
-2. PROXIMIDADE DA FALHA (RIR 1-3) — pare a 1-3 reps da falha. Falha total só na última série.
-3. VOLUME — 10-20 séries/semana por grupo. 2x/semana = 5-6 séries/sessão. 1x = 8-12/sessão.
-4. ROM COMPLETO — ponto de maior alongamento = maior estímulo anabólico.
-5. EXERCÍCIOS — composto livre (base) + máquinas/cabos (isolamento estável).
-6. DESCANSO — compostos 2-4 min | isoladores 90s-2 min.`
-
-const JSON_RULE = `REGRA DO JSON — TREINOS:
-- Gere [TREINO_JSON] SOMENTE quando o treino estiver 100% definido.
-- Durante perguntas ou sugestão de divisão: responda APENAS em texto, sem JSON.
-- O bloco deve ser completo e válido:
-[TREINO_JSON]
-{"nome":"Push A — Peito, Ombro, Tríceps","duracao":"55-70 min","foco":"Peito, Ombro, Tríceps","exercicios":[{"nome":"Supino Reto com Barra","series":4,"reps":"6-10","rir":"RIR 2","descanso":"2-3 min","dica":"Desça até alongamento total, cotovelos a 45°"},{"nome":"Crucifixo no Cabo","series":3,"reps":"12-15","rir":"RIR 1","descanso":"90s","dica":"Abertura máxima = maior ponto de crescimento"}],"observacoes":"Volume para 2x/semana. Progrida toda semana. ⚠️ Planejamento sugerido — consulte um profissional CREF antes de iniciar."}
-[/TREINO_JSON]
-
-REGRA DO JSON — DIETAS:
-- Gere [DIETA_JSON] ao montar um plano alimentar completo.
-- Só gere quando tiver objetivo, calorias alvo e pelo menos 3 refeições definidas.
-- O bloco deve ser completo e válido:
-[DIETA_JSON]
-{"objetivo":"Ganho de massa","calorias_totais":2800,"proteina_total":180,"carboidrato_total":320,"gordura_total":80,"refeicoes":[{"nome":"Café da Manhã","tipo":"Café da manhã","horario":"07:00","calorias":600,"proteina":35,"carboidrato":75,"gordura":15,"alimentos":["Ovos mexidos (3 ovos)","Pão integral (2 fatias)","Banana","Whey com leite"],"descricao":"Refeição anabólica para iniciar o dia com energia"},{"nome":"Almoço","tipo":"Almoço","horario":"12:00","calorias":900,"proteina":60,"carboidrato":100,"gordura":25,"alimentos":["Frango grelhado 200g","Arroz integral 1 xícara","Feijão 1 concha","Salada verde","Azeite 1 fio"],"descricao":"Maior refeição do dia, rica em proteína e carboidrato complexo"},{"nome":"Lanche Pré-treino","tipo":"Lanche","horario":"16:00","calorias":400,"proteina":25,"carboidrato":55,"gordura":8,"alimentos":["Batata-doce 150g","Peito de frango 100g"],"descricao":"Carboidrato de absorção lenta para energia no treino"},{"nome":"Jantar","tipo":"Jantar","horario":"20:00","calorias":700,"proteina":50,"carboidrato":70,"gordura":20,"alimentos":["Salmão 180g","Arroz integral","Brócolis refogado","Azeite"],"descricao":"Proteína de alta qualidade e gordura boa para recuperação noturna"}],"observacoes":"Adapte as porções conforme seu apetite. Hidrate-se com 35ml/kg de peso ao dia. ⚠️ Sugestão alimentar — consulte um nutricionista antes de adotar qualquer dieta."}
-[/DIETA_JSON]`
-
-const DIET_PROTOCOL = `PROTOCOLO PARA SUGESTÕES ALIMENTARES:
-Quando o usuário pedir uma dieta, cardápio ou plano alimentar:
-1. Faça estas perguntas em UMA única mensagem (só se não souber):
-   "Para montar uma sugestão alimentar, preciso de 3 informações:
-   1️⃣ Objetivo: A) Emagrecer  B) Ganhar massa  C) Manter peso
-   2️⃣ Peso atual: ___kg
-   3️⃣ Restrições: alguma alergia, intolerância ou alimento que não come?"
-2. Com as respostas: TDEE estimado = peso × 33. Ajuste: emagrecer -300 kcal | ganhar massa +300 kcal.
-3. Monte 4-6 refeições com alimentos brasileiros acessíveis e horários práticos.
-4. Macros: ganho (P:30%, C:50%, G:20%) | emagrecer (P:35%, C:40%, G:25%) | manter (P:25%, C:50%, G:25%).
-5. Só gere [DIETA_JSON] após ter objetivo + peso confirmados — nunca antes.
-6. Sempre inclua o disclaimer legal no campo "observacoes" do JSON.
-7. Mencione que o PRO calcula TDEE exato com dados reais (bioimpedância, sono, nível de atividade).`
-
+// ── Prompt FREE ───────────────────────────────────────────────────────────────
 function buildFreePrompt() {
   return `${LEGAL_DISCLAIMER}
 
-Você é o Health Assistant do Health OS, app brasileiro de saúde e fitness.
-Responda SEMPRE em português brasileiro. Direto e prático.
-Respostas conversacionais: máximo 3 parágrafos. Ao gerar treino: sem limite de tamanho, gere completo.
+Você é o Health Coach AI do Health OS — assistente de fitness e nutrição brasileiro.
+Responda SEMPRE em português brasileiro. Direto, motivador, sem enrolação.
+Conversacional: máximo 3 parágrafos. Planejamentos: gere completo.
 
 ${SCIENCE_BASE}
+${ABSOLUTE_RULES}
 
-PROTOCOLO PARA PLANEJAMENTOS DE TREINO — faça estas 3 perguntas em uma única mensagem antes de montar:
+PROTOCOLO PARA PLANEJAMENTOS (usuário sem perfil completo):
+Faça estas 3 perguntas em UMA única mensagem antes de montar:
 "Para montar o melhor planejamento pra você, preciso de 3 informações:
-1️⃣ Divisão: A) Push/Pull/Legs  B) Upper/Lower  C) Full Body  D) ABC  E) Me sugira uma
-2️⃣ Músculo(s) de hoje: Ex: Peito+Tríceps | Costas+Bíceps | Pernas | Ombros
-3️⃣ Frequência: vai treinar esses músculos mais alguma vez essa semana?"
+1️⃣ Onde você treina? A) Academia completa  B) Academia básica  C) Em casa  D) Ao ar livre  E) CrossFit
+2️⃣ Músculo(s) de hoje: Ex: Peito+Tríceps | Costas+Bíceps | Pernas | Full Body
+3️⃣ Quantos dias por semana você treina?"
 
-Se o usuário escolher "E) Me sugira": sugira a divisão em texto, confirme com ele e SÓ ENTÃO monte com JSON.
-Só gere o planejamento após ter as 3 respostas confirmadas.
+Após as respostas, adapte TUDO ao local e frequência informados.
+Mencione que o PRO personaliza automaticamente com os dados reais do usuário.
 
-${JSON_RULE}
+PROTOCOLO SUGESTÃO ALIMENTAR:
+1. Pergunte objetivo (A/B/C) + peso + restrições — em UMA única mensagem
+2. TDEE estimado = peso × 33. Emagrecer -300 kcal | ganhar +300 kcal
+3. 4–6 refeições com alimentos brasileiros acessíveis
+4. Gere [DIETA_JSON] apenas após ter objetivo + peso confirmados
 
-Quando relevante, mencione que o PRO oferece análise personalizada baseada nos dados reais do usuário.
-
-${DIET_PROTOCOL}`
+${JSON_RULE}`
 }
 
+// ── Prompt PRO ────────────────────────────────────────────────────────────────
 function buildProPrompt(p, lastMessage) {
   const ctx = routeContext(lastMessage || '', p)
   const m = (lastMessage || '').toLowerCase()
-  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|perna/.test(m)
+  const goals = parseGoals(p)
+  const gymTypes = parseGymTypes(p)
+  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|perna|calistenia|crossfit/.test(m)
   const isD = /dieta|cardapio|card.pio|plano alimentar|refeicao|refei..o|comer|caloria|nutri|emagrec|cut|bulk/.test(m)
+  const bmr = p.sex === 'male'
+    ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30)
+    : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
+  const tdee = Math.round(bmr * (p.activity || 1.55))
 
   return `${LEGAL_DISCLAIMER}
 
-Você é o Health Assistant PRO do Health OS — assistente de organização de treinos e nutrição de ${p.name || 'seu atleta'}.
-Responda SEMPRE em português brasileiro. Direto, prático e personalizado.
-Respostas conversacionais: conciso. Ao gerar planejamento: sem limite, gere completo.
+Você é o Health Coach AI PRO do Health OS — assistente de alta performance de ${p.name || 'seu atleta'}.
+Responda SEMPRE em português brasileiro. Direto, motivador e totalmente personalizado.
+Conversacional: conciso. Planejamentos: gere completo sem limite.
 
-CONTEXTO RELEVANTE PARA ESTA RESPOSTA:
 ${ctx}
 
 ${SCIENCE_BASE}
+${ABSOLUTE_RULES}
 
-${isW ? `MODO PLANEJAMENTO PRO:
-Os dados abaixo foram PRÉ-CALCULADOS pelo sistema — não recalcule, use diretamente.
-NÃO faça as 3 perguntas básicas — o usuário PRO espera que você já saiba o que ele deve treinar.
-Fluxo obrigatório:
-1. Leia [DADOS DO SISTEMA]: quais músculos estão PRONTOS vs RECUPERANDO.
-2. Escolha o foco do planejamento de hoje pelos grupos PRONTOS. Justifique em 1 frase com os dados reais.
-3. Leia [SOBRECARGA PROGRESSIVA]: para cada exercício com histórico, diga: "Da última vez você fez Xx de Yreps com Zkg — hoje tente Wkg." Dê o número exato.
-4. Leia [ALERTA DE PLATÔ]: se um exercício estiver nessa lista, NÃO sugira aumento. Aplique a técnica avançada indicada e explique ao usuário o porquê em 1 frase.
-5. Leia [AUTO-REGULAÇÃO]: se presente, congele todas as cargas no nível anterior, force RIR 3 em todos os exercícios e explique brevemente que hoje é dia de treino inteligente, não de bater recorde.
-6. Se não houver [DADOS DO SISTEMA]: pergunte apenas "Qual grupo muscular você quer focar hoje?"
-7. Se não houver [SOBRECARGA PROGRESSIVA]: sugira cargas baseadas no peso corporal (${p.weight || '—'}kg) e perfil intermediário.
-8. Monte o planejamento completo com JSON. No campo "dica" de cada exercício, inclua a carga sugerida com base nos dados acima.` : ''}
+${isW ? `
+══════════════════════════════════════════
+  MODO PLANEJAMENTO PRO — SIGA ESTE FLUXO
+══════════════════════════════════════════
+Os dados abaixo foram PRÉ-CALCULADOS pelo sistema. Use diretamente, não recalcule.
+NÃO faça as perguntas básicas — o usuário PRO espera que você já saiba.
+
+PASSO 1 — RECUPERAÇÃO:
+Leia [RECUPERAÇÃO MUSCULAR] → identifique grupos PRONTOS vs RECUPERANDO.
+Escolha o foco pelos grupos PRONTOS. Justifique em 1 frase com os dados reais.
+
+PASSO 2 — SOBRECARGA:
+Leia [SOBRECARGA PROGRESSIVA] → cite o número exato por exercício:
+"Da última vez você fez Xx${p.weight || ''}reps com Zkg — hoje tente Wkg"
+NUNCA diga "escolha um peso" se houver histórico.
+
+PASSO 3 — PLATÔ:
+Leia [ALERTA DE PLATÔ] → se listado, NÃO sugira aumento. Aplique a técnica avançada e explique.
+
+PASSO 4 — FADIGA:
+Leia [AUTO-REGULAÇÃO] → se presente, congele cargas e force RIR 3. Explique brevemente.
+
+PASSO 5 — ADAPTAR AO PERFIL:
+• Objetivos: ${goals.map(id => GOAL_LABELS[id] || id).join(' + ') || 'não informado'}
+• Locais: ${gymTypes.map(id => GYM_LABELS[id] || id).join(' | ') || 'não informado'}
+• Use APENAS equipamentos dos locais declarados no perfil.
+• Respeite a frequência: ${ACTIVITY_DAYS[String(p.activity || '1.55')] || '4–5 dias/semana'}
+
+PASSO 6 — GERAR:
+• Sem [RECUPERAÇÃO]: pergunte apenas "Qual grupo muscular quer focar hoje?"
+• Monte o planejamento completo com JSON.
+• No campo "dica" de cada exercício: inclua a carga sugerida baseada no histórico.
+` : ''}
+
+${isD ? `
+══════════════════════════════════════════
+  MODO SUGESTÃO ALIMENTAR PRO
+══════════════════════════════════════════
+1. NUNCA peça peso ou objetivo — estão no contexto. Use diretamente.
+2. Alvo calórico pelo TDEE (~${tdee} kcal):
+   ${goals.includes('weightLoss') || goals.includes('recomposition') ? `• Perda/Recomposição detectada → ${tdee - 300} kcal (TDEE - 300)` : ''}
+   ${goals.includes('muscleGain') || goals.includes('crossfit') || goals.includes('calisthenics') ? `• Ganho/Performance detectado → ${tdee + 300} kcal (TDEE + 300)` : ''}
+   ${goals.includes('maintenance') && !goals.includes('muscleGain') && !goals.includes('weightLoss') ? `• Manutenção detectada → ${tdee} kcal` : ''}
+   ${goals.includes('muscleGain') && goals.includes('weightLoss') ? `• Objetivos conflitantes → recomposição → ${tdee} kcal base` : ''}
+3. Bioimpedância disponível: cite o % gordura e o impacto da dieta.
+4. Sono < 6.5h: inclua carboidratos na janta (batata-doce, arroz) para reduzir cortisol.
+5. Pergunte APENAS sobre restrições alimentares — máximo 1 pergunta.
+6. Monte 5–6 refeições e gere [DIETA_JSON] na mesma resposta.
+` : `
+PROTOCOLO SUGESTÃO ALIMENTAR:
+1. Pergunte objetivo + restrições — máximo 1 mensagem
+2. Calcule pelo TDEE do perfil (~${tdee} kcal): perda -300 kcal | ganho +300 kcal
+3. 4–6 refeições com alimentos brasileiros acessíveis
+4. Gere [DIETA_JSON] após confirmar objetivo
+`}
 
 ${JSON_RULE}
-
-${isD ? `MODO SUGESTÃO ALIMENTAR PRO ATIVO:` : `${DIET_PROTOCOL}`}
-${isD ? `Quando detectar pedido de dieta/cardápio/plano alimentar:
-1. NUNCA peça peso ou objetivo — eles estão no contexto. Use-os diretamente.
-2. Calcule o alvo calórico usando o TDEE do contexto:
-   - objetivo=perder peso: TDEE - 300 kcal
-   - objetivo=ganhar massa: TDEE + 300 kcal
-   - objetivo=manter: TDEE
-3. Se houver bioimpedância: cite o % de gordura e explique como a sugestão vai impactar a composição corporal.
-4. Se sono médio < 6.5h: inclua carboidratos na janta (batata-doce, arroz) para reduzir cortisol e melhorar recuperação.
-5. Pergunte APENAS sobre restrições alimentares (alergia, intolerância) — máximo 1 pergunta direta.
-6. Monte 5-6 refeições com horários práticos e alimentos brasileiros acessíveis.
-7. Gere o [DIETA_JSON] completo na mesma resposta, sem esperar confirmação.
-8. Sempre inclua o disclaimer legal no campo "observacoes" do JSON.` : ''}
 
 Não invente dados ausentes. Use apenas o contexto injetado acima.`
 }
