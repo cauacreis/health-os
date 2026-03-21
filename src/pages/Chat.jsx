@@ -189,7 +189,7 @@ const SUGGESTIONS_PRO = [
 ]
 
 export default function Chat({ user, userId }) {
-  const isPro = user?.isPro || false
+  const isPro = user?.is_pro || user?.isPro || false
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
