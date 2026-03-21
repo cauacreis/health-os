@@ -23,7 +23,7 @@ export default function Auth() {
       if (msg.includes('Invalid') || msg.includes('invalid_credentials')) {
         setError('E-mail ou senha incorretos')
       } else if (msg.includes('not confirmed') || msg.includes('Email not confirmed')) {
-        setError('E-mail ainda não confirmado. Verifique sua caixa de entrada e o spam.')
+        setMode('confirm')
       } else if (msg.includes('Too many') || msg.includes('rate limit')) {
         setError('Muitas tentativas. Aguarde alguns minutos e tente novamente.')
       } else {
@@ -216,6 +216,45 @@ export default function Auth() {
             <button onClick={() => { setMode('login'); setCreds(c => ({ ...c, password: '', confirm: '' })) }} className="btn" style={{ width: '100%', background: `rgba(${mode === 'sent' ? '0,212,255' : '0,255,136'},0.14)`, borderColor: mode === 'sent' ? '#00d4ff' : G, color: mode === 'sent' ? '#00d4ff' : G }}>
               IR PARA LOGIN
             </button>
+          </div>
+        )}
+
+        {/* ── E-mail não confirmado ── */}
+        {mode === 'confirm' && (
+          <div style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,160,0,0.2)', borderRadius: 10, padding: 32, textAlign: 'center' }}>
+            <div style={{ fontSize: 40, marginBottom: 14 }}>📬</div>
+            <div style={{ color: '#f59e0b', fontSize: 15, fontWeight: 700, marginBottom: 10, letterSpacing: 1 }}>
+              Confirme seu e-mail
+            </div>
+            <div style={{ color: '#666', fontSize: 12, marginBottom: 16, lineHeight: 1.8 }}>
+              Enviamos um link de confirmação para<br />
+              <span style={{ color: '#999', fontWeight: 700 }}>{creds.email}</span>
+            </div>
+
+            {/* Caixas de instrução */}
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, textAlign: 'left' }}>
+              {[
+                { icon: '📥', label: 'Caixa principal', desc: 'Verifique sua caixa de entrada' },
+                { icon: '🗑️', label: 'Spam / Lixo eletrônico', desc: 'Pode ter ido para o filtro de spam' },
+                { icon: '⏱', label: 'Aguarde até 2 minutos', desc: 'O envio pode levar alguns instantes' },
+              ].map(item => (
+                <div key={item.label} style={{ display: 'flex', gap: 12, alignItems: 'center', padding: '10px 14px', borderRadius: 7, background: 'rgba(245,158,11,0.05)', border: '1px solid rgba(245,158,11,0.1)' }}>
+                  <span style={{ fontSize: 18, flexShrink: 0 }}>{item.icon}</span>
+                  <div>
+                    <div style={{ color: '#f59e0b', fontSize: 11, fontWeight: 700 }}>{item.label}</div>
+                    <div style={{ color: '#555', fontSize: 10, marginTop: 1 }}>{item.desc}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <button onClick={() => { setMode('login'); setError(''); setCreds(c => ({ ...c, password: '' })) }} className="btn"
+              style={{ width: '100%', background: 'rgba(245,158,11,0.1)', borderColor: '#f59e0b', color: '#f59e0b', marginBottom: 10 }}>
+              ← VOLTAR AO LOGIN
+            </button>
+            <div style={{ color: '#333', fontSize: 10, lineHeight: 1.6 }}>
+              Após confirmar o e-mail, volte aqui e faça login normalmente.
+            </div>
           </div>
         )}
 
