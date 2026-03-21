@@ -10,7 +10,6 @@ const LOSSES = [
   { icon: "🏋️", title: "Todos os programas de treino", desc: "Volta apenas para o plano básico de treino." },
   { icon: "🍽️", title: "Log alimentar completo", desc: "Sem controle detalhado de refeições e macros." },
   { icon: "📅", title: "Calendário de treinos", desc: "Sem visão histórica dos treinos realizados." },
-  { icon: "🤖", title: "IA de Alta Performance", desc: "Você perde a análise de fadiga, sono e sobrecarga automática." },
 ];
 
 const PLANS = {
@@ -75,6 +74,11 @@ export default function Subscription() {
   const [cancelStep, setCancelStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('card');
 
+  // Cupom
+  const [couponInput, setCouponInput] = useState('');
+  const [couponStatus, setCouponStatus] = useState(null);
+  const [validatingCoupon, setValidatingCoupon] = useState(false);
+
   useEffect(() => { fetchProfile(); }, []);
 
   useEffect(() => {
@@ -101,6 +105,26 @@ export default function Subscription() {
     setTimeout(() => setToast(null), 6000);
   }
 
+  async function handleValidateCoupon() {
+    if (!couponInput.trim()) return;
+    setValidatingCoupon(true);
+    setCouponStatus(null);
+    const { data } = await supabase
+      .from('coupons')
+      .select('discount_pct, discount_value')
+      .eq('code', couponInput.trim().toUpperCase())
+      .eq('active', true)
+      .single();
+    if (data) {
+      const pct = data.discount_pct || data.discount_value || 0;
+      const finalPrice = (19.90 * (1 - pct / 100)).toFixed(2);
+      setCouponStatus({ valid: true, discount: pct, finalPrice });
+    } else {
+      setCouponStatus({ valid: false });
+    }
+    setValidatingCoupon(false);
+  }
+
   async function handleCardCheckout() {
     setCardLoading(true);
     const { data: { session } } = await supabase.auth.getSession();
@@ -109,7 +133,11 @@ export default function Subscription() {
       const res = await fetch("/api/create-subscription", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: session.user.id, userEmail: session.user.email }),
+        body: JSON.stringify({
+          userId: session.user.id,
+          userEmail: session.user.email,
+          couponCode: couponStatus?.valid ? couponInput.trim() : undefined,
+        }),
       });
       const data = await res.json();
       if (data.init_point) window.location.href = data.init_point;
@@ -145,12 +173,8 @@ export default function Subscription() {
   }
 
   const isPro = profile?.is_pro === true;
-  const proSince = profile?.pro_since
-    ? new Date(profile.pro_since).toLocaleDateString("pt-BR")
-    : null;
-  const proUntil = profile?.pro_until
-    ? new Date(profile.pro_until).toLocaleDateString("pt-BR")
-    : null;
+  const proSince = profile?.pro_since ? new Date(profile.pro_since).toLocaleDateString("pt-BR") : null;
+  const proUntil = profile?.pro_until ? new Date(profile.pro_until).toLocaleDateString("pt-BR") : null;
 
   return (
     <div style={S.page}>
@@ -262,9 +286,55 @@ export default function Subscription() {
 
                 {paymentMethod === 'card' && (
                   <div style={S.methodDetail}>
-                    <div style={S.methodDetailText}>Renovação automática todo mês. Cancele quando quiser.</div>
+                    <div style={S.methodDetailText}>
+                      Renovação automática todo mês. Cancele quando quiser.
+                    </div>
+
+                    {/* Campo de cupom */}
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 6 }}>
+                      <input
+                        value={couponInput}
+                        onChange={e => { setCouponInput(e.target.value.toUpperCase()); setCouponStatus(null); }}
+                        onKeyDown={e => e.key === 'Enter' && handleValidateCoupon()}
+                        placeholder="CUPOM DE DESCONTO"
+                        maxLength={20}
+                        style={{
+                          flex: 1, background: '#1a1a1a',
+                          border: `1px solid ${couponStatus?.valid ? '#22c55e' : couponStatus?.valid === false ? '#ef4444' : '#333'}`,
+                          color: '#e5e5e5', fontFamily: "'Space Mono', monospace",
+                          fontSize: 11, letterSpacing: 2, padding: '10px 12px',
+                          borderRadius: 2, outline: 'none',
+                        }}
+                      />
+                      <button
+                        onClick={handleValidateCoupon}
+                        disabled={validatingCoupon || !couponInput.trim()}
+                        style={{
+                          background: 'transparent', border: '1px solid #555',
+                          color: '#e5e5e5', fontFamily: "'Space Mono', monospace",
+                          fontSize: 11, padding: '0 14px', cursor: 'pointer',
+                          borderRadius: 2, letterSpacing: 1,
+                        }}
+                      >
+                        {validatingCoupon ? '...' : 'OK'}
+                      </button>
+                    </div>
+
+                    {couponStatus && (
+                      <div style={{
+                        fontSize: 11, marginBottom: 8, letterSpacing: 0.3,
+                        color: couponStatus.valid ? '#22c55e' : '#ef4444',
+                      }}>
+                        {couponStatus.valid
+                          ? `✓ ${couponStatus.discount}% de desconto aplicado — R$ ${couponStatus.finalPrice}/mês`
+                          : '✕ Cupom inválido ou expirado'}
+                      </div>
+                    )}
+
                     <button onClick={handleCardCheckout} disabled={cardLoading} style={S.checkoutBtn}>
-                      {cardLoading ? "Aguarde..." : "ASSINAR COM CARTÃO →"}
+                      {cardLoading ? "Aguarde..." : couponStatus?.valid
+                        ? `ASSINAR POR R$ ${couponStatus.finalPrice}/MÊS →`
+                        : "ASSINAR COM CARTÃO →"}
                     </button>
                     <p style={S.secureNote}>🔒 Processado pelo Mercado Pago · Renovação automática</p>
                   </div>
@@ -272,7 +342,9 @@ export default function Subscription() {
 
                 {paymentMethod === 'pix' && (
                   <div style={S.methodDetail}>
-                    <div style={S.methodDetailText}>Pagamento único. Ativa 30 dias de PRO imediatamente após confirmação.</div>
+                    <div style={S.methodDetailText}>
+                      Pagamento único. Ativa 30 dias de PRO imediatamente após confirmação.
+                    </div>
                     <button onClick={handlePixCheckout} disabled={pixLoading} style={{ ...S.checkoutBtn, background: "#059669" }}>
                       {pixLoading ? "Aguarde..." : "PAGAR COM PIX →"}
                     </button>
@@ -297,7 +369,7 @@ export default function Subscription() {
           {[
             ["Posso cancelar a qualquer momento?", "Sim. Para cancelar a assinatura mensal, entre em contato com o suporte. O acesso continua até o fim do período pago."],
             ["O Pix ativa o PRO automaticamente?", "Sim, assim que o pagamento for confirmado pelo Mercado Pago (geralmente instantâneo), seu PRO é ativado por 30 dias."],
-            ["Quais formas de pagamento aceitam no cartão?", "Cartão de crédito via Mercado Pago. Processamento 100% seguro."],
+            ["Os cupons de desconto funcionam no Pix também?", "Por enquanto os cupons funcionam apenas na assinatura mensal via cartão."],
             ["O pagamento é seguro?", "Sim. Todo o processamento é feito pelo Mercado Pago, sem armazenar dados do cartão no Health OS."],
           ].map(([q, a]) => <FaqItem key={q} question={q} answer={a} />)}
         </div>
