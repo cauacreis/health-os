@@ -72,6 +72,7 @@ export default function Subscription({ user }) {
   const [showCancelModal, setShowCancelModal] = useState(false);
   const [cancelStep, setCancelStep] = useState(1);
   const [paymentMethod, setPaymentMethod] = useState('card');
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   // Cupom
   const [couponInput, setCouponInput] = useState('');
@@ -152,8 +153,26 @@ export default function Subscription({ user }) {
   }
 
   async function handleCancelSubscription() {
-    showToast("Entre em contato pelo suporte para cancelar sua assinatura.", "info");
-    setShowCancelModal(false);
+    setCancelLoading(true);
+    try {
+      const res = await fetch("/api/cancel-subscription", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ userId: user.id }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        showToast("Assinatura cancelada com sucesso.", "success");
+        setShowCancelModal(false);
+        // Recarregar a página para atualizar os dados de perfil no app
+        setTimeout(() => window.location.reload(), 2000);
+      } else {
+        showToast(data.error || "Erro ao tentar cancelar.", "error");
+      }
+    } catch {
+      showToast("Erro de conexão. Tente novamente.", "error");
+    }
+    setCancelLoading(false);
   }
 
   const isPro = user?.is_pro === true;
@@ -183,6 +202,7 @@ export default function Subscription({ user }) {
           setStep={setCancelStep}
           onClose={() => { setShowCancelModal(false); setCancelStep(1); }}
           onConfirm={handleCancelSubscription}
+          loading={cancelLoading}
         />
       )}
 
@@ -436,7 +456,7 @@ function ProBadge() {
   );
 }
 
-function CancelModal({ step, setStep, onClose, onConfirm }) {
+function CancelModal({ step, setStep, onClose, onConfirm, loading }) {
   return (
     <div style={M.overlay} onClick={e => e.target === e.currentTarget && onClose()}>
       <div style={M.modal}>
@@ -469,7 +489,7 @@ function CancelModal({ step, setStep, onClose, onConfirm }) {
             <div style={M.header}>
               <div style={{ ...M.warningIcon, background: "rgba(220,38,38,0.05)", borderColor: "rgba(220,38,38,0.15)", color: "#888", fontSize: 22 }}>?</div>
               <h2 style={M.title}>Tem certeza?</h2>
-              <p style={M.subtitle}>Para cancelar, entre em contato pelo suporte. Responderemos em até 24h.</p>
+              <p style={M.subtitle}>Isso cancelará sua assinatura imediatamente.</p>
             </div>
             <div style={M.confirmBox}>
               <div style={M.confirmRow}>
@@ -482,8 +502,10 @@ function CancelModal({ step, setStep, onClose, onConfirm }) {
               </div>
             </div>
             <div style={M.footer}>
-              <button onClick={() => setStep(1)} style={M.continueBtn}>← Voltar</button>
-              <button onClick={onConfirm} style={M.confirmBtn}>Confirmar cancelamento →</button>
+              <button onClick={() => setStep(1)} disabled={loading} style={M.continueBtn}>← Voltar</button>
+              <button onClick={onConfirm} disabled={loading} style={M.confirmBtn}>
+                {loading ? "Cancelando..." : "Confirmar cancelamento →"}
+              </button>
             </div>
           </>
         )}
