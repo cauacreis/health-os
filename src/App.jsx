@@ -30,8 +30,8 @@ export function trialDaysLeft(profile) {
 }
 
 const BOTTOM = [
-  { id: 'dashboard', label: 'Home', icon: '◈' },
-  { id: 'workout', label: 'Treino', icon: '⬡' },
+  { id: 'dashboard', label: 'Home', icon: '🏠' },
+  { id: 'workout', label: 'Treino', icon: '💪' },
   { id: 'chat', label: 'IA', icon: '🤖' },
   { id: 'more', label: 'Mais', icon: '≡' },
 ]
