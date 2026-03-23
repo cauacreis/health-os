@@ -111,7 +111,7 @@ export default function App() {
     { id: 'profile', el: <Profile user={profile} userId={userId} onUpdate={setProfile} /> },
     { id: 'glossary', el: <GlossaryPage /> },
     { id: 'chat', el: <Chat user={profile} userId={userId} /> },
-    { id: 'subscription', el: <Subscription /> },
+    { id: 'subscription', el: <Subscription user={profile} /> },
   ]
 
   return (

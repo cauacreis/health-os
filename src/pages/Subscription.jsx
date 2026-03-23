@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
+import { isTrialActive, trialDaysLeft } from "../App";
 
 const LOSSES = [
   { icon: "📊", title: "Gráficos avançados", desc: "Seu histórico completo de evolução desaparece da tela." },
@@ -59,14 +60,12 @@ const PLANS = {
   },
 };
 
-export default function Subscription() {
+export default function Subscription({ user }) {
   const params = new URLSearchParams(window.location.search);
   const isSuccess = params.get("payment") === "success";
   const isFailure = params.get("payment") === "failure";
   const isPending = params.get("payment") === "pending";
 
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [cardLoading, setCardLoading] = useState(false);
   const [pixLoading, setPixLoading] = useState(false);
   const [toast, setToast] = useState(null);
@@ -79,26 +78,11 @@ export default function Subscription() {
   const [couponStatus, setCouponStatus] = useState(null);
   const [validatingCoupon, setValidatingCoupon] = useState(false);
 
-  useEffect(() => { fetchProfile(); }, []);
-
   useEffect(() => {
     if (isSuccess) showToast("✅ Pagamento aprovado! Bem-vindo ao Pro.", "success");
     if (isFailure) showToast("Pagamento cancelado ou falhou. Tente novamente.", "error");
     if (isPending) showToast("⏳ Pagamento pendente. Assim que confirmado, seu PRO será ativado.", "info");
   }, []);
-
-  async function fetchProfile() {
-    setLoading(true);
-    const { data: { session } } = await supabase.auth.getSession();
-    if (!session) { setLoading(false); return; }
-    const { data } = await supabase
-      .from("profiles")
-      .select("is_pro, pro_since, pro_until, mp_subscription_id")
-      .eq("id", session.user.id)
-      .single();
-    setProfile({ ...data, email: session.user.email, id: session.user.id });
-    setLoading(false);
-  }
 
   function showToast(msg, type = "info") {
     setToast({ msg, type });
@@ -172,9 +156,11 @@ export default function Subscription() {
     setShowCancelModal(false);
   }
 
-  const isPro = profile?.is_pro === true;
-  const proSince = profile?.pro_since ? new Date(profile.pro_since).toLocaleDateString("pt-BR") : null;
-  const proUntil = profile?.pro_until ? new Date(profile.pro_until).toLocaleDateString("pt-BR") : null;
+  const isPro = user?.is_pro === true;
+  const inTrial = isTrialActive(user) && !user?.is_premium;
+  const daysLeft = inTrial ? trialDaysLeft(user) : null;
+  const proSince = user?.pro_since ? new Date(user.pro_since).toLocaleDateString("pt-BR") : null;
+  const proUntil = user?.pro_until ? new Date(user.pro_until).toLocaleDateString("pt-BR") : null;
 
   return (
     <div style={S.page}>
@@ -203,28 +189,36 @@ export default function Subscription() {
           <div style={S.tag}>PLANOS</div>
           <div style={{ display: "flex", alignItems: "center", justifyContent: "center", gap: 14, flexWrap: "wrap" }}>
             <h1 style={S.title}>Health OS</h1>
-            {!loading && isPro && <ProBadge />}
+            {isPro && <ProBadge />}
           </div>
           <p style={S.subtitle}>Escolha seu plano e monitore sua saúde sem limites.</p>
         </header>
 
-        {!loading && isPro && (
+        {isPro && (
           <div style={S.statusCard}>
             <div style={S.statusRow}>
               <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
                 <div style={S.statusDot} />
-                <span style={S.statusBadge}>✦ PRO ATIVO</span>
+                <span style={S.statusBadge}>✦ {inTrial ? 'TESTE DE 30 DIAS' : 'PRO ATIVO'}</span>
               </div>
               <div style={{ textAlign: "right" }}>
-                {proSince && <div style={S.statusDate}>Ativo desde {proSince}</div>}
-                {proUntil && <div style={{ ...S.statusDate, color: "#f97316" }}>Válido até {proUntil}</div>}
+                {inTrial && daysLeft !== null && <div style={{ ...S.statusDate, color: "#f97316", fontWeight: 700 }}>{daysLeft} dias restantes</div>}
+                {!inTrial && proSince && <div style={S.statusDate}>Ativo desde {proSince}</div>}
+                {!inTrial && proUntil && <div style={{ ...S.statusDate, color: "#f97316" }}>Válido até {proUntil}</div>}
               </div>
             </div>
-            <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
-              <button onClick={() => { setShowCancelModal(true); setCancelStep(1); }} style={S.cancelTriggerBtn}>
-                Cancelar assinatura
-              </button>
-            </div>
+            {!inTrial && (
+              <div style={{ display: "flex", gap: 8, marginTop: 14 }}>
+                <button onClick={() => { setShowCancelModal(true); setCancelStep(1); }} style={S.cancelTriggerBtn}>
+                  Cancelar assinatura
+                </button>
+              </div>
+            )}
+            {inTrial && (
+              <div style={{ fontSize: 11, color: '#888', marginTop: 10, lineHeight: 1.5 }}>
+                Aproveite tudo do Pro. Você não será cobrado automaticamente ao final, pode assinar depois.
+              </div>
+            )}
           </div>
         )}
 
@@ -266,7 +260,7 @@ export default function Subscription() {
               ))}
             </ul>
 
-            {!isPro && !loading && (
+            {!user?.is_premium && (
               <>
                 {/* Seletor de método */}
                 <div style={S.methodSelector}>
