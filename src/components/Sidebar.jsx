@@ -6,6 +6,7 @@ const NAV_PRIMARY = [
   { id: 'workout', label: 'Treinos', icon: '⬡' },
   { id: 'calendar', label: 'Agenda', icon: '◫' },
   { id: 'calories', label: 'Dieta', icon: '◉' },
+  { id: 'chat', label: 'Chat IA', icon: '🤖' },
 ]
 
 const NAV_HEALTH = [
