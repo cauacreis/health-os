@@ -157,11 +157,13 @@ export default function Subscription({ user }) {
   }
 
   const isPro = user?.is_pro === true;
-  const isRealPro = user?.original_is_pro === true || user?.is_premium === true;
+  const proUntilDate = user?.pro_until ? new Date(user.pro_until) : null;
+  const hasFuturePro = proUntilDate && proUntilDate > new Date();
+  const isRealPro = user?.original_is_pro === true || user?.is_premium === true || hasFuturePro;
   const inTrial = isTrialActive(user) && !isRealPro;
   const daysLeft = inTrial ? trialDaysLeft(user) : null;
   const proSince = user?.pro_since ? new Date(user.pro_since).toLocaleDateString("pt-BR") : null;
-  const proUntil = user?.pro_until ? new Date(user.pro_until).toLocaleDateString("pt-BR") : null;
+  const proUntil = proUntilDate ? proUntilDate.toLocaleDateString("pt-BR") : null;
 
   return (
     <div style={S.page}>
