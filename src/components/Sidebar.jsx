@@ -2,23 +2,23 @@ import { signOut } from '../lib/db'
 
 // ── Navigation groups ─────────────────────────────────────────────────────────
 const NAV_PRIMARY = [
-  { id: 'dashboard', label: 'Home', icon: '◈' },
-  { id: 'workout', label: 'Treinos', icon: '⬡' },
-  { id: 'calendar', label: 'Agenda', icon: '◫' },
-  { id: 'calories', label: 'Dieta', icon: '◉' },
+  { id: 'dashboard', label: 'Home', icon: '🏠' },
+  { id: 'workout', label: 'Treinos', icon: '💪' },
+  { id: 'calendar', label: 'Agenda', icon: '📒' },
+  { id: 'calories', label: 'Dieta', icon: '🍽️' },
   { id: 'chat', label: 'Chat IA', icon: '🤖' },
 ]
 
 const NAV_HEALTH = [
-  { id: 'water', label: 'Hidratação', icon: '◌' },
-  { id: 'bmi', label: 'IMC', icon: '◎' },
-  { id: 'activity', label: 'Atividade', icon: '♡' },
+  { id: 'water', label: 'Hidratação', icon: '💧' },
+  { id: 'bmi', label: 'IMC', icon: '⚖️' },
+  { id: 'activity', label: 'Atividade', icon: '🏃' },
 ]
 
 const NAV_OTHER = [
-  { id: 'profile', label: 'Perfil', icon: '◯' },
-  { id: 'subscription', label: 'Planos', icon: '✦' },
-  { id: 'glossary', label: 'Glossário', icon: '?' },
+  { id: 'profile', label: 'Perfil', icon: '👤' },
+  { id: 'subscription', label: 'Planos', icon: '💎' },
+  { id: 'glossary', label: 'Glossário', icon: '📖' },
 ]
 
 function NavButton({ item, active, setTab }) {
