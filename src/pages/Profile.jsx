@@ -2,6 +2,8 @@ import { useState } from 'react'
 import { upsertProfile, today } from '../lib/db'
 import { NeonCard, SectionTitle } from '../components/UI'
 import { FUN_FACTS } from '../data/funfacts'
+import { GOALS_LIST, parseGoals, parseGymTypes } from '../components/Onboarding'
+import { GYM_TYPES, PROGRAMS } from '../data/workouts'
 import ProGate from '../components/ProGate'
 
 const ACTIVITY_OPTS = [
@@ -12,11 +14,7 @@ const ACTIVITY_OPTS = [
   { v: '1.9', l: 'Extremamente ativo' },
 ]
 
-const PROGRAMS = [
-  { v: 'upperLower5', l: 'Upper/Lower 5x — Intermediário' },
-  { v: 'ppl6', l: 'PPL 6x — Avançado' },
-  { v: 'custom', l: 'Montar minha própria ficha — Personalizado' },
-]
+// (PROGRAMS removed here because it's imported from workouts.js)
 
 const R = '#dc2626'
 const R2 = '#ef4444'
@@ -37,11 +35,25 @@ export default function Profile({ user, userId, onUpdate }) {
     weight: user.weight || '',
     height: user.height || '',
     sex: user.sex || 'male',
-    goal: user.goal || 'muscleGain',
+    goals: parseGoals(user),
+    gymTypes: parseGymTypes(user),
     activity: String(user.activity || '1.55'),
     program: user.program || 'upperLower5',
-    fitness: { ...defaultFitness, ...fitnessProfile },
   })
+
+  function toggleGoal(id) {
+    setEdit(v => {
+      const has = v.goals.includes(id)
+      return { ...v, goals: has ? v.goals.filter(x => x !== id) : [...v.goals, id] }
+    })
+  }
+
+  function toggleGymType(id) {
+    setEdit(v => {
+      const has = v.gymTypes.includes(id)
+      return { ...v, gymTypes: has ? v.gymTypes.filter(x => x !== id) : [...v.gymTypes, id] }
+    })
+  }
 
   async function saveProfile() {
     if (!edit.name || !edit.age || !edit.weight || !edit.height) return
@@ -53,10 +65,12 @@ export default function Profile({ user, userId, onUpdate }) {
         weight: +edit.weight,
         height: +edit.height,
         sex: edit.sex,
-        goal: edit.goal,
+        goals: edit.goals,
+        gym_types: edit.gymTypes,
+        goal: edit.goals[0] || 'muscleGain', // keep single field for legacy compatibility
+        gym_type: edit.gymTypes[0] || 'full', // keep single field for legacy compatibility
         activity: +edit.activity,
         program: edit.program,
-        fitness_profile: edit.fitness,
       })
       onUpdate(updated)
       setActiveTab('perfil')
@@ -246,62 +260,49 @@ export default function Profile({ user, userId, onUpdate }) {
               </select>
             </div>
             <div style={{ gridColumn: '1/-1' }}>
-              <label className="label">OBJETIVO</label>
+              <label className="label">OBJETIVOS</label>
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
-                {[
-                  { v: 'muscleGain', l: '💪 Ganho Muscular' },
-                  { v: 'weightLoss', l: '⬇ Perda de Peso' },
-                  { v: 'endurance', l: '∞ Resistência' },
-                  { v: 'maintenance', l: '◎ Manutenção' },
-                ].map(g => (
-                  <button key={g.v} type="button" onClick={() => setEdit(v => ({ ...v, goal: g.v }))}
-                    style={{ padding: '10px 0', borderRadius: 6, border: `1px solid ${edit.goal === g.v ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.08)'}`, background: edit.goal === g.v ? 'rgba(220,38,38,0.12)' : 'transparent', color: edit.goal === g.v ? R : '#666', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', transition: 'all 0.15s' }}>
-                    {g.l}
-                  </button>
-                ))}
+                {GOALS_LIST.map(g => {
+                  const sel = edit.goals.includes(g.id)
+                  return (
+                    <button key={g.id} type="button" onClick={() => toggleGoal(g.id)}
+                      style={{ padding: '10px 8px', borderRadius: 6, border: `1px solid ${sel ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.08)'}`, background: sel ? 'rgba(220,38,38,0.12)' : 'transparent', color: sel ? R : '#666', fontFamily: 'monospace', fontSize: 10, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{g.icon}</span> <span>{g.label}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+            <div style={{ gridColumn: '1/-1', marginTop: 8 }}>
+              <label className="label">LOCAIS DE TREINO</label>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2,1fr)', gap: 8 }}>
+                {GYM_TYPES.map(g => {
+                  const sel = edit.gymTypes.includes(g.id)
+                  return (
+                    <button key={g.id} type="button" onClick={() => toggleGymType(g.id)}
+                      style={{ padding: '10px 8px', borderRadius: 6, border: `1px solid ${sel ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.08)'}`, background: sel ? 'rgba(220,38,38,0.12)' : 'transparent', color: sel ? R : '#666', fontFamily: 'monospace', fontSize: 10, cursor: 'pointer', transition: 'all 0.15s', display: 'flex', alignItems: 'center', gap: 6 }}>
+                      <span>{g.icon}</span> <span>{g.label}</span>
+                    </button>
+                  )
+                })}
               </div>
             </div>
             <div style={{ gridColumn: '1/-1' }}>
               <label className="label">PROGRAMA DE TREINO</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {PROGRAMS.map(p => (
-                  <button key={p.v} type="button" onClick={() => setEdit(v => ({ ...v, program: p.v }))}
-                    style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 6, border: `1px solid ${edit.program === p.v ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.08)'}`, background: edit.program === p.v ? 'rgba(220,38,38,0.1)' : 'transparent', color: edit.program === p.v ? R : '#666', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', transition: 'all 0.15s' }}>
-                    {p.l}
+                {Object.entries(PROGRAMS).map(([key, p]) => (
+                  <button key={key} type="button" onClick={() => setEdit(v => ({ ...v, program: key }))}
+                    style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 6, border: `1px solid ${edit.program === key ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.08)'}`, background: edit.program === key ? 'rgba(220,38,38,0.1)' : 'transparent', color: edit.program === key ? R : '#666', flex: 1, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', transition: 'all 0.15s' }}>
+                    <div style={{ fontWeight: 700, marginBottom: 2 }}>{p.name}</div>
+                    <div style={{ fontSize: 9, color: edit.program === key ? '#ef4444' : '#555' }}>
+                      {p.level} · {p.frequency}
+                    </div>
                   </button>
                 ))}
               </div>
             </div>
 
-            {/* Fitness sliders — PRO */}
-            <div style={{ gridColumn: '1/-1', marginTop: 16, paddingTop: 16, borderTop: '1px solid rgba(220,38,38,0.15)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                <label className="label" style={{ margin: 0 }}>PERFIL DE FITNESS (1-100)</label>
-                {!isPro && (
-                  <span style={{ background: 'rgba(220,38,38,0.1)', color: R, fontSize: 9, letterSpacing: 1, padding: '3px 8px', borderRadius: 3 }}>🔒 PRO</span>
-                )}
-              </div>
 
-              <ProGate isPro={isPro} feature="A edição do perfil de fitness personalizado">
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  {[
-                    { k: 'strength', l: 'Força' },
-                    { k: 'cardio', l: 'Cardio' },
-                    { k: 'flex', l: 'Flexibilidade' },
-                    { k: 'resistance', l: 'Resistência' },
-                    { k: 'balance', l: 'Equilíbrio' },
-                    { k: 'speed', l: 'Velocidade' },
-                  ].map(f => (
-                    <div key={f.k}>
-                      <label style={{ color: '#666', fontSize: 9, letterSpacing: 1 }}>{f.l} — {edit.fitness[f.k]}</label>
-                      <input type="range" min="0" max="100" value={edit.fitness[f.k] || 50}
-                        onChange={e => setEdit(v => ({ ...v, fitness: { ...v.fitness, [f.k]: +e.target.value } }))}
-                        style={{ width: '100%', accentColor: R, height: 6, cursor: 'pointer' }} />
-                    </div>
-                  ))}
-                </div>
-              </ProGate>
-            </div>
           </div>
 
           <button className="btn" onClick={saveProfile} disabled={saving}

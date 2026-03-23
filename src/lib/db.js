@@ -8,11 +8,11 @@ export function today() {
 }
 
 // ── Auth ─────────────────────────────────────────────────────────────────────
-export async function signUp(email, password, name) {
+export async function signUp(email, password, name, deviceTrialUsed = false) {
   const { data, error } = await supabase.auth.signUp({
     email: email.trim().toLowerCase(),
     password,
-    options: { data: { name } },
+    options: { data: { name, device_trial_used: deviceTrialUsed } },
   })
   if (error) throw error
   return data

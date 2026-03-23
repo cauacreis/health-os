@@ -40,7 +40,12 @@ export default function Auth() {
     if (creds.password !== creds.confirm) return setError('Senhas não coincidem')
     if (!sanitize(creds.name).trim()) return setError('Nome obrigatório')
     setLoading(true)
-    try { await signUp(creds.email, creds.password, sanitize(creds.name)); setMode('registered') }
+    try {
+      const deviceTrialUsed = localStorage.getItem('health_os_trial_used') === 'true'
+      await signUp(creds.email, creds.password, sanitize(creds.name), deviceTrialUsed)
+      localStorage.setItem('health_os_trial_used', 'true')
+      setMode('registered')
+    }
     catch (err) {
       const msg = err.message || ''
       if (msg.includes('already') || msg.includes('already registered')) {

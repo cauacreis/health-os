@@ -52,8 +52,12 @@ export default function App() {
         setLoadingProfile(true)
         try {
           const p = await getProfile(sess.user.id)
+          if (p) {
+            const trialActive = isTrialActive(p)
+            p.is_pro = p.is_pro || p.is_premium || trialActive
+            if (!trialActive && !p.is_pro) setTrialExpired(true)
+          }
           setProfile(p)
-          if (p && !isTrialActive(p)) setTrialExpired(true)
         } catch (e) { console.error(e) }
         finally { setLoadingProfile(false) }
       } else {
