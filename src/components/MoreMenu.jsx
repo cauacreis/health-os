@@ -9,6 +9,7 @@ const ALL_PAGES = [
   { id: 'calendar', label: 'Calendário', icon: '📅', color: '#94a3b8' },
   { id: 'profile', label: 'Perfil', icon: '👤', color: '#64748b' },
   { id: 'glossary', label: 'Glossário', icon: '📖', color: '#94a3b8' },
+  { id: 'subscription', label: 'Planos', icon: '✦', color: '#dc2626' },
 ]
 
 export default function MoreMenu({ setTab, user, onLogout }) {

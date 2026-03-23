@@ -17,6 +17,7 @@ const NAV_HEALTH = [
 
 const NAV_OTHER = [
   { id: 'profile', label: 'Perfil', icon: '◯' },
+  { id: 'subscription', label: 'Planos', icon: '✦' },
   { id: 'glossary', label: 'Glossário', icon: '?' },
 ]
 
