@@ -290,7 +290,14 @@ export default function Profile({ user, userId, onUpdate }) {
             <div style={{ gridColumn: '1/-1' }}>
               <label className="label">PROGRAMA DE TREINO</label>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {Object.entries(PROGRAMS).map(([key, p]) => (
+                {Object.entries(PROGRAMS)
+                  .filter(([k, p]) => {
+                    if (k === 'custom') return true
+                    const matchGym = edit.gymTypes.length === 0 || edit.gymTypes.includes(p.gymType)
+                    const matchGoal = edit.goals.length === 0 || p.goals?.some(g => edit.goals.includes(g))
+                    return matchGym && matchGoal
+                  })
+                  .map(([key, p]) => (
                   <button key={key} type="button" onClick={() => setEdit(v => ({ ...v, program: key }))}
                     style={{ padding: '12px 16px', textAlign: 'left', borderRadius: 6, border: `1px solid ${edit.program === key ? 'rgba(220,38,38,0.5)' : 'rgba(255,255,255,0.08)'}`, background: edit.program === key ? 'rgba(220,38,38,0.1)' : 'transparent', color: edit.program === key ? R : '#666', flex: 1, fontFamily: 'monospace', fontSize: 11, cursor: 'pointer', transition: 'all 0.15s' }}>
                     <div style={{ fontWeight: 700, marginBottom: 2 }}>{p.name}</div>

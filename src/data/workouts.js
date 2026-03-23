@@ -17,6 +17,7 @@ export const PROGRAMS = {
   upperLower5: {
     name: 'Upper / Lower 5x',
     gymType: 'full',
+    goals: ['hypertrophy', 'recomp', 'maintenance'],
     description: 'Split de 5 dias com alternância push/pull e foco em cadeia posterior',
     frequency: '5 dias/semana',
     level: 'Intermediário',
@@ -85,6 +86,7 @@ export const PROGRAMS = {
   ppl6: {
     name: 'Push Pull Legs 6x',
     gymType: 'full',
+    goals: ['hypertrophy', 'recomp'],
     description: 'Split clássico de 6 dias dividido em empurrar, puxar e pernas',
     frequency: '6 dias/semana',
     level: 'Avançado',
@@ -163,6 +165,7 @@ export const PROGRAMS = {
   arnoldSplit: {
     name: 'Arnold Split 6x',
     gymType: 'full',
+    goals: ['hypertrophy'],
     description: 'Split de peito+costas, ombro+braços e pernas — preferido por Arnold',
     frequency: '6 dias/semana',
     level: 'Avançado',
@@ -245,6 +248,7 @@ export const PROGRAMS = {
   basicFullBody3: {
     name: 'Full Body 3x (Academia Básica)',
     gymType: 'basic',
+    goals: ['hypertrophy', 'weightLoss', 'recomp', 'maintenance'],
     description: 'Treino de corpo inteiro 3x por semana com halteres e barra',
     frequency: '3 dias/semana',
     level: 'Iniciante–Intermediário',
@@ -291,6 +295,7 @@ export const PROGRAMS = {
   basicUpperLower4: {
     name: 'Upper / Lower 4x (Academia Básica)',
     gymType: 'basic',
+    goals: ['hypertrophy', 'recomp', 'maintenance'],
     description: 'Split de 4 dias upper/lower com halteres, barra e banco',
     frequency: '4 dias/semana',
     level: 'Intermediário',
@@ -351,6 +356,7 @@ export const PROGRAMS = {
   homeCalisthenics3: {
     name: 'Calistenia Full Body 3x',
     gymType: 'home',
+    goals: ['hypertrophy', 'weightLoss', 'calisthenics', 'recomp', 'maintenance'],
     description: 'Treino completo em casa sem equipamento — peso corporal',
     frequency: '3 dias/semana',
     level: 'Iniciante–Intermediário',
@@ -397,6 +403,7 @@ export const PROGRAMS = {
   homeHIIT4: {
     name: 'HIIT + Força Casa 4x',
     gymType: 'home',
+    goals: ['weightLoss', 'endurance', 'recomp'],
     description: 'Alternância de treino de força e HIIT para perda de gordura em casa',
     frequency: '4 dias/semana',
     level: 'Intermediário',
@@ -455,6 +462,7 @@ export const PROGRAMS = {
   outdoorCalisthenics4: {
     name: 'Street Workout 4x',
     gymType: 'outdoor',
+    goals: ['hypertrophy', 'calisthenics', 'endurance', 'recomp'],
     description: 'Calistenia de rua com barras e peso corporal — foco em força e estética',
     frequency: '4 dias/semana',
     level: 'Intermediário–Avançado',
@@ -512,6 +520,7 @@ export const PROGRAMS = {
   crossfit5: {
     name: 'CrossFit Style 5x',
     gymType: 'crossfit',
+    goals: ['hypertrophy', 'weightLoss', 'crossfit', 'endurance', 'recomp'],
     description: 'WODs de alta intensidade com movimentos olímpicos e ginásticos',
     frequency: '5 dias/semana',
     level: 'Intermediário–Avançado',
@@ -576,6 +585,7 @@ export const PROGRAMS = {
   custom: {
     name: 'Minha Ficha',
     gymType: 'full', // aparece em todos os tipos
+    goals: ['hypertrophy', 'weightLoss', 'endurance', 'maintenance', 'recomp', 'calisthenics', 'crossfit', 'mobility'],
     description: 'Monte sua própria ficha com dias e exercícios personalizados',
     frequency: 'Personalizado',
     level: 'Personalizado',
@@ -585,6 +595,7 @@ export const PROGRAMS = {
   functionalFull4: {
     name: 'Funcional 4x (Box ou Parque)',
     gymType: 'crossfit',
+    goals: ['crossfit', 'weightLoss', 'endurance', 'recomp', 'maintenance'],
     description: 'Treino funcional 4x por semana com movimentos multiarticulares',
     frequency: '4 dias/semana',
     level: 'Iniciante–Intermediário',

@@ -66,9 +66,12 @@ export default function Onboarding({ userId, initialName, onComplete }) {
     setErrors(e => ({ ...e, gymTypes: undefined }))
   }
 
-  const filteredPrograms = Object.entries(PROGRAMS).filter(([k, p]) =>
-    k === 'custom' || form.gymTypes.includes(p.gymType)
-  )
+  const filteredPrograms = Object.entries(PROGRAMS).filter(([k, p]) => {
+    if (k === 'custom') return true
+    const matchGym = form.gymTypes.length === 0 || form.gymTypes.includes(p.gymType)
+    const matchGoal = form.goals.length === 0 || p.goals?.some(g => form.goals.includes(g))
+    return matchGym && matchGoal
+  })
 
   function validate1() {
     const e = {}
@@ -84,7 +87,12 @@ export default function Onboarding({ userId, initialName, onComplete }) {
     if (step === 2 && form.goals.length === 0) { setErrors({ goals: 'Selecione pelo menos um objetivo' }); return }
     if (step === 3 && form.gymTypes.length === 0) { setErrors({ gymTypes: 'Selecione pelo menos um local de treino' }); return }
     if (step === 3) {
-      const avail = Object.entries(PROGRAMS).filter(([k, p]) => k === 'custom' || form.gymTypes.includes(p.gymType))
+      const avail = Object.entries(PROGRAMS).filter(([k, p]) => {
+        if (k === 'custom') return true
+        const matchGym = form.gymTypes.length === 0 || form.gymTypes.includes(p.gymType)
+        const matchGoal = form.goals.length === 0 || p.goals?.some(g => form.goals.includes(g))
+        return matchGym && matchGoal
+      })
       if (avail.length && !avail.find(([k]) => k === form.program)) {
         setForm(f => ({ ...f, program: avail[0][0] }))
       }
