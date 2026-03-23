@@ -384,7 +384,7 @@ export default function Subscription({ user }) {
         <div style={S.faq}>
           <h2 style={S.faqTitle}>PERGUNTAS FREQUENTES</h2>
           {[
-            ["Posso cancelar a qualquer momento?", "Sim. Para cancelar a assinatura mensal, entre em contato com o suporte. O acesso continua até o fim do período pago."],
+            ["Posso cancelar a qualquer momento?", "Sim. Você pode cancelar sua assinatura mensal diretamente pelo aplicativo a qualquer momento."],
             ["O Pix ativa o PRO automaticamente?", "Sim, assim que o pagamento for confirmado pelo Mercado Pago (geralmente instantâneo), seu PRO é ativado por 30 dias."],
             ["Os cupons de desconto funcionam no Pix também?", "Por enquanto os cupons funcionam apenas na assinatura mensal via cartão."],
             ["O pagamento é seguro?", "Sim. Todo o processamento é feito pelo Mercado Pago, sem armazenar dados do cartão no Health OS."],
