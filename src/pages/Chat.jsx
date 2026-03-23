@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef } from 'react'
 import { NeonCard } from '../components/UI'
 import { supabase } from '../lib/supabase'
-import { getSleepLog, getBioLog, getCalendar, today } from '../lib/db'
+import { getSleepLog, getBioLog, getCalendar, today, getTodayWater, getTodaySteps, getFoodLog, getMealPlans, getMealLog, getProfile, upsertProfile } from '../lib/db'
 
 const GROQ_KEY = import.meta.env.VITE_GROQ_KEY
 const R = '#dc2626'
@@ -63,6 +63,14 @@ function parseDiet(content) {
 }
 function stripDietJson(content) {
   return content.replace(/\[DIETA_JSON\][\s\S]*?\[\/DIETA_JSON\]/g, '').trim()
+}
+function parseFitnessProfile(content) {
+  const match = content.match(/\[FITNESS_PROFILE_JSON\]([\s\S]*?)\[\/FITNESS_PROFILE_JSON\]/)
+  if (!match) return null
+  try { return JSON.parse(match[1].trim()) } catch { return null }
+}
+function stripFitnessProfileJson(content) {
+  return content.replace(/\[FITNESS_PROFILE_JSON\][\s\S]*?\[\/FITNESS_PROFILE_JSON\]/g, '').trim()
 }
 
 async function saveWorkoutToLog(userId, workout) {
@@ -223,13 +231,40 @@ export default function Chat({ user, userId }) {
 
   async function loadContext() {
     try {
-      const [sleepLogs, bioLog, calendar] = await Promise.all([
+      const [sleepLogs, bioLog, calendar, todayWaterVal, todayStepsVal, todayFoodLog, mealPlans, mealLog] = await Promise.all([
         getSleepLog(userId, 7).catch(() => []),
         getBioLog(userId, 1).catch(() => []),
         getCalendar(userId).catch(() => []),
+        getTodayWater(userId).catch(() => 0),
+        getTodaySteps(userId).catch(() => 0),
+        getFoodLog(userId, today()).catch(() => []),
+        getMealPlans(userId).catch(() => []),
+        getMealLog(userId, today()).catch(() => []),
       ])
       const avgSleep = sleepLogs.length ? (sleepLogs.reduce((s, e) => s + (+e.hours), 0) / sleepLogs.length).toFixed(1) : null
+      const lastSleepEntry = sleepLogs[0] || null
       const lastBio = bioLog[0] ? { gordura: bioLog[0].body_fat, musculo: bioLog[0].muscle_mass, visceral: bioLog[0].visceral_fat, agua: bioLog[0].water_pct } : null
+
+      // ── Cálculos de calorias do dia ──
+      const bmr = user?.sex === 'male' ? 88.36 + 13.4 * (user?.weight || 70) + 4.8 * (user?.height || 170) - 5.7 * (user?.age || 30) : 447.6 + 9.2 * (user?.weight || 70) + 3.1 * (user?.height || 170) - 4.3 * (user?.age || 30)
+      const tdee = Math.round(bmr * (user?.activity || 1.55))
+      const checkedMealIds = new Set(mealLog.map(l => l.meal_id))
+      const mealPlanKcal = mealPlans.filter(p => p.active !== false && checkedMealIds.has(p.id)).reduce((s, p) => s + (parseInt(p.calories) || 0), 0)
+      const foodKcal = todayFoodLog.reduce((s, e) => s + (e.calories || 0), 0)
+      const totalKcalToday = foodKcal + mealPlanKcal
+      const remainingKcal = tdee - totalKcalToday
+      const waterGoal = Math.round((user?.weight || 70) * 35)
+
+      // ── Macros do dia ──
+      const todayProtein = todayFoodLog.reduce((s, e) => s + (e.protein || 0), 0)
+      const todayCarbs = todayFoodLog.reduce((s, e) => s + (e.carbs || 0), 0)
+      const todayFat = todayFoodLog.reduce((s, e) => s + (e.fat || 0), 0)
+
+      // ── Treino do dia ──
+      const { data: todayWorkoutLogs } = await supabase.from('workout_logs').select('day_name, completed').eq('user_id', userId).eq('date', today()).limit(5).catch(() => ({ data: [] }))
+      const todayWorkoutDone = (todayWorkoutLogs || []).some(l => l.completed)
+      const todayWorkoutName = (todayWorkoutLogs || [])[0]?.day_name || null
+
       const now = new Date()
       const thisWeek = calendar.filter(e => (now - new Date(e.date)) / 86400000 <= 7)
       const weeklyStats = `${thisWeek.filter(e => e.type === 'workout').length} treinos, ${thisWeek.filter(e => e.type === 'cardio').length} cardios, ${thisWeek.filter(e => e.type === 'sleep').length} noites`
@@ -329,6 +364,12 @@ export default function Chat({ user, userId }) {
         name: user?.name, age: user?.age, sex: user?.sex, weight: user?.weight, height: user?.height,
         goal: user?.goal, activity: user?.activity, goals: user?.goals, gym_types: user?.gym_types, gym_type: user?.gym_type,
         avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport,
+        // ── Dados do dia para o Motor de Análise ──
+        todayWater: todayWaterVal, waterGoal, todaySteps: todayStepsVal,
+        todayKcal: totalKcalToday, tdee, remainingKcal,
+        todayProtein, todayCarbs, todayFat,
+        lastSleepHours: lastSleepEntry ? lastSleepEntry.hours : null,
+        todayWorkoutDone, todayWorkoutName,
       })
     } catch (e) { console.error(e) }
     setCtxLoaded(true)
@@ -445,7 +486,12 @@ export default function Chat({ user, userId }) {
           {messages.map((m, i) => {
             const workout = m.role === 'assistant' ? parseWorkout(m.content) : null
             const diet = m.role === 'assistant' ? parseDiet(m.content) : null
-            const displayContent = workout ? stripWorkoutJson(m.content) : diet ? stripDietJson(m.content) : m.content
+            const fitnessProfile = m.role === 'assistant' ? parseFitnessProfile(m.content) : null
+            let displayContent = m.content
+            if (workout) displayContent = stripWorkoutJson(displayContent)
+            if (diet) displayContent = stripDietJson(displayContent)
+            if (fitnessProfile) displayContent = stripFitnessProfileJson(displayContent)
+            displayContent = displayContent.trim()
             return (
               <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: m.role === 'user' ? 'flex-end' : 'flex-start' }}>
                 <div style={{ maxWidth: '88%', padding: '10px 14px', borderRadius: m.role === 'user' ? '12px 12px 2px 12px' : '12px 12px 12px 2px', background: m.role === 'user' ? 'rgba(220,38,38,0.1)' : 'rgba(255,255,255,0.02)', border: `1px solid ${m.role === 'user' ? 'rgba(220,38,38,0.2)' : 'rgba(255,255,255,0.04)'}`, color: m.role === 'user' ? '#f0f0f0' : '#d0d0d0', fontSize: 13, lineHeight: 1.75, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
@@ -454,6 +500,7 @@ export default function Chat({ user, userId }) {
                 </div>
                 {workout && <WorkoutSaveCard workout={workout} userId={userId} />}
                 {diet && <DietSaveCard diet={diet} userId={userId} />}
+                {fitnessProfile && <RPGUpdateCard profile={fitnessProfile} userId={userId} />}
               </div>
             )
           })}
@@ -557,6 +604,77 @@ function WorkoutSaveCard({ workout, userId }) {
   )
 }
 
+function RPGUpdateCard({ profile: fp, userId }) {
+  const [saving, setSaving] = useState(false)
+  const [saved, setSaved] = useState(false)
+  const [error, setError] = useState(null)
+
+  const ATTRS = [
+    { key: 'forca', label: 'Força', icon: '⚔️', color: '#ef4444' },
+    { key: 'cardio', label: 'Cardio', icon: '❤️', color: '#f97316' },
+    { key: 'flexibilidade', label: 'Flexibilidade', icon: '🧘', color: '#a855f7' },
+    { key: 'resistencia', label: 'Resistência', icon: '🛡️', color: '#3b82f6' },
+    { key: 'equilibrio', label: 'Equilíbrio', icon: '⚖️', color: '#14b8a6' },
+    { key: 'velocidade', label: 'Velocidade', icon: '⚡', color: '#eab308' },
+  ]
+
+  async function handleSave() {
+    setSaving(true); setError(null)
+    try {
+      const current = await getProfile(userId)
+      const patch = {}
+      ATTRS.forEach(a => {
+        const currentVal = current?.[`rpg_${a.key}`] ?? 50
+        const delta = fp[a.key] || 0
+        patch[`rpg_${a.key}`] = Math.max(0, Math.min(100, currentVal + delta))
+      })
+      await upsertProfile(userId, patch)
+      setSaved(true)
+    } catch (e) { setError('Erro ao salvar: ' + (e?.message || 'tente novamente')) }
+    setSaving(false)
+  }
+
+  return (
+    <div style={{ maxWidth: '88%', marginTop: 8, background: 'linear-gradient(135deg, rgba(139,92,246,0.06) 0%, rgba(59,130,246,0.04) 100%)', border: '1px solid rgba(139,92,246,0.2)', borderRadius: 12, padding: '16px 18px', alignSelf: 'flex-start' }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+        <span style={{ fontSize: 18 }}>🎮</span>
+        <div style={{ color: '#a855f7', fontSize: 9, letterSpacing: 2, fontWeight: 700 }}>ATUALIZAÇÃO DE STATUS RPG</div>
+      </div>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
+        {ATTRS.map(a => {
+          const delta = fp[a.key] || 0
+          const isPositive = delta > 0, isNegative = delta < 0
+          return (
+            <div key={a.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '8px 10px', background: 'rgba(0,0,0,0.3)', borderRadius: 8, border: `1px solid ${isPositive ? 'rgba(34,197,94,0.2)' : isNegative ? 'rgba(239,68,68,0.2)' : 'rgba(255,255,255,0.04)'}` }}>
+              <span style={{ fontSize: 16 }}>{a.icon}</span>
+              <div style={{ flex: 1 }}>
+                <div style={{ color: '#999', fontSize: 9, letterSpacing: 1, marginBottom: 2 }}>{a.label.toUpperCase()}</div>
+                <div style={{ color: isPositive ? '#22c55e' : isNegative ? '#ef4444' : '#555', fontSize: 16, fontWeight: 700, fontFamily: "'Space Mono',monospace" }}>
+                  {isPositive ? '+' : ''}{delta}
+                </div>
+              </div>
+            </div>
+          )
+        })}
+      </div>
+
+      {fp.feedback && (
+        <div style={{ color: '#b0b0b0', fontSize: 11, lineHeight: 1.6, marginBottom: 14, padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 8, borderLeft: '3px solid rgba(139,92,246,0.4)' }}>
+          💬 {fp.feedback}
+        </div>
+      )}
+
+      {error && <div style={{ color: '#ef4444', fontSize: 11, marginBottom: 8 }}>{error}</div>}
+
+      <button onClick={handleSave} disabled={saving || saved}
+        style={{ width: '100%', padding: '12px 0', borderRadius: 8, border: `1px solid ${saved ? '#22c55e' : 'rgba(139,92,246,0.4)'}`, background: saved ? 'rgba(34,197,94,0.08)' : 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(59,130,246,0.08) 100%)', color: saved ? '#22c55e' : '#a855f7', fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: 2, cursor: saved ? 'default' : 'pointer', transition: 'all 0.3s', fontWeight: 700 }}>
+        {saving ? 'SALVANDO...' : saved ? '✓ STATUS ATUALIZADO!' : '⚔️ SALVAR STATUS'}
+      </button>
+    </div>
+  )
+}
+
 // ── Prompt helpers (mantidos do original) ─────────────────────────────────────
 function parseGoals(user) {
   try {
@@ -616,8 +734,69 @@ ${JSON_RULE}
 Todo planejamento termina com: "⚠️ Consulte um profissional CREF antes de iniciar."`
 }
 
+function buildDailyDataBlock(p) {
+  const lines = ['══════════════════════════════════════════', '  DADOS ATUAIS DO DIA', '══════════════════════════════════════════']
+  // Água
+  if (p.todayWater != null && p.waterGoal) lines.push(`💧 Água: ${p.todayWater}ml / ${p.waterGoal}ml (${Math.round((p.todayWater / p.waterGoal) * 100)}%)`)
+  else lines.push('💧 Água: NÃO REGISTRADA HOJE')
+  // Calorias
+  if (p.todayKcal != null && p.tdee) lines.push(`🔥 Calorias: ${p.todayKcal} consumidas / ${p.tdee} TDEE | Saldo: ${p.remainingKcal > 0 ? p.remainingKcal + ' kcal restantes' : Math.abs(p.remainingKcal) + ' kcal ACIMA do TDEE'}`)
+  else lines.push('🔥 Calorias: NÃO REGISTRADAS HOJE')
+  // Macros
+  if (p.todayProtein || p.todayCarbs || p.todayFat) lines.push(`🥩 Macros: P ${p.todayProtein || 0}g | C ${p.todayCarbs || 0}g | G ${p.todayFat || 0}g`)
+  // Sono
+  if (p.lastSleepHours) lines.push(`🛌 Sono (última noite): ${p.lastSleepHours}h`)
+  else lines.push('🛌 Sono: NÃO REGISTRADO')
+  // Passos
+  if (p.todaySteps != null) lines.push(`👟 Passos: ${p.todaySteps} / 10.000 (${Math.round((p.todaySteps / 10000) * 100)}%)`)
+  else lines.push('👟 Passos: NÃO REGISTRADOS')
+  // Treino
+  if (p.todayWorkoutDone) lines.push(`💪 Treino de hoje: ✅ FEITO${p.todayWorkoutName ? ` (${p.todayWorkoutName})` : ''}`)
+  else if (p.todayWorkoutName) lines.push(`💪 Treino de hoje: ⏳ PENDENTE (${p.todayWorkoutName})`)
+  else lines.push('💪 Treino de hoje: NÃO REGISTRADO')
+  lines.push('══════════════════════════════════════════')
+  return lines.join('\n')
+}
+
+const MOTOR_ANALISE = `══════════════════════════════════════════
+ MOTOR DE ANÁLISE DE DADOS PESSOAIS
+══════════════════════════════════════════
+Você tem acesso em tempo real aos dados de saúde do usuário. SEMPRE que ele fizer uma pergunta sobre si mesmo, seu progresso, se pode comer algo, se deve treinar, ou relatar cansaço, siga este fluxo:
+
+1. LEIA O CONTEXTO: Analise os dados injetados (Água, Calorias/Saldo, Sono, Passos, Treinos, Bioimpedância).
+2. RESPOSTA BASEADA EM FATOS: NUNCA dê resposta genérica se você tem o dado exato. Cite os NÚMEROS dele.
+3. CRUZAMENTO DE MÉTRICAS (Efeito Dominó):
+   - DIETA/DOCE/FOME → Olhe Calorias (Saldo) e Macros. Se houver saldo, diga que pode encaixar. Se não, sugira alternativa.
+   - FADIGA/CANSAÇO → Olhe Sono, Frequência de Treinos (overtraining) e Hidratação.
+   - EVOLUÇÃO → Olhe Bioimpedância (Gordura vs Massa Muscular) e IMC.
+4. DADOS AUSENTES: Se a métrica está zerada ou não informada, NÃO INVENTE. Diga: "Você ainda não registrou [Métrica] hoje no Health OS. Vá na aba de [Nome da Aba] e registre."
+══════════════════════════════════════════`
+
+const REGRAS_MOBILE = `FORMATO DE RESPOSTA (PWA MOBILE):
+- NUNCA envie blocos de texto gigantes.
+- Parágrafos de no máximo 2 a 3 linhas.
+- Use emojis com moderação para quebrar o visual (💧, ⚡, 🥩, 🛌).
+- Vá direto ao ponto. Seja como um treinador de elite segurando a prancheta.`
+
+const REGRA_RPG = `SISTEMA DE RPG (PERFIL DE FITNESS):
+O usuário possui 6 atributos: Força, Cardio, Flexibilidade, Resistência, Equilíbrio, Velocidade.
+Quando o usuário pedir check-in, relatar treino, ou perguntar da evolução, avalie e gere pontos de XP:
+- Treino de hipertrofia intenso/bateu PR? +Força, +Resistência.
+- Bateu meta de passos ou fez corrida? +Cardio, +Velocidade.
+- Fez yoga/mobilidade? +Flexibilidade, +Equilíbrio.
+- Não dormiu bem ou furou dieta? -Resistência, -Força.
+
+Sempre que fizer sentido atualizar atributos (final do dia, após relato de treino, check-in), gere ESTE bloco JSON:
+
+[FITNESS_PROFILE_JSON]
+{"forca":2,"cardio":1,"flexibilidade":-1,"resistencia":1,"equilibrio":0,"velocidade":0,"feedback":"Texto curto explicando os pontos."}
+[/FITNESS_PROFILE_JSON]
+
+IMPORTANTE: Gere o bloco APENAS quando fizer sentido (check-in, relato de treino, evolução). NÃO gere em perguntas genéricas.`
+
 function buildProPrompt(p, lastMessage) {
   const ctx = buildProfileBlock(p)
+  const dailyData = buildDailyDataBlock(p)
   const extras = [
     p.weeklyStats ? `ESTA SEMANA: ${p.weeklyStats}` : '',
     p.muscleRecoveryReport ? `\n[RECUPERAÇÃO]\n${p.muscleRecoveryReport}` : '',
@@ -629,8 +808,12 @@ function buildProPrompt(p, lastMessage) {
   ].filter(Boolean).join('\n')
   return `Você é o Health Coach AI PRO do Health OS. Responda SEMPRE em português brasileiro. Totalmente personalizado para ${p.name || 'seu atleta'}.
 ${ctx}
+${dailyData}
+${MOTOR_ANALISE}
+${REGRAS_MOBILE}
 ${extras}
 ${ABSOLUTE_RULES}
 ${JSON_RULE}
+${REGRA_RPG}
 NÃO faça perguntas básicas — os dados do perfil já estão disponíveis. Use diretamente.`
 }
