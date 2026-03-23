@@ -16,7 +16,6 @@ function loadSessions(userId) {
 function saveSessions(userId, sessions) {
   localStorage.setItem(storageKey(userId), JSON.stringify(sessions.slice(0, 30)))
 }
-// ── Contador server-side (Supabase) — não manipulável pelo usuário ────────
 async function getTodayUsage(userId) {
   try {
     const { data } = await supabase.from('profiles').select('ai_usage_date, ai_usage_count').eq('id', userId).single()
@@ -69,29 +68,18 @@ function stripDietJson(content) {
 async function saveWorkoutToLog(userId, workout) {
   const exercises = (workout.exercicios || []).map(ex => ({
     id: ex.nome.toLowerCase().replace(/\s+/g, '_') + '_' + Date.now(),
-    name: ex.nome,
-    sets: ex.series || 3,
-    reps: ex.reps || '8-12',
-    weight: null,
-    done: false,
-    rir: ex.rir || '',
-    rest: ex.descanso || '',
-    tip: ex.dica || '',
-    source: 'ia',
+    name: ex.nome, sets: ex.series || 3, reps: ex.reps || '8-12',
+    weight: null, done: false, rir: ex.rir || '', rest: ex.descanso || '',
+    tip: ex.dica || '', source: 'ia',
   }))
   const { error } = await supabase.from('workout_logs').insert({
-    id: `ia_${Date.now()}`,
-    user_id: userId,
-    date: today(),
-    day_name: workout.nome || 'Treino IA',
-    program_name: 'Treino IA',
-    exercises,
-    completed: false,
+    id: `ia_${Date.now()}`, user_id: userId, date: today(),
+    day_name: workout.nome || 'Treino IA', program_name: 'Treino IA',
+    exercises, completed: false,
   })
   if (error) throw error
 }
 
-// ── DietSaveCard ─────────────────────────────────────────────────────────────
 function DietSaveCard({ diet, userId }) {
   const [saving, setSaving] = useState(false)
   const [saved, setSaved] = useState(false)
@@ -99,36 +87,24 @@ function DietSaveCard({ diet, userId }) {
   const G = '#22c55e'
 
   async function handleSave() {
-    setSaving(true)
-    setError(null)
+    setSaving(true); setError(null)
     try {
       const { supabase } = await import('../lib/supabase')
       const refeicoes = diet.refeicoes || []
       for (const ref of refeicoes) {
         const { error } = await supabase.from('meal_plans').insert({
-          user_id: userId,
-          name: ref.nome || 'Refeicao',
-          meal_type: ref.tipo || ref.nome || 'Refeicao',
-          time: ref.horario || '',
-          description: [
-            ref.descricao || '',
-            (ref.alimentos || []).length > 0 ? (ref.alimentos).join(' · ') : '',
-          ].filter(Boolean).join(' — '),
-          calories: String(ref.calorias || ''),
-          protein: String(ref.proteina || ''),
-          carbs: String(ref.carboidrato || ''),
-          fat: String(ref.gordura || ''),
-          frequency: 'Todos os dias',
-          active: true,
+          user_id: userId, name: ref.nome || 'Refeicao',
+          meal_type: ref.tipo || ref.nome || 'Refeicao', time: ref.horario || '',
+          description: [ref.descricao || '', (ref.alimentos || []).length > 0 ? ref.alimentos.join(' · ') : ''].filter(Boolean).join(' — '),
+          calories: String(ref.calorias || ''), protein: String(ref.proteina || ''),
+          carbs: String(ref.carboidrato || ''), fat: String(ref.gordura || ''),
+          frequency: 'Todos os dias', active: true,
         })
-        if (error) { console.error('meal_plan insert error:', JSON.stringify(error)); throw error }
+        if (error) throw error
       }
       window.dispatchEvent(new CustomEvent('diet-plan-saved'))
       setSaved(true)
-    } catch (e) {
-      setError('Erro: ' + (e?.message || JSON.stringify(e)))
-      console.error('DietSave catch:', e)
-    }
+    } catch (e) { setError('Erro: ' + (e?.message || JSON.stringify(e))) }
     setSaving(false)
   }
 
@@ -153,9 +129,7 @@ function DietSaveCard({ diet, userId }) {
             {ref.calorias && <div style={{ color: '#22c55e', fontSize: 11, fontWeight: 700 }}>{ref.calorias} kcal</div>}
           </div>
           {ref.descricao && <div style={{ color: '#555', fontSize: 11, marginTop: 3 }}>{ref.descricao}</div>}
-          {ref.alimentos && ref.alimentos.length > 0 && (
-            <div style={{ color: '#444', fontSize: 10, marginTop: 4 }}>{ref.alimentos.join(' · ')}</div>
-          )}
+          {ref.alimentos?.length > 0 && <div style={{ color: '#444', fontSize: 10, marginTop: 4 }}>{ref.alimentos.join(' · ')}</div>}
           {(ref.proteina || ref.carboidrato || ref.gordura) && (
             <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
               {ref.proteina && <span style={{ color: '#60a5fa', fontSize: 10 }}>P: {ref.proteina}g</span>}
@@ -254,7 +228,7 @@ export default function Chat({ user, userId }) {
         getBioLog(userId, 1).catch(() => []),
         getCalendar(userId).catch(() => []),
       ])
-      const avgSleep = sleepLogs.length ? (sleepLogs.reduce((s, e) => s + +e.hours, 0) / sleepLogs.length).toFixed(1) : null
+      const avgSleep = sleepLogs.length ? (sleepLogs.reduce((s, e) => s + (+e.hours), 0) / sleepLogs.length).toFixed(1) : null
       const lastBio = bioLog[0] ? { gordura: bioLog[0].body_fat, musculo: bioLog[0].muscle_mass, visceral: bioLog[0].visceral_fat, agua: bioLog[0].water_pct } : null
       const now = new Date()
       const thisWeek = calendar.filter(e => (now - new Date(e.date)) / 86400000 <= 7)
@@ -282,9 +256,7 @@ export default function Chat({ user, userId }) {
         const hoursAgo = (Date.now() - new Date(w.date + 'T12:00:00').getTime()) / 3600000
         Object.entries(MUSCLE_GROUPS).forEach(([group, keywords]) => {
           if (keywords.some(k => focoStr.includes(k))) {
-            if (!muscleLastTrained[group] || hoursAgo < muscleLastTrained[group]) {
-              muscleLastTrained[group] = Math.round(hoursAgo)
-            }
+            if (!muscleLastTrained[group] || hoursAgo < muscleLastTrained[group]) muscleLastTrained[group] = Math.round(hoursAgo)
           }
         })
       })
@@ -301,24 +273,14 @@ export default function Chat({ user, userId }) {
       const readyGroups = ALL_GROUPS.filter(g => !muscleLastTrained[g] || muscleLastTrained[g] >= 72)
       const recoverGroups = ALL_GROUPS.filter(g => muscleLastTrained[g] && muscleLastTrained[g] < 48)
 
-      const muscleRecoveryReport = recentAI.length === 0
-        ? null
-        : `ANÁLISE DE RECUPERAÇÃO MUSCULAR (calculada pelo sistema):\n${recoveryLines.join('\n')}\n\nGRUPOS PRONTOS: ${readyGroups.join(', ') || 'nenhum'}\nGRUPOS EM RECUPERAÇÃO: ${recoverGroups.join(', ') || 'nenhum'}\nAÇÃO RECOMENDADA: priorize os grupos PRONTOS no treino de hoje.`
+      const muscleRecoveryReport = recentAI.length === 0 ? null :
+        `ANÁLISE DE RECUPERAÇÃO MUSCULAR:\n${recoveryLines.join('\n')}\n\nGRUPOS PRONTOS: ${readyGroups.join(', ') || 'nenhum'}\nGRUPOS EM RECUPERAÇÃO: ${recoverGroups.join(', ') || 'nenhum'}`
 
-      let progressiveOverloadReport = null
-      let plateauReport = null
-      let autoRegulationReport = null
+      let progressiveOverloadReport = null, plateauReport = null, autoRegulationReport = null
 
       try {
         const sixtyDaysAgo = new Date(Date.now() - 60 * 86400000).toISOString().split('T')[0]
-        const { data: logs } = await supabase
-          .from('workout_logs')
-          .select('date, exercises')
-          .eq('user_id', userId)
-          .gte('date', sixtyDaysAgo)
-          .order('date', { ascending: false })
-          .limit(60)
-
+        const { data: logs } = await supabase.from('workout_logs').select('date, exercises').eq('user_id', userId).gte('date', sixtyDaysAgo).order('date', { ascending: false }).limit(60)
         if (logs?.length) {
           const exerciseAllHistory = {}
           logs.forEach(log => {
@@ -330,78 +292,43 @@ export default function Chat({ user, userId }) {
             })
           })
 
-          const progressLines = []
-          const plateauLines = []
-
+          const progressLines = [], plateauLines = []
           Object.values(exerciseAllHistory).forEach(history => {
             const ex = history[0]
             const exLower = ex.name.toLowerCase()
             const belongsToReady = readyGroups.some(g => MUSCLE_GROUPS[g]?.some(k => exLower.includes(k)))
             if (!belongsToReady || !ex.weight) return
-
             if (history.length >= 3) {
               const last3 = history.slice(0, 3)
-              const sameWeight = last3.every(h => h.weight === last3[0].weight)
-              const sameReps = last3.every(h => h.reps === last3[0].reps)
-              if (sameWeight && sameReps) {
-                const PLATEAU_TECHNIQUES = [
-                  'Rest-Pause na última série (pausa 15s, mais 3-5 reps)',
-                  'Drop Set: após falha, reduza 20% da carga e continue',
-                  'Série Descendente: 4 cargas diferentes no mesmo exercício',
-                  'Troque temporariamente por um exercício similar com ângulo diferente',
-                  'Aumente o TUT (tempo sob tensão): 3s excêntrico, 1s isométrico',
-                ]
-                const technique = PLATEAU_TECHNIQUES[Math.floor(Math.random() * PLATEAU_TECHNIQUES.length)]
-                plateauLines.push(
-                  `[ALERTA DE PLATÔ] ${ex.name}: estagnado em ${ex.weight}kg x ${ex.reps} por ${last3.length} sessões (${last3[last3.length - 1].date} a ${last3[0].date}). ` +
-                  `NÃO sugira aumento de carga. AÇÃO: ${technique}.`
-                )
+              if (last3.every(h => h.weight === last3[0].weight) && last3.every(h => h.reps === last3[0].reps)) {
+                const TECHNIQUES = ['Rest-Pause na última série (pausa 15s, mais 3-5 reps)', 'Drop Set: após falha, reduza 20% da carga e continue', 'Troque temporariamente por um exercício similar com ângulo diferente']
+                plateauLines.push(`[ALERTA DE PLATÔ] ${ex.name}: estagnado em ${ex.weight}kg x ${ex.reps} por ${last3.length} sessões. AÇÃO: ${TECHNIQUES[Math.floor(Math.random() * TECHNIQUES.length)]}.`)
                 return
               }
             }
-
-            const suggestion = ex.weight > 0
-              ? `tente ${(ex.weight + 2.5).toFixed(1)}kg OU ${ex.reps}+2 reps com ${ex.weight}kg`
-              : 'registre o peso para ativar sobrecarga progressiva'
-            progressLines.push(
-              `${ex.name}: último (${ex.date}) -> ${ex.sets}x${ex.reps} com ${ex.weight}kg | SUGESTÃO: ${suggestion}`
-            )
+            const suggestion = ex.weight > 0 ? `tente ${(ex.weight + 2.5).toFixed(1)}kg OU ${ex.reps}+2 reps com ${ex.weight}kg` : 'registre o peso para ativar sobrecarga progressiva'
+            progressLines.push(`${ex.name}: último (${ex.date}) -> ${ex.sets}x${ex.reps} com ${ex.weight}kg | SUGESTÃO: ${suggestion}`)
           })
 
-          if (progressLines.length > 0) {
-            progressiveOverloadReport =
-              `HISTÓRICO DE CARGA — GRUPOS PRONTOS (calculado pelo sistema):\n` +
-              progressLines.slice(0, 8).join('\n') +
-              `\n\nINSTRUÇÃO: Cite a carga exata em cada exercício. NÃO diga "escolha um peso" — dê o número.`
-          }
+          if (progressLines.length > 0) progressiveOverloadReport = `HISTÓRICO DE CARGA — GRUPOS PRONTOS:\n${progressLines.slice(0, 8).join('\n')}\n\nINSTRUÇÃO: Cite a carga exata. NÃO diga "escolha um peso".`
           if (plateauLines.length > 0) plateauReport = plateauLines.join('\n')
         }
 
         const sleepAvg = avgSleep ? parseFloat(avgSleep) : null
         const isSleepAlert = sleepAvg !== null && sleepAvg < 6.5
         const isViscAlert = lastBio?.visceral && Number(lastBio.visceral) >= 10
-
         if (isSleepAlert || isViscAlert) {
           const reasons = []
-          if (isSleepAlert) reasons.push(`sono médio de ${sleepAvg}h (abaixo de 6.5h — SNC comprometido)`)
-          if (isViscAlert) reasons.push(`gordura visceral elevada (${lastBio.visceral}) — indicador de estresse sistêmico`)
-          autoRegulationReport =
-            `[AUTO-REGULAÇÃO] Sinais de fadiga detectados: ${reasons.join('; ')}. ` +
-            `AÇÃO OBRIGATÓRIA: (1) NÃO aumente cargas hoje. ` +
-            `(2) Mantenha os pesos do último treino. ` +
-            `(3) Exija RIR 3 em todos os exercícios para poupar o SNC. ` +
-            `(4) Mencione brevemente ao usuário que o corpo está em modo de recuperação.`
+          if (isSleepAlert) reasons.push(`sono médio de ${sleepAvg}h`)
+          if (isViscAlert) reasons.push(`gordura visceral elevada (${lastBio.visceral})`)
+          autoRegulationReport = `[AUTO-REGULAÇÃO] Sinais de fadiga: ${reasons.join('; ')}. NÃO aumente cargas. RIR 3 em todos os exercícios.`
         }
       } catch (e) { console.warn('progressiveOverload/plateau:', e) }
 
-      // ── Passa goals e gym_types do user para o profile context ──────────────
       setProfile({
-        name: user?.name, age: user?.age, sex: user?.sex,
-        weight: user?.weight, height: user?.height,
-        goal: user?.goal, activity: user?.activity,
-        goals: user?.goals, gym_types: user?.gym_types, gym_type: user?.gym_type,
-        avgSleep, lastBio, weeklyStats, recentWorkouts,
-        muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport,
+        name: user?.name, age: user?.age, sex: user?.sex, weight: user?.weight, height: user?.height,
+        goal: user?.goal, activity: user?.activity, goals: user?.goals, gym_types: user?.gym_types, gym_type: user?.gym_type,
+        avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport,
       })
     } catch (e) { console.error(e) }
     setCtxLoaded(true)
@@ -416,11 +343,7 @@ export default function Chat({ user, userId }) {
 
     if (detectInjury(msg)) {
       if (!isPro) { incrementUsageServer(userId).then(setUsage) }
-      const injuryMsg = {
-        role: 'assistant',
-        content: '⚠️ Identifiquei uma menção a dor ou desconforto físico.\n\nNão vou sugerir exercícios nessa situação. Sua saúde é prioridade.\n\nPor favor, consulte um médico ou fisioterapeuta antes de continuar treinando.',
-      }
-      setMessages(m => [...m, { role: 'user', content: msg }, injuryMsg])
+      setMessages(m => [...m, { role: 'user', content: msg }, { role: 'assistant', content: '⚠️ Identifiquei uma menção a dor ou desconforto físico.\n\nNão vou sugerir exercícios nessa situação. Sua saúde é prioridade.\n\nPor favor, consulte um médico ou fisioterapeuta antes de continuar treinando.' }])
       return
     }
 
@@ -439,23 +362,16 @@ export default function Chat({ user, userId }) {
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
-        body: JSON.stringify({
-          model: 'llama-3.3-70b-versatile',
-          max_tokens: 900,
-          messages: [{ role: 'system', content: systemPrompt }, ...newMsgs.slice(-12)],
-        }),
+        body: JSON.stringify({ model: 'llama-3.3-70b-versatile', max_tokens: 900, messages: [{ role: 'system', content: systemPrompt }, ...newMsgs.slice(-12)] }),
       })
       const data = await res.json()
       if (data?.error) throw new Error(data.error?.message || 'Erro da API')
       const reply = data?.choices?.[0]?.message?.content ?? 'Sem resposta.'
       const finalMsgs = [...newMsgs, { role: 'assistant', content: reply }]
       setMessages(finalMsgs)
-
       setSessions(prev => {
         const existing = prev.find(s => s.id === sessionId)
-        const updated = existing
-          ? prev.map(s => s.id === sessionId ? { ...s, messages: finalMsgs } : s)
-          : [{ id: sessionId, title: sessionTitle, date: today(), messages: finalMsgs }, ...prev]
+        const updated = existing ? prev.map(s => s.id === sessionId ? { ...s, messages: finalMsgs } : s) : [{ id: sessionId, title: sessionTitle, date: today(), messages: finalMsgs }, ...prev]
         saveSessions(userId, updated)
         return updated
       })
@@ -490,13 +406,9 @@ export default function Chat({ user, userId }) {
                   style={{ display: 'flex', alignItems: 'center', gap: 4, padding: '7px 7px', borderRadius: 5, marginBottom: 2, cursor: 'pointer', background: currentId === session.id ? 'rgba(220,38,38,0.08)' : 'transparent', border: `1px solid ${currentId === session.id ? 'rgba(220,38,38,0.18)' : 'transparent'}`, transition: 'all 0.15s' }}
                   onMouseEnter={e => { if (currentId !== session.id) e.currentTarget.style.background = 'rgba(255,255,255,0.02)' }}
                   onMouseLeave={e => { if (currentId !== session.id) e.currentTarget.style.background = 'transparent' }}>
-                  <span style={{ color: currentId === session.id ? '#bbb' : '#444', fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>
-                    {session.title}
-                  </span>
-                  <button onClick={e => deleteSession(session.id, e)}
-                    style={{ background: 'none', border: 'none', color: '#252525', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 }}
-                    onMouseEnter={e => e.currentTarget.style.color = R}
-                    onMouseLeave={e => e.currentTarget.style.color = '#252525'}>×</button>
+                  <span style={{ color: currentId === session.id ? '#bbb' : '#444', fontSize: 11, flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', lineHeight: 1.4 }}>{session.title}</span>
+                  <button onClick={e => deleteSession(session.id, e)} style={{ background: 'none', border: 'none', color: '#252525', cursor: 'pointer', fontSize: 14, padding: 0, lineHeight: 1, flexShrink: 0 }}
+                    onMouseEnter={e => e.currentTarget.style.color = R} onMouseLeave={e => e.currentTarget.style.color = '#252525'}>×</button>
                 </div>
               ))}
             </div>
@@ -506,19 +418,12 @@ export default function Chat({ user, userId }) {
 
       {/* CHAT */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 0, overflow: 'hidden' }}>
-
-        {/* Header */}
         <div style={{ marginBottom: 14, flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-              <button onClick={() => setSidebarOpen(o => !o)}
-                style={{ background: sidebarOpen ? 'rgba(220,38,38,0.08)' : 'transparent', border: `1px solid ${sidebarOpen ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 5, padding: '6px 10px', color: sidebarOpen ? R2 : '#444', cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', flexShrink: 0 }}>
-                ☰
-              </button>
+              <button onClick={() => setSidebarOpen(o => !o)} style={{ background: sidebarOpen ? 'rgba(220,38,38,0.08)' : 'transparent', border: `1px solid ${sidebarOpen ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 5, padding: '6px 10px', color: sidebarOpen ? R2 : '#444', cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', flexShrink: 0 }}>☰</button>
               <div>
-                <div style={{ color: R, fontSize: 18, letterSpacing: 4, fontWeight: 700 }}>
-                  ASSISTENTE {isPro && <span style={{ fontSize: 10, background: 'rgba(220,38,38,0.12)', border: `1px solid ${R}30`, padding: '2px 7px', borderRadius: 3, letterSpacing: 2, verticalAlign: 'middle' }}>PRO</span>}
-                </div>
+                <div style={{ color: R, fontSize: 18, letterSpacing: 4, fontWeight: 700 }}>ASSISTENTE {isPro && <span style={{ fontSize: 10, background: 'rgba(220,38,38,0.12)', border: `1px solid ${R}30`, padding: '2px 7px', borderRadius: 3, letterSpacing: 2, verticalAlign: 'middle' }}>PRO</span>}</div>
                 <div style={{ color: '#282828', fontSize: 9, letterSpacing: 2, marginTop: 2 }}>HEALTH AI · LLAMA 3.3 VIA GROQ</div>
               </div>
             </div>
@@ -536,7 +441,6 @@ export default function Chat({ user, userId }) {
           )}
         </div>
 
-        {/* Messages */}
         <div style={{ flex: 1, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 12, paddingBottom: 8 }}>
           {messages.map((m, i) => {
             const workout = m.role === 'assistant' ? parseWorkout(m.content) : null
@@ -569,10 +473,6 @@ export default function Chat({ user, userId }) {
               <div style={{ fontSize: 20, marginBottom: 8 }}>🔒</div>
               <div style={{ color: '#d0d0d0', fontSize: 13, fontWeight: 700, marginBottom: 4 }}>Limite diário atingido</div>
               <div style={{ color: '#555', fontSize: 11, marginBottom: 14 }}>Assine o PRO para mensagens ilimitadas + análise dos seus dados.</div>
-              <button className="btn" onClick={() => window.dispatchEvent(new CustomEvent('goto-tab', { detail: 'subscription' }))}
-                style={{ background: 'rgba(220,38,38,0.15)', borderColor: R, color: R2, padding: '10px 24px', fontSize: 11, letterSpacing: 2 }}>
-                VER PLANOS →
-              </button>
             </NeonCard>
           )}
 
@@ -580,8 +480,7 @@ export default function Chat({ user, userId }) {
             <div style={{ display: 'flex', flexDirection: 'column', gap: 6, marginTop: 8 }}>
               <div style={{ color: '#252525', fontSize: 9, letterSpacing: 2 }}>SUGESTÕES</div>
               {suggestions.map((s, i) => (
-                <button key={i} onClick={() => send(s)}
-                  style={{ textAlign: 'left', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.045)', borderRadius: 8, padding: '9px 14px', color: '#4a4a4a', fontSize: 12, cursor: 'pointer', fontFamily: "'Space Mono',monospace", transition: 'all 0.15s' }}
+                <button key={i} onClick={() => send(s)} style={{ textAlign: 'left', background: 'rgba(255,255,255,0.015)', border: '1px solid rgba(255,255,255,0.045)', borderRadius: 8, padding: '9px 14px', color: '#4a4a4a', fontSize: 12, cursor: 'pointer', fontFamily: "'Space Mono',monospace", transition: 'all 0.15s' }}
                   onMouseEnter={e => { e.currentTarget.style.background = 'rgba(220,38,38,0.07)'; e.currentTarget.style.color = '#888' }}
                   onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.015)'; e.currentTarget.style.color = '#4a4a4a' }}>
                   {s}
@@ -592,7 +491,6 @@ export default function Chat({ user, userId }) {
           <div ref={bottomRef} />
         </div>
 
-        {/* Input */}
         <div style={{ flexShrink: 0, paddingTop: 10, borderTop: '1px solid rgba(255,255,255,0.04)' }}>
           <div style={{ display: 'flex', gap: 8 }}>
             <input ref={inputRef} value={input} onChange={e => setInput(e.target.value)} onKeyDown={e => e.key === 'Enter' && !e.shiftKey && send()}
@@ -606,8 +504,6 @@ export default function Chat({ user, userId }) {
           </div>
           <div style={{ color: '#1a1a1a', fontSize: 9, letterSpacing: 0.5, marginTop: 6, textAlign: 'center', lineHeight: 1.6 }}>
             {isPro ? 'MENSAGENS ILIMITADAS · LLAMA 3.3 VIA GROQ' : `${Math.max(remaining, 0)} DE ${FREE_LIMIT} MENSAGENS RESTANTES HOJE`}
-            <br />
-            <span style={{ color: '#141414' }}>Sugestões de caráter informativo · Não substituem profissional CREF/CRN</span>
           </div>
         </div>
       </div>
@@ -618,16 +514,14 @@ export default function Chat({ user, userId }) {
 function WorkoutSaveCard({ workout, userId }) {
   const [saved, setSaved] = useState(false)
   const [saving, setSaving] = useState(false)
-  const [error, setError] = useState('')
 
   async function handleSave() {
-    setSaving(true); setError('')
+    setSaving(true)
     const enriched = { ...workout, id: `ai_${Date.now()}`, date: today() }
     const existing = (() => { try { return JSON.parse(localStorage.getItem('healthos_ai_workouts') || '[]') } catch { return [] } })()
     localStorage.setItem('healthos_ai_workouts', JSON.stringify([enriched, ...existing].slice(0, 10)))
     window.dispatchEvent(new CustomEvent('ai-workout-ready', { detail: enriched }))
     setSaved(true); setSaving(false)
-    window.dispatchEvent(new CustomEvent('workout-exercises-updated'))
     saveWorkoutToLog(userId, workout).catch(e => console.warn('Supabase workout log:', e))
   }
 
@@ -655,7 +549,6 @@ function WorkoutSaveCard({ workout, userId }) {
         </div>
       ))}
       {workout.observacoes && <div style={{ color: '#2e2e2e', fontSize: 11, marginTop: 10, paddingTop: 8, borderTop: '1px solid rgba(255,255,255,0.04)' }}>📝 {workout.observacoes}</div>}
-      {error && <div style={{ color: R2, fontSize: 11, marginTop: 8 }}>{error}</div>}
       <button onClick={handleSave} disabled={saving || saved}
         style={{ marginTop: 12, width: '100%', padding: '11px 0', borderRadius: 6, border: `1px solid ${saved ? '#22c55e' : R}`, background: saved ? 'rgba(34,197,94,0.07)' : 'rgba(220,38,38,0.08)', color: saved ? '#22c55e' : R2, fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: 2, cursor: saved ? 'default' : 'pointer', transition: 'all 0.3s' }}>
         {saving ? 'SALVANDO...' : saved ? '✓ SALVO NA ABA TREINOS!' : '💾 SALVAR NA ABA TREINOS'}
@@ -664,11 +557,7 @@ function WorkoutSaveCard({ workout, userId }) {
   )
 }
 
-// ═════════════════════════════════════════════════════════════════════════════
-// SYSTEM PROMPT ENGINE
-// ═════════════════════════════════════════════════════════════════════════════
-
-// ── Helpers para ler arrays de goals/gymTypes ─────────────────────────────────
+// ── Prompt helpers (mantidos do original) ─────────────────────────────────────
 function parseGoals(user) {
   try {
     if (Array.isArray(user?.goals)) return user.goals
@@ -676,7 +565,6 @@ function parseGoals(user) {
     return [user?.goal].filter(Boolean)
   } catch { return [user?.goal].filter(Boolean) }
 }
-
 function parseGymTypes(user) {
   try {
     if (Array.isArray(user?.gym_types)) return user.gym_types
@@ -684,309 +572,65 @@ function parseGymTypes(user) {
     return [user?.gym_type].filter(Boolean)
   } catch { return [user?.gym_type].filter(Boolean) }
 }
+const GOAL_LABELS = { muscleGain: 'Hipertrofia', weightLoss: 'Perda de Peso', endurance: 'Resistência', maintenance: 'Manutenção', recomposition: 'Recomposição', calisthenics: 'Calistenia', crossfit: 'CrossFit', flexibility: 'Mobilidade' }
+const GYM_LABELS = { full: 'Academia Completa', basic: 'Academia Básica', home: 'Em Casa', outdoor: 'Ao Ar Livre', crossfit: 'CrossFit Box' }
+const GYM_EQUIPMENT = { full: 'TODOS os equipamentos: barras, máquinas, cabos, halteres.', basic: 'Halteres, barra, banco. SEM máquinas.', home: 'APENAS peso corporal, halteres leves e elásticos.', outdoor: 'Peso corporal e barras de parque.', crossfit: 'Kettlebell, barbell, box, movimentos olímpicos.' }
+const ACTIVITY_DAYS = { '1.2': '2 dias/semana', '1.375': '3 dias/semana', '1.55': '4–5 dias/semana', '1.725': '6 dias/semana', '1.9': 'treino diário' }
+const GOAL_PROTOCOL = { muscleGain: 'RIR 1–3 | 10–20 séries/semana/grupo | descanso 2–4 min', weightLoss: 'Déficit calórico | cardio Z2–Z3 | força para preservar músculo', endurance: 'Base aeróbica Z2 | progressão de volume semanal', maintenance: 'Volume moderado | equilíbrio cardio + força | RIR 2–4' }
 
-// ── Mapeamentos legíveis ──────────────────────────────────────────────────────
-const GOAL_LABELS = {
-  muscleGain: 'Hipertrofia (ganho muscular)',
-  weightLoss: 'Perda de Peso',
-  endurance: 'Resistência / Cardio',
-  maintenance: 'Manutenção',
-  recomposition: 'Recomposição Corporal',
-  calisthenics: 'Calistenia',
-  crossfit: 'CrossFit / Performance',
-  flexibility: 'Mobilidade / Flexibilidade',
-}
-
-const GYM_LABELS = {
-  full: 'Academia Completa (barras, máquinas, cabos, halteres)',
-  basic: 'Academia Básica (halteres, barra, banco)',
-  home: 'Em Casa (peso corporal, halteres leves, elásticos)',
-  outdoor: 'Ao Ar Livre / Calistenia (barras de rua, peso corporal)',
-  crossfit: 'Box CrossFit / Funcional (kettlebell, barbell, box, corda)',
-}
-
-const GYM_EQUIPMENT = {
-  full: 'TODOS os equipamentos: barras, máquinas, cabos, halteres, polia, leg press, cadeira extensora, mesa flexora, peck deck.',
-  basic: 'Halteres, barra, banco, paralelas. SEM máquinas específicas.',
-  home: 'APENAS peso corporal, halteres leves (se houver) e elásticos. PROIBIDO: barras pesadas, máquinas, leg press.',
-  outdoor: 'Peso corporal e barras fixas de parque. PROIBIDO: qualquer máquina ou equipamento de academia.',
-  crossfit: 'Kettlebell, barbell, box jump, corda, argolas, pull-up bar. Movimentos olímpicos liberados.',
-}
-
-const ACTIVITY_DAYS = {
-  '1.2': '2 dias/semana',
-  '1.375': '3 dias/semana',
-  '1.55': '4–5 dias/semana',
-  '1.725': '6 dias/semana',
-  '1.9': 'treino diário',
-}
-
-const GOAL_PROTOCOL = {
-  muscleGain: 'RIR 1–3 | 10–20 séries/semana/grupo | descanso 2–4 min | progressão de carga semanal',
-  weightLoss: 'Déficit calórico | cardio Z2–Z3 | treino de força para preservar músculo | descanso 90s',
-  endurance: 'Base aeróbica Z2 | progressão de volume semanal | Z4–Z5 esporádico | descanso 60–90s',
-  maintenance: 'Volume moderado | equilíbrio cardio + força | RIR 2–4 | descanso 90s–2 min',
-  recomposition: 'Calorias de manutenção | proteína elevada 2.2g/kg | força prioritário | cardio moderado',
-  calisthenics: 'Progressões de peso corporal | skills (planche, muscle-up) | volume alto | RIR 2–3',
-  crossfit: 'WODs de alta intensidade | movimentos olímpicos | metcon | força + cardio misturados',
-  flexibility: 'Mobilidade articular | alongamento ativo | liberação miofascial | postura e respiração',
-}
-
-// ── Bloco de perfil injetado no prompt ───────────────────────────────────────
 function buildProfileBlock(p) {
-  const goals = parseGoals(p)
-  const gymTypes = parseGymTypes(p)
-  const bmr = p.sex === 'male'
-    ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30)
-    : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
+  const goals = parseGoals(p), gymTypes = parseGymTypes(p)
+  const bmr = p.sex === 'male' ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30) : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
   const tdee = Math.round(bmr * (p.activity || 1.55))
-  const actKey = String(p.activity || '1.55')
-  const maxDays = ACTIVITY_DAYS[actKey] || '4–5 dias/semana'
-
-  const goalsText = goals.length
-    ? goals.map(id => `  • ${GOAL_LABELS[id] || id}\n    Protocolo: ${GOAL_PROTOCOL[id] || '—'}`).join('\n')
-    : '  • Não informado'
-
-  const gymText = gymTypes.length
-    ? gymTypes.map(id => `  • ${GYM_LABELS[id] || id}\n    Equipamentos: ${GYM_EQUIPMENT[id] || '—'}`).join('\n')
-    : '  • Não informado'
-
-  return `
+  return `══════════════════════════════════════════
+  PERFIL DO ATLETA
 ══════════════════════════════════════════
-  PERFIL DO ATLETA — LEIA ANTES DE TUDO
-══════════════════════════════════════════
-Nome:       ${p.name || '—'}
-Idade:      ${p.age || '—'} anos  |  Sexo: ${p.sex === 'male' ? 'Masculino' : 'Feminino'}
-Peso:       ${p.weight || '—'} kg  |  Altura: ${p.height || '—'} cm
-TMB:        ~${Math.round(bmr)} kcal/dia
-TDEE:       ~${tdee} kcal/dia
-Frequência: ${maxDays}
+Nome: ${p.name || '—'} | Idade: ${p.age || '—'}a | Sexo: ${p.sex === 'male' ? 'M' : 'F'}
+Peso: ${p.weight || '—'}kg | Altura: ${p.height || '—'}cm
+TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal
+Frequência: ${ACTIVITY_DAYS[String(p.activity || '1.55')] || '4–5 dias/semana'}
 
-OBJETIVOS${goals.length > 1 ? ' (MÚLTIPLOS — equilibre TODOS nas sugestões)' : ''}:
-${goalsText}
-
-LOCAIS DE TREINO DISPONÍVEIS${gymTypes.length > 1 ? ' (pode usar qualquer um)' : ''}:
-${gymText}
+OBJETIVOS: ${goals.map(id => GOAL_LABELS[id] || id).join(' + ') || 'não informado'}
+LOCAIS: ${gymTypes.map(id => GYM_LABELS[id] || id).join(' | ') || 'não informado'}
+EQUIPAMENTOS: ${gymTypes.map(id => GYM_EQUIPMENT[id] || id).join(' | ') || 'não informado'}
 ══════════════════════════════════════════`
 }
 
-// ── Regras absolutas ─────────────────────────────────────────────────────────
-const ABSOLUTE_RULES = `
-══════════════════════════════════════════
-  REGRAS ABSOLUTAS — NUNCA VIOLAR
-══════════════════════════════════════════
-1. FREQUÊNCIA: Nunca sugira mais dias de treino do que a frequência declarada no perfil.
-   2 dias → Full Body 2x | 3 dias → Full Body ou ABC | 4–5 dias → Upper/Lower ou PPL | 6–7 dias → Arnold ou PPL avançado
+const ABSOLUTE_RULES = `REGRAS ABSOLUTAS:
+1. Nunca sugira mais dias que a frequência declarada
+2. Use APENAS equipamentos disponíveis nos locais declarados
+3. Todo planejamento termina com disclaimer legal`
 
-2. EQUIPAMENTOS: Use APENAS os disponíveis nos locais declarados.
-   • Em Casa = ZERO máquinas. Peso corporal, elástico, halter leve.
-   • Ao Ar Livre = ZERO máquinas. Barras de parque e peso corporal.
-   • Academia Básica = sem leg press, cadeira extensora, mesa flexora ou cabos.
-   • Academia Completa = tudo liberado.
-   • CrossFit = kettlebell, barbell, box, movimentos olímpicos.
+const JSON_RULE = `REGRA JSON — TREINO:
+Gere [TREINO_JSON] apenas quando o planejamento estiver completo.
+[TREINO_JSON]{"nome":"Push A","duracao":"55-70 min","foco":"Peito, Ombro, Tríceps","exercicios":[{"nome":"Supino Reto","series":4,"reps":"6-10","rir":"RIR 2","descanso":"2-3 min","dica":"Cotovelos a 45°"}],"observacoes":"⚠️ Consulte um profissional CREF."}[/TREINO_JSON]
 
-3. MÚLTIPLOS OBJETIVOS: Quando o atleta tem mais de um objetivo, equilibre todos.
-   Ex: Hipertrofia + Resistência → 4 dias força (RIR 2) + 2 dias cardio Z2. Não ignore nenhum objetivo.
+REGRA JSON — DIETA:
+[DIETA_JSON]{"objetivo":"Ganho","calorias_totais":2800,"proteina_total":180,"carboidrato_total":320,"gordura_total":80,"refeicoes":[{"nome":"Café da Manhã","horario":"07:00","calorias":600,"proteina":35,"carboidrato":75,"gordura":15,"alimentos":["3 ovos","2 fatias pão integral"]}],"observacoes":"⚠️ Consulte um nutricionista."}[/DIETA_JSON]`
 
-4. MÚLTIPLOS LOCAIS: Se o atleta tem acesso a vários locais, você pode combinar.
-   Ex: Academia Completa + Em Casa → treino pesado na academia, recuperação ativa em casa.
+function buildFreePrompt() {
+  return `Você é o Health Coach AI do Health OS. Responda SEMPRE em português brasileiro. Direto e motivador.
+Antes de montar um planejamento, pergunte: local de treino, músculo do dia, frequência semanal — em UMA única mensagem.
+${ABSOLUTE_RULES}
+${JSON_RULE}
+Todo planejamento termina com: "⚠️ Consulte um profissional CREF antes de iniciar."`
+}
 
-5. ADAPTAÇÃO DE DIVISÃO POR FREQUÊNCIA:
-   • 2 dias → Full Body cada sessão
-   • 3 dias → Full Body ou ABC
-   • 4 dias → Upper/Lower ou Push/Pull/Legs/Rest
-   • 5–6 dias → PPL, Arnold Split ou divisão avançada
-   ❌ NÃO monte PPL 6x para quem treina 3 dias.
-
-6. DISCLAIMER: Todo planejamento deve terminar com:
-   "⚠️ Planejamento sugerido de caráter informativo — consulte um profissional CREF antes de iniciar."
-══════════════════════════════════════════`
-
-const LEGAL_DISCLAIMER = `
-DIRETRIZES LEGAIS OBRIGATÓRIAS:
-1. Você é Assistente de Organização e Educação em Fitness — NÃO é personal trainer habilitado.
-2. LINGUAGEM: Nunca use "você deve fazer", "faça este exercício", "eu prescrevo". Use sempre "exemplo de planejamento", "uma sugestão seria", "muitos praticantes utilizam".
-3. DOR OU LESÃO mencionada → PARE e responda APENAS: "Consulte um médico ou fisioterapeuta antes de continuar treinando."
-4. Todo planejamento deve terminar com o disclaimer legal.`
-
-const SCIENCE_BASE = `
-FUNDAMENTOS CIENTÍFICOS:
-• Sobrecarga progressiva — progrida em carga, reps ou execução toda semana
-• Proximidade da falha — RIR 1–3 (pare 1–3 reps antes da falha). Falha total só na última série
-• Volume efetivo — 10–20 séries/semana por grupo muscular
-• ROM completo — maior alongamento = maior estímulo anabólico
-• Descanso — compostos: 2–4 min | isoladores: 90s–2 min
-• Cardio base — Z2 (60–70% FC máx) é a zona de maior queima de gordura
-• Proteína — 1.8–2.5g/kg/dia para preservação e ganho muscular`
-
-const JSON_RULE = `
-REGRA JSON — PLANEJAMENTO DE TREINO:
-Gere [TREINO_JSON] SOMENTE quando o planejamento estiver 100% definido. Durante perguntas: só texto.
-[TREINO_JSON]
-{"nome":"Push A — Peito, Ombro, Tríceps","duracao":"55-70 min","foco":"Peito, Ombro, Tríceps","exercicios":[{"nome":"Supino Reto com Barra","series":4,"reps":"6-10","rir":"RIR 2","descanso":"2-3 min","dica":"Desça até alongamento total, cotovelos a 45°"},{"nome":"Crucifixo no Cabo","series":3,"reps":"12-15","rir":"RIR 1","descanso":"90s","dica":"Abertura máxima = maior ponto de crescimento"}],"observacoes":"⚠️ Planejamento sugerido — consulte um profissional CREF antes de iniciar."}
-[/TREINO_JSON]
-
-REGRA JSON — SUGESTÃO ALIMENTAR:
-Gere [DIETA_JSON] só após ter objetivo + peso confirmados.
-[DIETA_JSON]
-{"objetivo":"Ganho de massa","calorias_totais":2800,"proteina_total":180,"carboidrato_total":320,"gordura_total":80,"refeicoes":[{"nome":"Café da Manhã","tipo":"Café da manhã","horario":"07:00","calorias":600,"proteina":35,"carboidrato":75,"gordura":15,"alimentos":["Ovos mexidos (3 ovos)","Pão integral (2 fatias)","Banana"],"descricao":"Refeição anabólica para iniciar o dia"}],"observacoes":"⚠️ Sugestão informativa — consulte um nutricionista antes de adotar qualquer dieta."}
-[/DIETA_JSON]`
-
-// ── Context router ────────────────────────────────────────────────────────────
-function routeContext(message, p) {
-  const m = (message || '').toLowerCase()
-  const goals = parseGoals(p)
-  const gymTypes = parseGymTypes(p)
-  const bmr = p.sex === 'male'
-    ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30)
-    : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
-  const tdee = Math.round(bmr * (p.activity || 1.55))
-
-  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|bra.o|perna|panturrilha|b.ceps|tr.ceps|calistenia|crossfit|wod/.test(m)
-  const isD = /dieta|caloria|prote.na|carboidrato|refei..o|comer|card.pio|nutri|emagrec|cut|bulk/.test(m)
-  const isC = /checkin|check.in|evolu..o|progresso|semana|bioimpedância|sono|an.lise/.test(m)
-
-  const baseBlock = buildProfileBlock(p)
-
-  if (isW) return [
-    baseBlock,
+function buildProPrompt(p, lastMessage) {
+  const ctx = buildProfileBlock(p)
+  const extras = [
     p.weeklyStats ? `ESTA SEMANA: ${p.weeklyStats}` : '',
-    p.recentWorkouts ? `TREINOS RECENTES: ${p.recentWorkouts}` : '',
-    p.muscleRecoveryReport ? `\n[RECUPERAÇÃO MUSCULAR]\n${p.muscleRecoveryReport}` : '',
-    p.progressiveOverloadReport ? `\n[SOBRECARGA PROGRESSIVA]\n${p.progressiveOverloadReport}` : '',
+    p.muscleRecoveryReport ? `\n[RECUPERAÇÃO]\n${p.muscleRecoveryReport}` : '',
+    p.progressiveOverloadReport ? `\n[SOBRECARGA]\n${p.progressiveOverloadReport}` : '',
     p.plateauReport ? `\n${p.plateauReport}` : '',
     p.autoRegulationReport ? `\n${p.autoRegulationReport}` : '',
-  ].filter(Boolean).join('\n')
-
-  if (isD) return [
-    baseBlock,
-    `TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
+    p.avgSleep ? `Sono médio (7d): ${p.avgSleep}h` : '',
     p.lastBio ? `Bioimpedância: gordura ${p.lastBio.gordura || '?'}%, músculo ${p.lastBio.musculo || '?'}%` : '',
   ].filter(Boolean).join('\n')
-
-  if (isC) return [
-    baseBlock,
-    `TMB: ~${Math.round(bmr)} kcal | TDEE: ~${tdee} kcal`,
-    p.avgSleep ? `Sono médio (7d): ${p.avgSleep}h` : '',
-    p.lastBio ? `Bioimpedância: gordura ${p.lastBio.gordura || '?'}%, músculo ${p.lastBio.musculo || '?'}%, visceral ${p.lastBio.visceral || '?'}, água ${p.lastBio.agua || '?'}%` : '',
-    p.weeklyStats ? `Esta semana: ${p.weeklyStats}` : '',
-    p.muscleRecoveryReport ? `\n[RECUPERAÇÃO]\n${p.muscleRecoveryReport}` : '',
-  ].filter(Boolean).join('\n')
-
-  return baseBlock
-}
-
-// ── Prompt FREE ───────────────────────────────────────────────────────────────
-function buildFreePrompt() {
-  return `${LEGAL_DISCLAIMER}
-
-Você é o Health Coach AI do Health OS — assistente de fitness e nutrição brasileiro.
-Responda SEMPRE em português brasileiro. Direto, motivador, sem enrolação.
-Conversacional: máximo 3 parágrafos. Planejamentos: gere completo.
-
-${SCIENCE_BASE}
-${ABSOLUTE_RULES}
-
-PROTOCOLO PARA PLANEJAMENTOS (usuário sem perfil completo):
-Faça estas 3 perguntas em UMA única mensagem antes de montar:
-"Para montar o melhor planejamento pra você, preciso de 3 informações:
-1️⃣ Onde você treina? A) Academia completa  B) Academia básica  C) Em casa  D) Ao ar livre  E) CrossFit
-2️⃣ Músculo(s) de hoje: Ex: Peito+Tríceps | Costas+Bíceps | Pernas | Full Body
-3️⃣ Quantos dias por semana você treina?"
-
-Após as respostas, adapte TUDO ao local e frequência informados.
-Mencione que o PRO personaliza automaticamente com os dados reais do usuário.
-
-PROTOCOLO SUGESTÃO ALIMENTAR:
-1. Pergunte objetivo (A/B/C) + peso + restrições — em UMA única mensagem
-2. TDEE estimado = peso × 33. Emagrecer -300 kcal | ganhar +300 kcal
-3. 4–6 refeições com alimentos brasileiros acessíveis
-4. Gere [DIETA_JSON] apenas após ter objetivo + peso confirmados
-
-${JSON_RULE}`
-}
-
-// ── Prompt PRO ────────────────────────────────────────────────────────────────
-function buildProPrompt(p, lastMessage) {
-  const ctx = routeContext(lastMessage || '', p)
-  const m = (lastMessage || '').toLowerCase()
-  const goals = parseGoals(p)
-  const gymTypes = parseGymTypes(p)
-  const isW = /treino|exerc|musculo|serie|supino|agach|pull|push|leg|peito|costas|ombro|perna|calistenia|crossfit/.test(m)
-  const isD = /dieta|cardapio|card.pio|plano alimentar|refeicao|refei..o|comer|caloria|nutri|emagrec|cut|bulk/.test(m)
-  const bmr = p.sex === 'male'
-    ? 88.36 + 13.4 * (p.weight || 70) + 4.8 * (p.height || 170) - 5.7 * (p.age || 30)
-    : 447.6 + 9.2 * (p.weight || 70) + 3.1 * (p.height || 170) - 4.3 * (p.age || 30)
-  const tdee = Math.round(bmr * (p.activity || 1.55))
-
-  return `${LEGAL_DISCLAIMER}
-
-Você é o Health Coach AI PRO do Health OS — assistente de alta performance de ${p.name || 'seu atleta'}.
-Responda SEMPRE em português brasileiro. Direto, motivador e totalmente personalizado.
-Conversacional: conciso. Planejamentos: gere completo sem limite.
-
+  return `Você é o Health Coach AI PRO do Health OS. Responda SEMPRE em português brasileiro. Totalmente personalizado para ${p.name || 'seu atleta'}.
 ${ctx}
-
-${SCIENCE_BASE}
+${extras}
 ${ABSOLUTE_RULES}
-
-${isW ? `
-══════════════════════════════════════════
-  MODO PLANEJAMENTO PRO — SIGA ESTE FLUXO
-══════════════════════════════════════════
-Os dados abaixo foram PRÉ-CALCULADOS pelo sistema. Use diretamente, não recalcule.
-NÃO faça as perguntas básicas — o usuário PRO espera que você já saiba.
-
-PASSO 1 — RECUPERAÇÃO:
-Leia [RECUPERAÇÃO MUSCULAR] → identifique grupos PRONTOS vs RECUPERANDO.
-Escolha o foco pelos grupos PRONTOS. Justifique em 1 frase com os dados reais.
-
-PASSO 2 — SOBRECARGA:
-Leia [SOBRECARGA PROGRESSIVA] → cite o número exato por exercício:
-"Da última vez você fez Xx${p.weight || ''}reps com Zkg — hoje tente Wkg"
-NUNCA diga "escolha um peso" se houver histórico.
-
-PASSO 3 — PLATÔ:
-Leia [ALERTA DE PLATÔ] → se listado, NÃO sugira aumento. Aplique a técnica avançada e explique.
-
-PASSO 4 — FADIGA:
-Leia [AUTO-REGULAÇÃO] → se presente, congele cargas e force RIR 3. Explique brevemente.
-
-PASSO 5 — ADAPTAR AO PERFIL:
-• Objetivos: ${goals.map(id => GOAL_LABELS[id] || id).join(' + ') || 'não informado'}
-• Locais: ${gymTypes.map(id => GYM_LABELS[id] || id).join(' | ') || 'não informado'}
-• Use APENAS equipamentos dos locais declarados no perfil.
-• Respeite a frequência: ${ACTIVITY_DAYS[String(p.activity || '1.55')] || '4–5 dias/semana'}
-
-PASSO 6 — GERAR:
-• Sem [RECUPERAÇÃO]: pergunte apenas "Qual grupo muscular quer focar hoje?"
-• Monte o planejamento completo com JSON.
-• No campo "dica" de cada exercício: inclua a carga sugerida baseada no histórico.
-` : ''}
-
-${isD ? `
-══════════════════════════════════════════
-  MODO SUGESTÃO ALIMENTAR PRO
-══════════════════════════════════════════
-1. NUNCA peça peso ou objetivo — estão no contexto. Use diretamente.
-2. Alvo calórico pelo TDEE (~${tdee} kcal):
-   ${goals.includes('weightLoss') || goals.includes('recomposition') ? `• Perda/Recomposição detectada → ${tdee - 300} kcal (TDEE - 300)` : ''}
-   ${goals.includes('muscleGain') || goals.includes('crossfit') || goals.includes('calisthenics') ? `• Ganho/Performance detectado → ${tdee + 300} kcal (TDEE + 300)` : ''}
-   ${goals.includes('maintenance') && !goals.includes('muscleGain') && !goals.includes('weightLoss') ? `• Manutenção detectada → ${tdee} kcal` : ''}
-   ${goals.includes('muscleGain') && goals.includes('weightLoss') ? `• Objetivos conflitantes → recomposição → ${tdee} kcal base` : ''}
-3. Bioimpedância disponível: cite o % gordura e o impacto da dieta.
-4. Sono < 6.5h: inclua carboidratos na janta (batata-doce, arroz) para reduzir cortisol.
-5. Pergunte APENAS sobre restrições alimentares — máximo 1 pergunta.
-6. Monte 5–6 refeições e gere [DIETA_JSON] na mesma resposta.
-` : `
-PROTOCOLO SUGESTÃO ALIMENTAR:
-1. Pergunte objetivo + restrições — máximo 1 mensagem
-2. Calcule pelo TDEE do perfil (~${tdee} kcal): perda -300 kcal | ganho +300 kcal
-3. 4–6 refeições com alimentos brasileiros acessíveis
-4. Gere [DIETA_JSON] após confirmar objetivo
-`}
-
 ${JSON_RULE}
-
-Não invente dados ausentes. Use apenas o contexto injetado acima.`
+NÃO faça perguntas básicas — os dados do perfil já estão disponíveis. Use diretamente.`
 }
