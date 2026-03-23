@@ -53,6 +53,7 @@ export default function App() {
         try {
           const p = await getProfile(sess.user.id)
           if (p) {
+            p.original_is_pro = p.is_pro
             const trialActive = isTrialActive(p)
             p.is_pro = p.is_pro || p.is_premium || trialActive
             if (!trialActive && !p.is_pro) setTrialExpired(true)

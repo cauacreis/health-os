@@ -157,7 +157,8 @@ export default function Subscription({ user }) {
   }
 
   const isPro = user?.is_pro === true;
-  const inTrial = isTrialActive(user) && !user?.is_premium;
+  const isRealPro = user?.original_is_pro === true || user?.is_premium === true;
+  const inTrial = isTrialActive(user) && !isRealPro;
   const daysLeft = inTrial ? trialDaysLeft(user) : null;
   const proSince = user?.pro_since ? new Date(user.pro_since).toLocaleDateString("pt-BR") : null;
   const proUntil = user?.pro_until ? new Date(user.pro_until).toLocaleDateString("pt-BR") : null;
