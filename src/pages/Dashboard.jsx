@@ -1,6 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import { NeonCard } from '../components/UI'
-import { getFoodLog, getSleepLog, getTodaySteps, getTodayWater, getWorkoutLogs, today } from '../lib/db'
+import { getFoodLog, getSleepLog, getTodaySteps, getTodayWater, getWorkoutLogs, getMealPlans, getMealLog, today } from '../lib/db'
 import { PROGRAMS } from '../data/workouts'
 
 const R = '#dc2626'
@@ -48,6 +48,7 @@ export default function Dashboard({ user, userId, onNavigate }) {
   const [todaySteps, setTodaySteps] = useState(0)
   const [todayWater, setTodayWater] = useState(0)
   const [streak, setStreak] = useState(0)
+  const [mealPlanKcal, setMealPlanKcal] = useState(0)
   const [loading, setLoading] = useState(true)
   const isMobile = useIsMobile()
 
@@ -61,6 +62,22 @@ export default function Dashboard({ user, userId, onNavigate }) {
     : 447.6 + 9.2 * user.weight + 3.1 * user.height - 4.3 * user.age
   const tdee = Math.round(bmr * (user.activity || 1.55))
   const waterGoal = Math.round(user.weight * 35)
+
+  // Refresh checked meal plan calories
+  const refreshMealPlanKcal = useCallback(async () => {
+    if (!userId) return
+    try {
+      const [plans, logs] = await Promise.all([
+        getMealPlans(userId).catch(() => []),
+        getMealLog(userId, today()).catch(() => []),
+      ])
+      const checkedIds = new Set(logs.map(l => l.meal_id))
+      const kcal = plans
+        .filter(p => p.active !== false && checkedIds.has(p.id))
+        .reduce((s, p) => s + (parseInt(p.calories) || 0), 0)
+      setMealPlanKcal(kcal)
+    } catch { setMealPlanKcal(0) }
+  }, [userId])
 
   useEffect(() => {
     if (!userId) return
@@ -87,9 +104,21 @@ export default function Dashboard({ user, userId, onNavigate }) {
       setStreak(s)
       setLoading(false)
     })
-  }, [userId])
+    refreshMealPlanKcal()
+  }, [userId, refreshMealPlanKcal])
 
-  const totalKcal = foodLog.reduce((s, e) => s + e.calories, 0)
+  // Re-sync calories when meals are toggled or diet plans are saved
+  useEffect(() => {
+    const handler = () => refreshMealPlanKcal()
+    window.addEventListener('meal-log-updated', handler)
+    window.addEventListener('diet-plan-saved', handler)
+    return () => {
+      window.removeEventListener('meal-log-updated', handler)
+      window.removeEventListener('diet-plan-saved', handler)
+    }
+  }, [refreshMealPlanKcal])
+
+  const totalKcal = foodLog.reduce((s, e) => s + e.calories, 0) + mealPlanKcal
   const lastSleep = sleepLog[0]
   const bmi = (user.weight / Math.pow(user.height / 100, 2)).toFixed(1)
   const calPct = tdee ? Math.min((totalKcal / tdee) * 100, 100) : 0
