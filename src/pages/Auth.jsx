@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { signIn, signUp } from '../lib/db'
 import { supabase } from '../lib/supabase'
+import { checkDeviceTrialUsed, registerDeviceTrial } from '../lib/deviceFingerprint'
 
 function validateEmail(e) { return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(e) }
 function sanitize(s) { return s.replace(/[<>'"]/g, '') }
 
 export default function Auth() {
-  const [mode, setMode] = useState('login') // login | register | forgot | sent
+  const [mode, setMode] = useState('login') // login | register | forgot | sent | registered | confirm
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const [creds, setCreds] = useState({ email: '', password: '', confirm: '', name: '' })
@@ -41,9 +42,17 @@ export default function Auth() {
     if (!sanitize(creds.name).trim()) return setError('Nome obrigatório')
     setLoading(true)
     try {
-      const deviceTrialUsed = localStorage.getItem('health_os_trial_used') === 'true'
-      await signUp(creds.email, creds.password, sanitize(creds.name), deviceTrialUsed)
-      localStorage.setItem('health_os_trial_used', 'true')
+      // ── Checa trial por dispositivo ──
+      const { used: deviceTrialUsed } = await checkDeviceTrialUsed(supabase)
+
+      const data = await signUp(creds.email, creds.password, sanitize(creds.name), deviceTrialUsed)
+
+      // Registra o device como "trial usado" após cadastro bem-sucedido
+      const newUserId = data?.user?.id
+      if (newUserId) {
+        await registerDeviceTrial(supabase, newUserId)
+      }
+
       setMode('registered')
     }
     catch (err) {
@@ -185,13 +194,10 @@ export default function Auth() {
               <button type="submit" disabled={loading} className="btn" style={{ width: '100%', padding: 14, fontSize: 12, letterSpacing: 3, background: 'rgba(0,212,255,0.1)', borderColor: '#00d4ff', color: '#00d4ff', marginBottom: 10 }}>
                 {loading ? 'ENVIANDO...' : 'ENVIAR LINK →'}
               </button>
-
-              {/* ── Aviso de spam ── */}
               <div style={{ textAlign: 'center', color: '#333', fontSize: 10, lineHeight: 1.7, marginBottom: 14, letterSpacing: 0.5 }}>
                 Não recebeu? Verifique o <span style={{ color: '#444' }}>spam</span> ou lixo eletrônico.<br />
                 O envio pode levar até 2 minutos.
               </div>
-
               <div style={{ textAlign: 'center' }}>
                 <button type="button" onClick={() => { setMode('login'); setError('') }} style={{ background: 'none', border: 'none', color: '#444', fontFamily: 'monospace', fontSize: 11, cursor: 'pointer' }}>← VOLTAR AO LOGIN</button>
               </div>
@@ -211,13 +217,10 @@ export default function Auth() {
                 ? 'Verifique sua caixa de entrada e clique no link para criar uma nova senha.'
                 : 'Verifique seu e-mail para confirmar o cadastro, depois faça login.'}
             </div>
-
-            {/* ── Aviso de spam ── */}
             <div style={{ color: '#333', fontSize: 10, marginBottom: 20, lineHeight: 1.7, padding: '8px 12px', background: 'rgba(255,255,255,0.02)', borderRadius: 6, border: '1px solid rgba(255,255,255,0.04)' }}>
               📬 Não recebeu? Verifique a caixa de <span style={{ color: '#444' }}>spam</span> ou lixo eletrônico.<br />
               O envio pode levar até 2 minutos.
             </div>
-
             <button onClick={() => { setMode('login'); setCreds(c => ({ ...c, password: '', confirm: '' })) }} className="btn" style={{ width: '100%', background: `rgba(${mode === 'sent' ? '0,212,255' : '0,255,136'},0.14)`, borderColor: mode === 'sent' ? '#00d4ff' : G, color: mode === 'sent' ? '#00d4ff' : G }}>
               IR PARA LOGIN
             </button>
@@ -228,15 +231,11 @@ export default function Auth() {
         {mode === 'confirm' && (
           <div style={{ background: 'rgba(0,0,0,0.7)', border: '1px solid rgba(255,160,0,0.2)', borderRadius: 10, padding: 32, textAlign: 'center' }}>
             <div style={{ fontSize: 40, marginBottom: 14 }}>📬</div>
-            <div style={{ color: '#f59e0b', fontSize: 15, fontWeight: 700, marginBottom: 10, letterSpacing: 1 }}>
-              Confirme seu e-mail
-            </div>
+            <div style={{ color: '#f59e0b', fontSize: 15, fontWeight: 700, marginBottom: 10, letterSpacing: 1 }}>Confirme seu e-mail</div>
             <div style={{ color: '#666', fontSize: 12, marginBottom: 16, lineHeight: 1.8 }}>
               Enviamos um link de confirmação para<br />
               <span style={{ color: '#999', fontWeight: 700 }}>{creds.email}</span>
             </div>
-
-            {/* Caixas de instrução */}
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, textAlign: 'left' }}>
               {[
                 { icon: '📥', label: 'Caixa principal', desc: 'Verifique sua caixa de entrada' },
@@ -252,7 +251,6 @@ export default function Auth() {
                 </div>
               ))}
             </div>
-
             <button onClick={() => { setMode('login'); setError(''); setCreds(c => ({ ...c, password: '' })) }} className="btn"
               style={{ width: '100%', background: 'rgba(245,158,11,0.1)', borderColor: '#f59e0b', color: '#f59e0b', marginBottom: 10 }}>
               ← VOLTAR AO LOGIN

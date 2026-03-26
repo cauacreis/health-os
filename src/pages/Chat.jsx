@@ -158,14 +158,14 @@ function DietSaveCard({ diet, userId }) {
 }
 
 const SUGGESTIONS_FREE = [
-  '💪 Quero um exemplo de treino para hoje',
-  '🥗 Quero uma sugestão de cardápio',
+  '💪 Monta um treino pra mim pra hoje',
+  '🥗 Sugere um cardápio pra hoje',
   'Quanto tempo descansar entre séries?',
   'O que é déficit calórico?',
   'Quantas proteínas devo comer por dia?',
 ]
 const SUGGESTIONS_PRO = [
-  '💪 Quero um exemplo de treino para hoje',
+  '💪 Monta meu treino de hoje',
   '🥗 Monta uma sugestão de cardápio pra mim',
   'Como tá minha evolução recente?',
   'O que minha bioimpedância indica?',
@@ -173,7 +173,9 @@ const SUGGESTIONS_PRO = [
 ]
 
 export default function Chat({ user, userId }) {
-  const isPro = user?.isPro || false
+  // ── BUG FIX: o campo no banco é is_pro (snake_case), não isPro ──
+  const isPro = !!(user?.is_pro || user?.isPro || user?.is_premium)
+
   const bottomRef = useRef(null)
   const inputRef = useRef(null)
 
@@ -188,6 +190,7 @@ export default function Chat({ user, userId }) {
   const [sidebarOpen, setSidebarOpen] = useState(false)
 
   const remaining = FREE_LIMIT - usage
+  // trial = is_pro já foi setado como true em App.jsx para quem está no trial
   const limitHit = !isPro && usage >= FREE_LIMIT
 
   useEffect(() => {
@@ -198,6 +201,7 @@ export default function Chat({ user, userId }) {
     openWelcome()
   }, [userId])
 
+  // Pro e trial carregam contexto completo
   useEffect(() => {
     if (isPro && userId && !ctxLoaded) loadContext()
   }, [isPro, userId])
@@ -207,8 +211,8 @@ export default function Chat({ user, userId }) {
     setMessages([{
       role: 'assistant',
       content: isPro
-        ? `Olá, ${user?.name || 'atleta'}! 💪 Sou seu assistente PRO. Tenho acesso aos seus dados e posso te ajudar com organização de treinos, sugestões alimentares e análise do progresso.\n\n⚠️ As sugestões têm caráter informativo e não substituem orientação de profissional CREF ou nutricionista.`
-        : `Olá! 👋 Sou o Health Assistant. Posso te ajudar com dúvidas sobre treino, nutrição e saúde.\n\n💡 Plano FREE: ${FREE_LIMIT} mensagens por dia. Assine o PRO para ilimitado + análise dos seus dados.\n\n⚠️ As sugestões têm caráter informativo e não substituem orientação profissional.`,
+        ? `Olá, ${user?.name || 'atleta'}! 💪 Sou seu assistente. Tenho acesso aos seus dados e posso te ajudar com treinos, alimentação e análise do progresso.\n\n⚠️ As sugestões têm caráter informativo e não substituem orientação de profissional CREF ou nutricionista.`
+        : `Olá, ${user?.name || ''}! 👋 Sou o Health Assistant.\n\nJá tenho seu perfil — posso montar treinos e cardápios direto sem precisar perguntar nada.\n\n💡 Plano FREE: ${FREE_LIMIT} mensagens por dia. Assine o PRO para ilimitado + análise dos seus dados em tempo real.\n\n⚠️ Sugestões têm caráter informativo e não substituem orientação profissional.`,
     }])
     setSidebarOpen(false)
     setTimeout(() => inputRef.current?.focus(), 200)
@@ -245,7 +249,6 @@ export default function Chat({ user, userId }) {
       const lastSleepEntry = sleepLogs[0] || null
       const lastBio = bioLog[0] ? { gordura: bioLog[0].body_fat, musculo: bioLog[0].muscle_mass, visceral: bioLog[0].visceral_fat, agua: bioLog[0].water_pct } : null
 
-      // ── Cálculos de calorias do dia ──
       const bmr = user?.sex === 'male' ? 88.36 + 13.4 * (user?.weight || 70) + 4.8 * (user?.height || 170) - 5.7 * (user?.age || 30) : 447.6 + 9.2 * (user?.weight || 70) + 3.1 * (user?.height || 170) - 4.3 * (user?.age || 30)
       const tdee = Math.round(bmr * (user?.activity || 1.55))
       const checkedMealIds = new Set(mealLog.map(l => l.meal_id))
@@ -255,12 +258,10 @@ export default function Chat({ user, userId }) {
       const remainingKcal = tdee - totalKcalToday
       const waterGoal = Math.round((user?.weight || 70) * 35)
 
-      // ── Macros do dia ──
       const todayProtein = todayFoodLog.reduce((s, e) => s + (e.protein || 0), 0)
       const todayCarbs = todayFoodLog.reduce((s, e) => s + (e.carbs || 0), 0)
       const todayFat = todayFoodLog.reduce((s, e) => s + (e.fat || 0), 0)
 
-      // ── Treino do dia ──
       const { data: todayWorkoutLogs } = await supabase.from('workout_logs').select('day_name, completed').eq('user_id', userId).eq('date', today()).limit(5).catch(() => ({ data: [] }))
       const todayWorkoutDone = (todayWorkoutLogs || []).some(l => l.completed)
       const todayWorkoutName = (todayWorkoutLogs || [])[0]?.day_name || null
@@ -268,7 +269,6 @@ export default function Chat({ user, userId }) {
       const now = new Date()
       const thisWeek = calendar.filter(e => (now - new Date(e.date)) / 86400000 <= 7)
       const weeklyStats = `${thisWeek.filter(e => e.type === 'workout').length} treinos, ${thisWeek.filter(e => e.type === 'cardio').length} cardios, ${thisWeek.filter(e => e.type === 'sleep').length} noites`
-      const recentWorkouts = calendar.filter(e => e.type === 'workout' || e.type === 'cardio').slice(0, 5).map(e => `${e.date}: ${e.type}${e.note ? ` (${e.note})` : ''}`).join(' | ') || null
 
       const aiWorkouts = (() => { try { return JSON.parse(localStorage.getItem('healthos_ai_workouts') || '[]') } catch { return [] } })()
       const sevenDaysAgo = new Date(Date.now() - 7 * 86400000).toISOString().split('T')[0]
@@ -319,7 +319,7 @@ export default function Chat({ user, userId }) {
         if (logs?.length) {
           const exerciseAllHistory = {}
           logs.forEach(log => {
-            ; (log.exercises || []).forEach(ex => {
+            ;(log.exercises || []).forEach(ex => {
               if (!ex.name || !ex.weight) return
               const key = ex.name.toLowerCase().trim()
               if (!exerciseAllHistory[key]) exerciseAllHistory[key] = []
@@ -363,8 +363,7 @@ export default function Chat({ user, userId }) {
       setProfile({
         name: user?.name, age: user?.age, sex: user?.sex, weight: user?.weight, height: user?.height,
         goal: user?.goal, activity: user?.activity, goals: user?.goals, gym_types: user?.gym_types, gym_type: user?.gym_type,
-        avgSleep, lastBio, weeklyStats, recentWorkouts, muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport,
-        // ── Dados do dia para o Motor de Análise ──
+        avgSleep, lastBio, weeklyStats, muscleRecoveryReport, progressiveOverloadReport, plateauReport, autoRegulationReport,
         todayWater: todayWaterVal, waterGoal, todaySteps: todayStepsVal,
         todayKcal: totalKcalToday, tdee, remainingKcal,
         todayProtein, todayCarbs, todayFat,
@@ -399,7 +398,11 @@ export default function Chat({ user, userId }) {
     setLoading(true)
 
     try {
-      const systemPrompt = isPro && profile ? buildProPrompt(profile, msg) : buildFreePrompt()
+      // ── BUG FIX: free também passa o user para o prompt ter contexto do perfil ──
+      const systemPrompt = isPro && profile
+        ? buildProPrompt(profile, msg)
+        : buildFreePrompt(user)
+
       const res = await fetch('https://api.groq.com/openai/v1/chat/completions', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${GROQ_KEY}` },
@@ -412,7 +415,9 @@ export default function Chat({ user, userId }) {
       setMessages(finalMsgs)
       setSessions(prev => {
         const existing = prev.find(s => s.id === sessionId)
-        const updated = existing ? prev.map(s => s.id === sessionId ? { ...s, messages: finalMsgs } : s) : [{ id: sessionId, title: sessionTitle, date: today(), messages: finalMsgs }, ...prev]
+        const updated = existing
+          ? prev.map(s => s.id === sessionId ? { ...s, messages: finalMsgs } : s)
+          : [{ id: sessionId, title: sessionTitle, date: today(), messages: finalMsgs }, ...prev]
         saveSessions(userId, updated)
         return updated
       })
@@ -464,7 +469,9 @@ export default function Chat({ user, userId }) {
             <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
               <button onClick={() => setSidebarOpen(o => !o)} style={{ background: sidebarOpen ? 'rgba(220,38,38,0.08)' : 'transparent', border: `1px solid ${sidebarOpen ? 'rgba(220,38,38,0.25)' : 'rgba(255,255,255,0.06)'}`, borderRadius: 5, padding: '6px 10px', color: sidebarOpen ? R2 : '#444', cursor: 'pointer', fontSize: 14, transition: 'all 0.15s', flexShrink: 0 }}>☰</button>
               <div>
-                <div style={{ color: R, fontSize: 18, letterSpacing: 4, fontWeight: 700 }}>ASSISTENTE {isPro && <span style={{ fontSize: 10, background: 'rgba(220,38,38,0.12)', border: `1px solid ${R}30`, padding: '2px 7px', borderRadius: 3, letterSpacing: 2, verticalAlign: 'middle' }}>PRO</span>}</div>
+                <div style={{ color: R, fontSize: 18, letterSpacing: 4, fontWeight: 700 }}>
+                  ASSISTENTE {isPro && <span style={{ fontSize: 10, background: 'rgba(220,38,38,0.12)', border: `1px solid ${R}30`, padding: '2px 7px', borderRadius: 3, letterSpacing: 2, verticalAlign: 'middle' }}>PRO</span>}
+                </div>
                 <div style={{ color: '#282828', fontSize: 9, letterSpacing: 2, marginTop: 2 }}>HEALTH AI · LLAMA 3.3 VIA GROQ</div>
               </div>
             </div>
@@ -640,7 +647,6 @@ function RPGUpdateCard({ profile: fp, userId }) {
         <span style={{ fontSize: 18 }}>🎮</span>
         <div style={{ color: '#a855f7', fontSize: 9, letterSpacing: 2, fontWeight: 700 }}>ATUALIZAÇÃO DE STATUS RPG</div>
       </div>
-
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: 8, marginBottom: 14 }}>
         {ATTRS.map(a => {
           const delta = fp[a.key] || 0
@@ -658,15 +664,12 @@ function RPGUpdateCard({ profile: fp, userId }) {
           )
         })}
       </div>
-
       {fp.feedback && (
         <div style={{ color: '#b0b0b0', fontSize: 11, lineHeight: 1.6, marginBottom: 14, padding: '10px 12px', background: 'rgba(0,0,0,0.2)', borderRadius: 8, borderLeft: '3px solid rgba(139,92,246,0.4)' }}>
           💬 {fp.feedback}
         </div>
       )}
-
       {error && <div style={{ color: '#ef4444', fontSize: 11, marginBottom: 8 }}>{error}</div>}
-
       <button onClick={handleSave} disabled={saving || saved}
         style={{ width: '100%', padding: '12px 0', borderRadius: 8, border: `1px solid ${saved ? '#22c55e' : 'rgba(139,92,246,0.4)'}`, background: saved ? 'rgba(34,197,94,0.08)' : 'linear-gradient(135deg, rgba(139,92,246,0.12) 0%, rgba(59,130,246,0.08) 100%)', color: saved ? '#22c55e' : '#a855f7', fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: 2, cursor: saved ? 'default' : 'pointer', transition: 'all 0.3s', fontWeight: 700 }}>
         {saving ? 'SALVANDO...' : saved ? '✓ STATUS ATUALIZADO!' : '⚔️ SALVAR STATUS'}
@@ -675,7 +678,7 @@ function RPGUpdateCard({ profile: fp, userId }) {
   )
 }
 
-// ── Prompt helpers (mantidos do original) ─────────────────────────────────────
+// ── Prompt helpers ──────────────────────────────────────────────────────────
 function parseGoals(user) {
   try {
     if (Array.isArray(user?.goals)) return user.goals
@@ -711,13 +714,15 @@ Frequência: ${ACTIVITY_DAYS[String(p.activity || '1.55')] || '4–5 dias/semana
 OBJETIVOS: ${goals.map(id => GOAL_LABELS[id] || id).join(' + ') || 'não informado'}
 LOCAIS: ${gymTypes.map(id => GYM_LABELS[id] || id).join(' | ') || 'não informado'}
 EQUIPAMENTOS: ${gymTypes.map(id => GYM_EQUIPMENT[id] || id).join(' | ') || 'não informado'}
+PROTOCOLO: ${goals.map(id => GOAL_PROTOCOL[id]).filter(Boolean)[0] || 'Volume moderado'}
 ══════════════════════════════════════════`
 }
 
 const ABSOLUTE_RULES = `REGRAS ABSOLUTAS:
 1. Nunca sugira mais dias que a frequência declarada
 2. Use APENAS equipamentos disponíveis nos locais declarados
-3. Todo planejamento termina com disclaimer legal`
+3. Todo planejamento termina com disclaimer legal
+4. NUNCA pergunte dados que já estão no perfil (local, objetivo, frequência, peso, altura)`
 
 const JSON_RULE = `REGRA JSON — TREINO:
 Gere [TREINO_JSON] apenas quando o planejamento estiver completo.
@@ -726,9 +731,32 @@ Gere [TREINO_JSON] apenas quando o planejamento estiver completo.
 REGRA JSON — DIETA:
 [DIETA_JSON]{"objetivo":"Ganho","calorias_totais":2800,"proteina_total":180,"carboidrato_total":320,"gordura_total":80,"refeicoes":[{"nome":"Café da Manhã","horario":"07:00","calorias":600,"proteina":35,"carboidrato":75,"gordura":15,"alimentos":["3 ovos","2 fatias pão integral"]}],"observacoes":"⚠️ Consulte um nutricionista."}[/DIETA_JSON]`
 
-function buildFreePrompt() {
-  return `Você é o Health Coach AI do Health OS. Responda SEMPRE em português brasileiro. Direto e motivador.
-Antes de montar um planejamento, pergunte: local de treino, músculo do dia, frequência semanal — em UMA única mensagem.
+// ── BUG FIX: buildFreePrompt agora recebe o user e injeta o perfil no prompt ──
+// Antes ficava pedindo local/objetivo ao usuário mesmo eles já estando no cadastro.
+function buildFreePrompt(user) {
+  let profileBlock = ''
+  if (user) {
+    const goals = parseGoals(user)
+    const gymTypes = parseGymTypes(user)
+    const bmr = user.sex === 'male'
+      ? 88.36 + 13.4 * (user.weight || 70) + 4.8 * (user.height || 170) - 5.7 * (user.age || 30)
+      : 447.6 + 9.2 * (user.weight || 70) + 3.1 * (user.height || 170) - 4.3 * (user.age || 30)
+    const tdee = Math.round(bmr * (user.activity || 1.55))
+    profileBlock = `
+PERFIL DO USUÁRIO (já cadastrado — NÃO pergunte nenhum desses dados novamente):
+Nome: ${user.name || '—'} | Idade: ${user.age || '—'}a | Sexo: ${user.sex === 'male' ? 'M' : 'F'}
+Peso: ${user.weight || '—'}kg | Altura: ${user.height || '—'}cm | TDEE: ~${tdee} kcal
+Frequência de treino: ${ACTIVITY_DAYS[String(user.activity || '1.55')] || '4–5 dias/semana'}
+Objetivos: ${goals.map(id => GOAL_LABELS[id] || id).join(', ') || 'não informado'}
+Locais de treino: ${gymTypes.map(id => GYM_LABELS[id] || id).join(', ') || 'não informado'}
+Equipamentos disponíveis: ${gymTypes.map(id => GYM_EQUIPMENT[id] || id).join(' | ') || 'não informado'}
+Programa atual: ${user.program || 'não configurado'}
+`
+  }
+
+  return `Você é o Health Coach AI do Health OS. Responda SEMPRE em português brasileiro. Seja direto e motivador.
+${profileBlock}
+INSTRUÇÃO CRÍTICA: Os dados acima JÁ ESTÃO DISPONÍVEIS. Use-os diretamente para montar treinos e dietas. NUNCA peça ao usuário seu local de treino, objetivo, frequência semanal, peso, altura ou qualquer dado já presente no perfil.
 ${ABSOLUTE_RULES}
 ${JSON_RULE}
 Todo planejamento termina com: "⚠️ Consulte um profissional CREF antes de iniciar."`
@@ -736,21 +764,15 @@ Todo planejamento termina com: "⚠️ Consulte um profissional CREF antes de in
 
 function buildDailyDataBlock(p) {
   const lines = ['══════════════════════════════════════════', '  DADOS ATUAIS DO DIA', '══════════════════════════════════════════']
-  // Água
   if (p.todayWater != null && p.waterGoal) lines.push(`💧 Água: ${p.todayWater}ml / ${p.waterGoal}ml (${Math.round((p.todayWater / p.waterGoal) * 100)}%)`)
   else lines.push('💧 Água: NÃO REGISTRADA HOJE')
-  // Calorias
   if (p.todayKcal != null && p.tdee) lines.push(`🔥 Calorias: ${p.todayKcal} consumidas / ${p.tdee} TDEE | Saldo: ${p.remainingKcal > 0 ? p.remainingKcal + ' kcal restantes' : Math.abs(p.remainingKcal) + ' kcal ACIMA do TDEE'}`)
   else lines.push('🔥 Calorias: NÃO REGISTRADAS HOJE')
-  // Macros
   if (p.todayProtein || p.todayCarbs || p.todayFat) lines.push(`🥩 Macros: P ${p.todayProtein || 0}g | C ${p.todayCarbs || 0}g | G ${p.todayFat || 0}g`)
-  // Sono
   if (p.lastSleepHours) lines.push(`🛌 Sono (última noite): ${p.lastSleepHours}h`)
   else lines.push('🛌 Sono: NÃO REGISTRADO')
-  // Passos
   if (p.todaySteps != null) lines.push(`👟 Passos: ${p.todaySteps} / 10.000 (${Math.round((p.todaySteps / 10000) * 100)}%)`)
   else lines.push('👟 Passos: NÃO REGISTRADOS')
-  // Treino
   if (p.todayWorkoutDone) lines.push(`💪 Treino de hoje: ✅ FEITO${p.todayWorkoutName ? ` (${p.todayWorkoutName})` : ''}`)
   else if (p.todayWorkoutName) lines.push(`💪 Treino de hoje: ⏳ PENDENTE (${p.todayWorkoutName})`)
   else lines.push('💪 Treino de hoje: NÃO REGISTRADO')
@@ -769,14 +791,14 @@ Você tem acesso em tempo real aos dados de saúde do usuário. SEMPRE que ele f
    - DIETA/DOCE/FOME → Olhe Calorias (Saldo) e Macros. Se houver saldo, diga que pode encaixar. Se não, sugira alternativa.
    - FADIGA/CANSAÇO → Olhe Sono, Frequência de Treinos (overtraining) e Hidratação.
    - EVOLUÇÃO → Olhe Bioimpedância (Gordura vs Massa Muscular) e IMC.
-4. DADOS AUSENTES: Se a métrica está zerada ou não informada, NÃO INVENTE. Diga: "Você ainda não registrou [Métrica] hoje no Health OS. Vá na aba de [Nome da Aba] e registre."
+4. DADOS AUSENTES: Se a métrica está zerada ou não informada, NÃO INVENTE. Diga: "Você ainda não registrou [Métrica] hoje no Health OS."
 ══════════════════════════════════════════`
 
 const REGRAS_MOBILE = `FORMATO DE RESPOSTA (PWA MOBILE):
 - NUNCA envie blocos de texto gigantes.
 - Parágrafos de no máximo 2 a 3 linhas.
-- Use emojis com moderação para quebrar o visual (💧, ⚡, 🥩, 🛌).
-- Vá direto ao ponto. Seja como um treinador de elite segurando a prancheta.`
+- Use emojis com moderação (💧, ⚡, 🥩, 🛌).
+- Vá direto ao ponto.`
 
 const REGRA_RPG = `SISTEMA DE RPG (PERFIL DE FITNESS):
 O usuário possui 6 atributos: Força, Cardio, Flexibilidade, Resistência, Equilíbrio, Velocidade.
@@ -792,7 +814,7 @@ Sempre que fizer sentido atualizar atributos (final do dia, após relato de trei
 {"forca":2,"cardio":1,"flexibilidade":-1,"resistencia":1,"equilibrio":0,"velocidade":0,"feedback":"Texto curto explicando os pontos."}
 [/FITNESS_PROFILE_JSON]
 
-IMPORTANTE: Gere o bloco APENAS quando fizer sentido (check-in, relato de treino, evolução). NÃO gere em perguntas genéricas.`
+IMPORTANTE: Gere o bloco APENAS quando fizer sentido. NÃO gere em perguntas genéricas.`
 
 function buildProPrompt(p, lastMessage) {
   const ctx = buildProfileBlock(p)
