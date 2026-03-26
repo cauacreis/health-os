@@ -102,8 +102,8 @@ Deno.serve(async (req) => {
       customer: customerId,
       mode: "subscription",
       line_items: [{ price: PRICE_ID, quantity: 1 }],
-      success_url: `${APP_URL}/subscription?success=true`,
-      cancel_url:  `${APP_URL}/subscription?canceled=true`,
+      success_url: `${APP_URL}?success=true`,
+      cancel_url:  `${APP_URL}?canceled=true`,
       metadata: {
         supabase_user_id: user.id,
         coupon_code: couponCode || "",
