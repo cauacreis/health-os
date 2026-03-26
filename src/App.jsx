@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react'
 import { onAuthChange, getProfile, signOut } from './lib/db'
+import { isTrialActive, trialDaysLeft } from './lib/Trial.js'
 import Auth from './pages/Auth'
 import Onboarding from './components/Onboarding'
 import Sidebar from './components/Sidebar'
@@ -14,20 +15,8 @@ import { Water, BMI, CardioSteps } from './pages/OtherPages'
 import MoreMenu from './components/MoreMenu'
 import { GlossaryPage } from './components/UI'
 
-export function isTrialActive(profile) {
-  if (!profile) return false
-  if (profile.is_premium) return true
-  const start = profile.trial_start_date ? new Date(profile.trial_start_date) : null
-  if (!start) return true
-  return (Date.now() - start.getTime()) / (1000 * 60 * 60 * 24) <= 30
-}
-
-export function trialDaysLeft(profile) {
-  if (profile?.is_premium) return null
-  const start = profile?.trial_start_date ? new Date(profile.trial_start_date) : null
-  if (!start) return 30
-  return Math.max(0, 30 - Math.floor((Date.now() - start.getTime()) / (1000 * 60 * 60 * 24)))
-}
+// Re-export para compatibilidade (Sidebar ainda importa daqui)
+export { isTrialActive, trialDaysLeft }
 
 const BOTTOM = [
   { id: 'dashboard', label: 'Home', icon: '🏠' },
@@ -42,7 +31,6 @@ export default function App() {
   const [tab, setTab] = useState('dashboard')
   const [loadingProfile, setLoadingProfile] = useState(false)
   const [trialExpired, setTrialExpired] = useState(false)
-  // Keep track of which tabs have ever been visited — once visited, stay mounted
   const [mountedTabs, setMountedTabs] = useState(new Set(['dashboard']))
 
   useEffect(() => {
@@ -53,10 +41,9 @@ export default function App() {
         try {
           const p = await getProfile(sess.user.id)
           if (p) {
-            p.original_is_pro = p.is_pro
             const trialActive = isTrialActive(p)
             p.is_pro = p.is_pro || p.is_premium || trialActive
-            if (!trialActive && !p.is_pro) setTrialExpired(true)
+            if (!trialActive && !p.original_is_pro) setTrialExpired(true)
           }
           setProfile(p)
         } catch (e) { console.error(e) }
@@ -100,7 +87,6 @@ export default function App() {
 
   const userId = session.user.id
 
-  // All persistent tabs — rendered once visited, hidden via CSS when inactive
   const TABS = [
     { id: 'dashboard', el: <Dashboard user={profile} userId={userId} onNavigate={handleSetTab} /> },
     { id: 'workout', el: <WorkoutProgram user={profile} userId={userId} /> },
@@ -109,7 +95,7 @@ export default function App() {
     { id: 'water', el: <Water user={profile} userId={userId} /> },
     { id: 'bmi', el: <BMI user={profile} /> },
     { id: 'activity', el: <CardioSteps user={profile} userId={userId} onUpdate={setProfile} /> },
-    { id: 'profile', el: <Profile user={profile} userId={userId} onUpdate={setProfile} /> },
+    { id: 'profile', el: <Profile user={profile} userId={userId} onUpdate={setProfile} onNavigate={handleSetTab} /> },
     { id: 'glossary', el: <GlossaryPage /> },
     { id: 'chat', el: <Chat user={profile} userId={userId} /> },
     { id: 'subscription', el: <Subscription user={profile} /> },
@@ -128,20 +114,12 @@ export default function App() {
               <div style={{ color: '#ca8a04', fontSize: 12, fontWeight: 700, fontFamily: "'Space Mono',monospace" }}>⏳ PERÍODO DE TESTE ENCERRADO</div>
               <div style={{ color: '#666', fontSize: 11, marginTop: 2 }}>Assine para continuar acessando todos os recursos.</div>
             </div>
-            <button onClick={() => handleSetTab('profile')} style={{ background: 'rgba(234,179,8,0.2)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 6, color: '#ca8a04', fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: 2, cursor: 'pointer', padding: '7px 14px' }}>
+            <button onClick={() => handleSetTab('subscription')} style={{ background: 'rgba(234,179,8,0.2)', border: '1px solid rgba(234,179,8,0.4)', borderRadius: 6, color: '#ca8a04', fontFamily: "'Space Mono',monospace", fontSize: 10, letterSpacing: 2, cursor: 'pointer', padding: '7px 14px' }}>
               VER PLANOS →
             </button>
           </div>
         )}
 
-        {/*
-          KEY FIX: Instead of if/switch (which unmounts on tab change),
-          we render all visited tabs and toggle visibility with CSS.
-          Benefits:
-          - Dashboard calories stay in sync after editing in Calories
-          - No re-fetch waterfall on every tab switch
-          - App doesn't "reload" when switching tabs
-        */}
         <div style={{ position: 'relative', zIndex: 1 }}>
           {TABS.map(({ id, el }) => {
             if (!mountedTabs.has(id)) return null

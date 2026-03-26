@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react";
 import { supabase } from "../lib/supabase";
-import { isTrialActive, trialDaysLeft } from "../App";
+import { isTrialActive, trialDaysLeft } from "../lib/Trial.js";
 
 const LOSSES = [
   { icon: "📊", title: "Gráficos avançados", desc: "Seu histórico completo de evolução desaparece da tela." },

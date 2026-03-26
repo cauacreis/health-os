@@ -1,7 +1,6 @@
 import { signOut } from '../lib/db'
-import { trialDaysLeft } from '../App'
+import { trialDaysLeft } from '../lib/Trial.js'
 
-// Todas as páginas disponíveis no "Mais"
 const ALL_PAGES = [
   { id: 'water', label: 'Água', icon: '💧', color: '#94a3b8' },
   { id: 'bmi', label: 'IMC', icon: '⚖️', color: '#dc2626' },

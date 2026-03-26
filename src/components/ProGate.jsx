@@ -1,59 +1,67 @@
 // src/components/ProGate.jsx
-// Uso: <ProGate isPro={user.isPro}> ... conteúdo PRO ... </ProGate>
+// Componente que bloqueia conteúdo premium e mostra paywall.
+// Uso: <ProGate isPro={user.is_pro} onUpgrade={() => setTab('subscription')}>
+//         <ConteudoPro />
+//      </ProGate>
 
 const R = '#dc2626'
+const R2 = '#ef4444'
 
-export default function ProGate({ isPro, children, feature = 'este recurso' }) {
+export default function ProGate({ isPro, children, onUpgrade, label }) {
   if (isPro) return children
 
   return (
-    <div style={{ position: 'relative', minHeight: 320 }}>
-      {/* Conteúdo borrado atrás */}
-      <div style={{ filter: 'blur(6px)', opacity: 0.25, pointerEvents: 'none', userSelect: 'none' }}>
+    <div style={{ position: 'relative', borderRadius: 8, overflow: 'hidden' }}>
+      {/* Conteúdo desfocado por baixo */}
+      <div style={{ filter: 'blur(4px)', opacity: 0.3, pointerEvents: 'none', userSelect: 'none' }}>
         {children}
       </div>
 
-      {/* Overlay de lock */}
+      {/* Overlay de paywall */}
       <div style={{
         position: 'absolute', inset: 0,
         display: 'flex', flexDirection: 'column',
         alignItems: 'center', justifyContent: 'center',
-        gap: 16, padding: 32,
-        background: 'rgba(8,8,8,0.7)',
+        background: 'rgba(8,8,8,0.75)',
         backdropFilter: 'blur(2px)',
+        borderRadius: 8,
+        border: '1px solid rgba(220,38,38,0.2)',
+        padding: '20px 16px',
+        textAlign: 'center',
+        gap: 10,
       }}>
+        <div style={{ fontSize: 28 }}>🔒</div>
         <div style={{
-          width: 60, height: 60, borderRadius: '50%',
-          background: 'rgba(220,38,38,0.08)',
-          border: '1px solid rgba(220,38,38,0.2)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center',
-          fontSize: 26,
-        }}>🔒</div>
-
-        <div style={{ textAlign: 'center' }}>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 13, fontWeight: 700, color: '#e5e5e5', marginBottom: 6, letterSpacing: 1 }}>
-            RECURSO PRO
-          </div>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 11, color: '#555', lineHeight: 1.7, maxWidth: 280 }}>
-            {feature} está disponível apenas no plano Pro. Assine e desbloqueie acesso completo ao Health OS.
-          </div>
+          color: R, fontSize: 11, fontWeight: 700,
+          letterSpacing: 3, fontFamily: "'Space Mono',monospace",
+        }}>
+          RECURSO PRO
         </div>
-
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 8, width: '100%', maxWidth: 260 }}>
-          <a href="?tab=subscription" onClick={e => { e.preventDefault(); window.dispatchEvent(new CustomEvent('goto-tab', { detail: 'subscription' })) }}
+        {label && (
+          <div style={{ color: '#666', fontSize: 11, lineHeight: 1.5 }}>{label}</div>
+        )}
+        {onUpgrade && (
+          <button
+            onClick={onUpgrade}
             style={{
-              display: 'block', textAlign: 'center',
-              background: R, border: 'none', color: '#fff',
-              fontFamily: "'Space Mono', monospace", fontSize: 11,
-              fontWeight: 700, letterSpacing: 2, padding: '12px 0',
-              borderRadius: 4, cursor: 'pointer', textDecoration: 'none',
-            }}>
-            ⚡ VER PLANOS →
-          </a>
-          <div style={{ fontFamily: "'Space Mono', monospace", fontSize: 9, color: '#333', textAlign: 'center', letterSpacing: 1 }}>
-            R$ 19,90/mês · cancele quando quiser
-          </div>
-        </div>
+              marginTop: 6,
+              padding: '9px 22px',
+              background: `${R}18`,
+              border: `1px solid ${R}50`,
+              borderRadius: 6,
+              color: R2,
+              fontFamily: "'Space Mono',monospace",
+              fontSize: 10,
+              letterSpacing: 2,
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.background = `${R}30` }}
+            onMouseLeave={e => { e.currentTarget.style.background = `${R}18` }}
+          >
+            VER PLANOS →
+          </button>
+        )}
       </div>
     </div>
   )
